@@ -3,8 +3,8 @@
 # yosai_intel_dashboard/components/map_panel.py
 
 import dash_leaflet as dl
-from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl, Icon
-from dash import html, dcc, Output, Input, callback_context
+from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
+from dash import html, dcc, Output, Input, callback_context, no_update
 
 # Predefined map centers for each view
 view_centers = {
@@ -27,7 +27,12 @@ layout = html.Div([
         zoom=15,
         children=[
             TileLayer(url=tile_url, attribution=attribution),
-            Marker(position=view_centers['site'], icon=Icon(iconUrl="/assets/main_icon_site.png", iconSize=[32, 32]), children=[
+            Marker(position=view_centers['site'], icon={
+                "iconUrl": "/assets/main_icon_site.png",
+                "iconSize": [32, 32],
+                "iconAnchor": [16, 32],
+                "popupAnchor": [0, -32]
+            }, children=[
                 Tooltip("Tokyo HQ"),
                 Popup("Main Entrance - Last access: OK")
             ]),
@@ -54,19 +59,25 @@ layout = html.Div([
 
 
 # Register callbacks
+
 def register_callbacks(app):
-    @app.callback(
-        Output("facility-map", "center"),
-        [
-            Input("view-global", "n_clicks"),
-            Input("view-city", "n_clicks"),
-            Input("view-site", "n_clicks"),
-            Input("view-onion", "n_clicks")
-        ]
-    )
-    def update_map_center(global_clicks, city_clicks, site_clicks, onion_clicks):
-        ctx = callback_context
-        if not ctx.triggered:
-            return view_centers['site']
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        return view_centers.get(button_id.split('-')[-1], view_centers['site'])
+    if not hasattr(app, '_callback_registered_map_center'):
+        app._callback_registered_map_center = True
+
+        @app.callback(
+            Output("facility-map", "center"),
+            [
+                Input("view-global", "n_clicks"),
+                Input("view-city", "n_clicks"),
+                Input("view-site", "n_clicks"),
+                Input("view-onion", "n_clicks")
+            ],
+            allow_duplicate=True,
+            prevent_initial_call=True
+        )
+        def update_map_center(global_clicks, city_clicks, site_clicks, onion_clicks):
+            ctx = callback_context
+            if not ctx.triggered:
+                return no_update
+            button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+            return view_centers.get(button_id.split('-')[-1], view_centers['site'])
