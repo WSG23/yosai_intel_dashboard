@@ -1,6 +1,9 @@
+# pyright: reportArgumentType=false
+
+# yosai_intel_dashboard/components/map_panel.py
+
 import dash_leaflet as dl
-import dash_leaflet.express as dlx
-from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
+from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl, Icon
 from dash import html, dcc, Output, Input, callback_context
 
 # Predefined map centers for each view
@@ -15,9 +18,6 @@ view_centers = {
 tile_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
 attribution = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/\">CARTO</a>"
 
-# Corrected custom icon creation using dlx.icon
-custom_icon = dlx.icon(iconUrl="/assets/main_icon_site.png", iconSize=32) # iconSize is a single value, not a list
-
 # Map layout with enhancements
 layout = html.Div([
     dcc.Store(id='map-center-store', data=view_centers['site']),
@@ -27,7 +27,7 @@ layout = html.Div([
         zoom=15,
         children=[
             TileLayer(url=tile_url, attribution=attribution),
-            Marker(position=view_centers['site'], icon=custom_icon, children=[ # Use the custom_icon here
+            Marker(position=view_centers['site'], icon=Icon(iconUrl="/assets/main_icon_site.png", iconSize=[32, 32]), children=[
                 Tooltip("Tokyo HQ"),
                 Popup("Main Entrance - Last access: OK")
             ]),
