@@ -1,3 +1,5 @@
+# pyright: reportArgumentType=false
+
 # yosai_intel_dashboard/app.py
 
 import dash
@@ -11,7 +13,7 @@ server = app.server
 
 app.layout = html.Div([
     dcc.Location(id='url'),
-    navbar.layout,
+    html.Div(navbar.layout, className='top-panel'),  # Wrapped for full width styling
     html.Div([
         html.Div(incident_alerts_panel.layout, className='left-panel'),
         html.Div(map_panel.layout, className='map-panel'),
