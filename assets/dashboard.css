@@ -24,7 +24,8 @@ body {
 /* Main Content Panels */
 .main-content {
   display: flex;
-  height: 85vh;
+  flex-direction: row;
+  height: calc(100vh - 15vh - 60px); /* adjust top/bottom panel heights */
   overflow: hidden;
 }
 
@@ -38,6 +39,8 @@ body {
 
 .map-panel {
   flex-grow: 1;
+  height: 100%;
+  min-height: 300px;
   position: relative;
   background-color: #0b0f14;
 }
