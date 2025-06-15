@@ -1,35 +1,55 @@
-# yosai_intel_dashboard/components/navbar.py
-
+# components/navbar.py - Updated version
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 
-layout = html.Div([
-    dbc.Navbar(
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(html.Img(src="/assets/yosai_logo_name_white.png", height="40px"), width="auto"),
-                dbc.Col(html.Div([
-                    html.Div("Main Panel", className="navbar-title"),
-                    html.Div("Logged in as: Imperial Castles Security", className="navbar-subtitle"),
-                    html.Div(id="topbar-live-time", className="navbar-subtitle")
-                ]), width="auto")
-            ], align="center", className="g-2"),
+# Your existing navbar with added analytics link
+layout = dbc.Navbar([
+    dbc.Container([
+        # Left side - Logo
+        dbc.Row([
+            dbc.Col([
+                html.Img(
+                    src="/assets/yosai_logo_name_white.png", 
+                    height="40px",
+                    className="navbar-brand"
+                )
+            ], width="auto")
+        ], align="center"),
+        
+        # Center - Current page info
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    html.H5("Main Panel", className="mb-0 text-white"),
+                    html.Small("Logged in as: HQ Tower - East Wing", className="text-light"),
+                    html.Small(id="live-time", className="text-light d-block")
+                ], className="text-center")
+            ])
+        ], align="center", className="flex-grow-1"),
+        
+        # Right side - Navigation links
+        dbc.Row([
+            dbc.Col([
+                dbc.Nav([
+                    dbc.NavItem(dbc.NavLink("Dashboard", href="/", active="exact")),
+                    dbc.NavItem(dbc.NavLink("Deep Analytics", href="/analytics", active="exact")),
+                    dbc.NavItem(dbc.NavLink("Export Log", href="#", className="text-light")),
+                    dbc.NavItem(dbc.NavLink("Executive Report", href="#", className="text-light")),
+                    dbc.NavItem(dbc.NavLink("Settings", href="#", className="text-light")),
+                    dbc.NavItem(dbc.NavLink("Logoff", href="#", className="text-light"))
+                ], navbar=True, className="ms-auto")
+            ])
+        ], align="center")
+    ], fluid=True)
+], color="dark", dark=True, className="mb-4")
 
-            dbc.Row([
-                dbc.Col(dcc.Input(type="text", placeholder="Search...", className="form-control", id="topbar-search-box")),
-                dbc.Col(html.Div("🛡️ Operator", className="user-role-badge")),
-                dbc.Col(html.Div("🔔", id="notification-button")),
-                dbc.Col(html.Div("🌙", id="theme-toggle-button")),
-                dbc.Col(dbc.Button("Export Logs", color="primary", href="/export", className="mx-1")),
-                dbc.Col(dbc.Button("Deep Analytics", color="primary", href="/analytics", className="mx-1")),
-                dbc.Col(dbc.Button("Executive Report", color="primary", href="/report", className="mx-1")),
-                dbc.Col(dbc.Button("Manage Locations", color="primary", href="/locations", className="mx-1")),
-                dbc.Col(dbc.Button("Settings", color="secondary", href="/settings", className="mx-1")),
-                dbc.Col(dbc.Button("Log Off", color="danger", href="/login", className="mx-1"))
-            ], align="center", justify="end", className="g-1")
-        ]),
-        color="dark",
-        dark=True,
-        className="top-navigation-bar sticky-top"
-    )
-])
+# Optional: Add callback for live time update
+from dash import callback, Output, Input
+import datetime
+
+@callback(
+    Output("live-time", "children"),
+    Input("live-time", "id")  # Dummy input to trigger initial load
+)
+def update_time(_):
+    return f"Live Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}"

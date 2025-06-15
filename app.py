@@ -1,30 +1,58 @@
-# yosai_intel_dashboard/app.py
-
+# app.py - Updated version
 import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Output, Input
-from components import map_panel
 
+# Import your existing components
 from components import navbar, incident_alerts_panel, map_panel, bottom_panel, weak_signal_panel
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
+# Initialize the Dash app with pages support
+app = dash.Dash(
+    __name__, 
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    suppress_callback_exceptions=True,
+    use_pages=True  # Enable multi-page support
+)
+
 server = app.server
 
-# Register component-specific callbacks
-map_panel.register_callbacks(app)
+# Main dashboard page layout (your existing dashboard)
+def dashboard_layout():
+    return html.Div([
+        navbar.layout,
+        html.Div([
+            html.Div(incident_alerts_panel.layout, className='left-panel'),
+            html.Div(map_panel.layout, className='map-panel'),
+            html.Div(weak_signal_panel.layout, className='right-panel'),
+        ], className='main-content'),
+        html.Div(bottom_panel.layout, className='bottom-panel')
+    ])
 
+# Register the main dashboard as the index page
+dash.register_page(
+    "dashboard", 
+    path="/", 
+    title="Yōsai Intel Dashboard",
+    layout=dashboard_layout
+)
+
+# App layout with page container
 app.layout = html.Div([
     dcc.Location(id='url'),
-    html.Div(navbar.layout, className='top-panel'),
-    html.Div([
-        html.Div(incident_alerts_panel.layout, className='left-panel'),
-        html.Div(map_panel.layout, className='map-panel'),
-        html.Div(weak_signal_panel.layout, className='right-panel')
-    ], className='main-content'),
-    html.Div(bottom_panel.layout, className='bottom-panel')
+    
+    # Page content will be rendered here
+    dash.page_container
 ])
-map_panel.register_callbacks(app)
 
+# Optional: Add callback for any global app functionality
+@app.callback(
+    Output('url', 'pathname'),
+    Input('url', 'pathname'),
+    prevent_initial_call=True
+)
+def update_page(pathname):
+    """Handle page navigation if needed"""
+    return dash.no_update
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run_server(debug=True)
