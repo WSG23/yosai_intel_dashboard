@@ -1,0 +1,38 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "**/requirements.txt"
+  ],
+  "words": [
+    "Yōsai",
+    "yosai",
+    "topbar",
+    "Plotly",
+    "dashleaflet",
+    "openpyxl",
+    "geopandas",
+    "shapely",
+    "iconify",
+    "dotenv",
+    "asyncio",
+    "aiohttp",
+    "pydantic",
+    "uvicorn",
+    "Werkzeug",
+    "ffmpy",
+    "soupsieve",
+    "tqdm",
+    "multiprocess",
+    "matplotlib",
+    "contourpy",
+    "cytoscape",
+    "fastapi",
+    "huggingface",
+    "scipy",
+    "starlette",
+    "toolz",
+    "yarl",
+    "tzdata"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "python.analysis.typeCheckingMode": "basic",
+  "python.defaultInterpreterPath": "venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "cSpell.enabled": false
+}
