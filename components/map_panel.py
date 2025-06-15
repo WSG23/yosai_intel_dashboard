@@ -1,8 +1,6 @@
-# pyright: reportArgumentType=false
-
-# yosai_intel_dashboard/components/map_panel.py
-
 import dash_leaflet as dl
+import dash_leaflet.express as dlx
+from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
 from dash import html, dcc, Output, Input, callback_context
 
 # Predefined map centers for each view
@@ -13,7 +11,14 @@ view_centers = {
     'onion': [35.6897, 139.6919]
 }
 
-# Map layout with forced height for visibility
+# Custom tile layer with light gray and low detail (CartoDB Positron)
+tile_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+attribution = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/\">CARTO</a>"
+
+# Corrected custom icon creation using dlx.icon
+custom_icon = dlx.icon(iconUrl="/assets/main_icon_site.png", iconSize=32) # iconSize is a single value, not a list
+
+# Map layout with enhancements
 layout = html.Div([
     dcc.Store(id='map-center-store', data=view_centers['site']),
     dl.Map(
@@ -21,14 +26,24 @@ layout = html.Div([
         center=view_centers['site'],
         zoom=15,
         children=[
-            dl.TileLayer(),
-            dl.Marker(position=view_centers['site'], children=[
-                dl.Tooltip("Tokyo HQ"),
-                dl.Popup("Main Entrance - Last access: OK")
-            ])
+            TileLayer(url=tile_url, attribution=attribution),
+            Marker(position=view_centers['site'], icon=custom_icon, children=[ # Use the custom_icon here
+                Tooltip("Tokyo HQ"),
+                Popup("Main Entrance - Last access: OK")
+            ]),
+            ScaleControl(position="bottomleft"),
+            ZoomControl(position="topleft")
         ],
-        style={'width': '100%', 'height': '100%'}  # <-- Force fixed height for visibility
+        style={
+            'width': '100%',
+            'height': '100%',
+            'borderRadius': '12px',
+            'boxShadow': '0 2px 12px rgba(0,0,0,0.3)',
+            'overflow': 'hidden',
+            'backgroundColor': '#121212'
+        }
     ),
+    html.Div("🟢 All systems operational", className="map-status-badge"),
     html.Div([
         html.Button("🌐", id="view-global", className="map-toggle-button"),
         html.Button("🏙️", id="view-city", className="map-toggle-button"),

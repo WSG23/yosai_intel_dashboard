@@ -23,7 +23,8 @@ app.layout = html.Div([
     ], className='main-content'),
     html.Div(bottom_panel.layout, className='bottom-panel')
 ])
-print(map_panel.layout)
+map_panel.register_callbacks(app)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
