@@ -51,6 +51,9 @@ yosai_intel_dashboard/
    ```bash
    pip install -r requirements.txt
    ```
+   Make sure all dependencies are installed **before** running Pyright or using
+   the Pylance extension. Missing packages will otherwise appear as unresolved
+   imports.
 
 4. **Set up environment:**
    ```bash

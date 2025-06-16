@@ -54,3 +54,7 @@ sentry-sdk[flask]>=1.32.0
 # Geographic/Map (optional)
 geopandas>=0.13.0
 shapely>=2.0.0
+dash-leaflet>=1.0.0
+
+# CSS Utilities (optional)
+cssutils>=2.6.0
