@@ -100,7 +100,7 @@ class FileProcessor:
         
         if not found_columns:
             # Suggest column mappings
-            suggestions.extend(FileProcessor._suggest_column_mappings(df.columns))
+            suggestions.extend(FileProcessor._suggest_column_mappings(list(df.columns)))
         
         return True, f"Successfully loaded {len(df)} rows and {len(df.columns)} columns", suggestions
     

@@ -100,7 +100,7 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
         ))
     
     if cards:
-        return dbc.Row(cards, className="mb-4")
+        return html.Div([dbc.Row(cards, className="mb-4")])
     else:
         return html.Div()
 

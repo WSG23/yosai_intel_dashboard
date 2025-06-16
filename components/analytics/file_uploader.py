@@ -3,10 +3,10 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from typing import Optional
 
-def create_file_uploader(upload_id: str = 'analytics-file-upload') -> dbc.Card:
+def create_file_uploader(upload_id: str = 'analytics-file-upload') -> html.Div:
     """Create file upload component for analytics page"""
     
-    return dbc.Card([
+    return html.Div([dbc.Card([
         dbc.CardHeader([
             html.H4("Data Upload & Analysis", className="mb-0"),
             html.Small("Upload CSV, JSON, or Excel files for analysis", className="text-muted")
@@ -37,4 +37,4 @@ def create_file_uploader(upload_id: str = 'analytics-file-upload') -> dbc.Card:
             html.Div(id='upload-status', className="mt-3"),
             html.Div(id='file-info', className="mt-3")
         ])
-    ], className="mb-4")
+    ], className="mb-4")])
