@@ -69,6 +69,24 @@ yosai_intel_dashboard/
 6. **Access the dashboard:**
    Open http://127.0.0.1:8050 in your browser
 
+### Troubleshooting
+
+If Pylance shows unresolved imports or type errors, your editor may not be
+using the virtual environment where dependencies were installed. Try the
+following steps:
+
+1. Activate the virtual environment:
+   ```bash
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Restart your editor so Pylance picks up the correct interpreter.
+
 ### Production Deployment
 
 Using Docker Compose:
