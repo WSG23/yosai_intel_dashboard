@@ -3,10 +3,16 @@
 Navigation bar component with complete type safety
 """
 
+import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import dash_bootstrap_components as dbc
+    from dash import html, dcc, callback, Output, Input
+
 try:
     import dash_bootstrap_components as dbc
     from dash import html, dcc, callback, Output, Input
-    import datetime
     DASH_AVAILABLE = True
 except ImportError:
     print("Warning: Dash components not available")
@@ -15,6 +21,9 @@ except ImportError:
     dbc = None
     html = None
     dcc = None
+    callback = None
+    Output = None
+    Input = None
 
 def create_navbar_layout():
     """Create navbar layout with fallback"""
