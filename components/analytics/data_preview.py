@@ -18,11 +18,15 @@ except ImportError:
     html = None
     pd = None
 
-def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> html.Div:
+from typing import Any
+
+def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> Any:
     """Create data preview component - FIXED: Properly exported function"""
-    
-    if not DASH_AVAILABLE:
-        return html.Div("Data preview not available - Dash not installed")
+
+    if not DASH_AVAILABLE or html is None or dbc is None:
+        if html is not None:
+            return html.Div("Data preview not available - Dash not installed")
+        return None
     
     if df is None or df.empty:
         return html.Div([
@@ -47,11 +51,13 @@ def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -
         ], className="mb-4")
     ])
 
-def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
+def _create_type_safe_table(df: pd.DataFrame) -> Any:
     """Create a completely type-safe HTML table"""
-    
-    if not DASH_AVAILABLE or df.empty:
-        return html.Div("No data available", className="text-muted")
+
+    if not DASH_AVAILABLE or html is None or dbc is None or pd is None or df.empty:
+        if html is not None:
+            return html.Div("No data available", className="text-muted")
+        return None
     
     # Limit for performance and display
     max_cols = 8
@@ -62,7 +68,7 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
     # Build table components step by step with explicit typing
     
     # 1. Header cells
-    header_cells: List[html.Th] = []
+    header_cells: List[Any] = []
     for col in display_df.columns:
         col_name = str(col)
         display_name = col_name[:25] + "..." if len(col_name) > 25 else col_name
@@ -75,11 +81,11 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
     table_header = html.Thead([header_row], className="table-dark")
     
     # 3. Body rows
-    body_rows: List[html.Tr] = []
+    body_rows: List[Any] = []
     for row_idx, (_, row) in enumerate(display_df.iterrows()):
         
         # Build cells for this row
-        row_cells: List[html.Td] = []
+        row_cells: List[Any] = []
         for col in display_df.columns:
             cell_value = row[col]
             
@@ -142,7 +148,7 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
         info_parts.append(f"Showing {max_rows} of {len(df)} rows")
     
     # 8. Build final component
-    result_components: List[html.Div] = [
+    result_components: List[Any] = [
         html.Div([table_container])
     ]
     
@@ -157,11 +163,13 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
     
     return html.Div(result_components)
 
-def create_dataset_summary(df: pd.DataFrame) -> html.Div:
+def create_dataset_summary(df: pd.DataFrame) -> Any:
     """Create dataset summary with guaranteed type safety"""
-    
-    if not DASH_AVAILABLE or df.empty:
-        return html.Div("No data to summarize", className="text-muted")
+
+    if not DASH_AVAILABLE or html is None or dbc is None or pd is None or df.empty:
+        if html is not None:
+            return html.Div("No data to summarize", className="text-muted")
+        return None
     
     # Calculate basic stats
     total_rows = len(df)
@@ -176,7 +184,7 @@ def create_dataset_summary(df: pd.DataFrame) -> html.Div:
     dtype_text = ", ".join([f"{str(dtype)}: {count}" for dtype, count in dtype_counts.items()])
     
     # Build summary using only html.Div components
-    summary_items: List[html.Div] = [
+    summary_items: List[Any] = [
         html.Div(f"📊 Dimensions: {total_rows:,} rows × {total_cols} columns"),
         html.Div(f"💾 Memory Usage: {memory_mb:.1f} MB"),
         html.Div(f"❓ Missing Values: {missing_count:,} ({missing_pct:.1f}%)"),
@@ -188,11 +196,13 @@ def create_dataset_summary(df: pd.DataFrame) -> html.Div:
         html.Div(summary_items, className="summary-list text-muted", style={'fontSize': '0.9rem'})
     ])
 
-def create_enhanced_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> html.Div:
+def create_enhanced_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> Any:
     """Enhanced preview with summary - completely type safe"""
-    
-    if not DASH_AVAILABLE:
-        return html.Div("Enhanced preview not available - Dash not installed")
+
+    if not DASH_AVAILABLE or html is None or dbc is None or pd is None:
+        if html is not None:
+            return html.Div("Enhanced preview not available - Dash not installed")
+        return None
     
     if df is None or df.empty:
         return html.Div([
