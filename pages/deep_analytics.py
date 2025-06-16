@@ -37,7 +37,7 @@ except ImportError as e:
     def create_summary_cards(*args, **kwargs):
         return html.Div("Summary cards not available")
     
-    class FileProcessor:
+    class FallbackFileProcessor:
         @staticmethod
         def process_file_content(contents, filename):
             return None
@@ -45,11 +45,17 @@ except ImportError as e:
         def validate_dataframe(df):
             return False, "FileProcessor not available", []
     
-    class AnalyticsGenerator:
+
+    class FallbackAnalyticsGenerator:
         @staticmethod
         def generate_analytics(df):
             return {}
 
+
+# Assign fallback classes to main names if analytics components are unavailable
+if not ANALYTICS_COMPONENTS_AVAILABLE:
+    FileProcessor = FallbackFileProcessor
+    AnalyticsGenerator = FallbackAnalyticsGenerator
 def layout():
     """Deep Analytics page layout - same as before"""
     return dbc.Container([
