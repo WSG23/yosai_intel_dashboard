@@ -1,33 +1,159 @@
 # Yōsai Intel Dashboard
 
-An AI-powered modular security intelligence dashboard designed to visualize and manage physical access anomalies, weak signals, and real-time threats across enterprise facilities.
+An AI-powered modular security intelligence dashboard for physical access control monitoring.
 
----
+## 🏗️ Modular Architecture
 
-## 🧠 Overview
+This project follows a fully modular architecture for maximum maintainability and testability:
 
-The Yōsai Intel Dashboard is a modular Python-based Dash application featuring:
+```
+yosai_intel_dashboard/
+├── app.py                     # Main application entry point
+├── config/                    # Configuration management
+│   ├── database_manager.py    # Database connections and pooling
+│   └── settings.py           # Application settings
+├── models/                    # Data models and business entities
+│   ├── base.py               # Base model classes
+│   ├── entities.py           # Core entities (Person, Door, Facility)
+│   ├── events.py             # Event models (AccessEvent, Anomaly)
+│   ├── enums.py              # Enumerated types
+│   └── access_events.py      # Access event operations
+├── services/                  # Business logic layer
+│   └── analytics_service.py  # Analytics and data processing
+├── components/               # UI components
+│   ├── analytics/            # Analytics-specific components
+│   ├── navbar.py             # Navigation component
+│   └── map_panel.py          # Map visualization
+├── pages/                    # Multi-page application pages
+│   └── deep_analytics.py     # Analytics page
+├── utils/                    # Utility functions
+└── assets/                   # Static assets and CSS
+    └── css/                  # Modular CSS architecture
+```
 
-- 🗺️ Real-time facility map panel with anomaly overlays
-- 🔔 Incident alert accordion with actionable ticket cards
-- 🧠 AI-driven incident detection with interactive logic chips
-- 🛰️ Weak-signal live feed from news, location, and orgs
-- 🧰 Role-based UI, dark/light themes, and internationalization-ready layout
+## 🚀 Quick Start
 
----
+### Development Setup
 
-## 🛠 Tech Stack
+1. **Clone and enter the project:**
+   ```bash
+   git clone <repository>
+   cd yosai_intel_dashboard
+   ```
 
-| Purpose                     | Library                        |
-|----------------------------|--------------------------------|
-| Core Web App               | `Dash`, `Dash Bootstrap`       |
-| Mapping                    | `Dash Leaflet`, `GeoPandas`    |
-| Visualization              | `Plotly`, `Dash Extensions`    |
-| Data Handling              | `Pandas`, `NumPy`              |
-| File Upload Support        | `dash-uploader`, `OpenPyXL`    |
-| CSS & Theme                | `assets/dashboard.css`         |
+2. **Create virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
----
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 🗂 Folder Structure
+4. **Set up environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
+5. **Run the application:**
+   ```bash
+   python app.py
+   ```
+
+6. **Access the dashboard:**
+   Open http://127.0.0.1:8050 in your browser
+
+### Production Deployment
+
+Using Docker Compose:
+```bash
+docker-compose up -d
+```
+
+## 🧪 Testing
+
+Run the complete test suite:
+```bash
+# Validate modular architecture
+python test_modular_system.py
+
+# Run unit tests
+pytest
+
+# Run type checking
+mypy .
+
+# Check code quality
+black . --check
+flake8 .
+```
+
+## 📋 Features
+
+- **Real-time Security Monitoring**: Live access control event monitoring
+- **AI-Powered Anomaly Detection**: Advanced pattern recognition
+- **Interactive Analytics**: Deep dive data analysis with file uploads
+- **Modular Architecture**: Easy to maintain, test, and extend
+- **Multi-page Interface**: Organized functionality across multiple pages
+- **Type-Safe**: Full type annotations and validation
+
+## 🔧 Configuration
+
+### Database
+
+Configure your database in `.env`:
+```
+DB_TYPE=postgresql  # or 'sqlite' or 'mock'
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=yosai_intel
+DB_USER=your_user
+DB_PASSWORD=your_password
+```
+
+### Application
+
+Key configuration options:
+```
+DEBUG=False           # Set to False for production
+HOST=0.0.0.0         # Bind to all interfaces for production
+PORT=8050            # Application port
+SECRET_KEY=your-key  # Change for production
+```
+
+## 📊 Modular Components
+
+### Database Layer (`config/`)
+- **database_manager.py**: Connection pooling, multiple database support
+- Supports PostgreSQL, SQLite, and Mock databases
+- Type-safe connection management
+
+### Models Layer (`models/`)
+- **entities.py**: Core business entities
+- **events.py**: Event and transaction models
+- **enums.py**: Type-safe enumerations
+- Full type annotations and validation
+
+### Services Layer (`services/`)
+- **analytics_service.py**: Business logic for analytics
+- Caching and performance optimization
+- Modular and testable
+
+### Components Layer (`components/`)
+- Reusable UI components
+- Independent and testable
+- Type-safe prop interfaces
+
+## 🤝 Contributing
+
+1. Ensure all tests pass: `python test_modular_system.py`
+2. Follow type safety guidelines
+3. Maintain modular architecture principles
+4. Update documentation for new features
+
+## 📄 License
+
+MIT License - see LICENSE file for details.

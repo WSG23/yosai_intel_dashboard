@@ -1,130 +1,47 @@
-# requirements.txt - Add these to your existing requirements.txt
+# Core Dash Dependencies
 dash>=2.14.1
 dash-bootstrap-components>=1.5.0
 plotly>=5.15.0
+
+# Data Processing
 pandas>=2.1.1
 numpy>=1.25.2
 openpyxl>=3.1.2
+
+# Database
 psycopg2-binary>=2.9.7
-python-dateutil>=2.8.2
+sqlalchemy>=2.0.0
 
-# STEP-BY-STEP EXECUTION INSTRUCTIONS
+# File Processing
+python-multipart>=0.0.6
 
-## 1. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+# Development
+python-dotenv>=1.0.0
 
-## 2. Generate Sample Data (for testing)
-```bash
-python utils/sample_data_generator.py
-```
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
 
-## 3. Test the Analytics Components
-```bash
-python test_analytics.py
-```
+# Type Checking
+mypy>=1.5.0
+types-python-dateutil
 
-## 4. Run the Application
-```bash
-python app.py
-```
+# Code Quality
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
 
-## 5. Test the Analytics Page
+# Documentation
+sphinx>=7.1.0
+sphinx-rtd-theme>=1.3.0
 
-1. Open your browser to: http://127.0.0.1:8050
-2. Click "Deep Analytics" in the navigation
-3. Upload one of the sample files from the data/ directory
-4. Verify the analytics and visualizations appear
+# Production
+gunicorn>=21.2.0
+redis>=4.6.0
 
-## What You Should See:
+# Monitoring
+sentry-sdk[flask]>=1.32.0
 
-### Main Dashboard (/)
-- Your existing dashboard components
-- Updated navigation with "Deep Analytics" link
-
-### Analytics Page (/analytics)
-- File upload area
-- Data preview after upload
-- Summary statistics cards
-- Interactive charts:
-  - Access result distribution (pie chart)
-  - Hourly activity patterns (bar chart)
-  - Top users (horizontal bar chart)
-  - Top doors (horizontal bar chart)
-
-## Troubleshooting:
-
-### If you get import errors:
-1. Make sure all __init__.py files are created
-2. Check that you're running from the project root directory
-3. Verify all new directories exist
-
-### If file upload doesn't work:
-1. Check that data/uploads directory exists and is writable
-2. Verify file size is under 100MB
-3. Make sure file extensions are .csv, .json, .xlsx, or .xls
-
-### If charts don't appear:
-1. Check browser console for JavaScript errors
-2. Verify sample data has the expected columns
-3. Check that plotly is installed correctly
-
-## Next Steps:
-
-### Phase 1 - Basic Functionality (You've completed this!)
-✓ File upload and processing
-✓ Basic analytics and visualizations
-✓ Data preview functionality
-✓ Multi-page navigation
-
-### Phase 2 - Enhanced Analytics (Future improvements)
-- Add real-time data connection
-- Implement the full anomaly detection models
-- Add export functionality
-- Enhance filtering and drill-down capabilities
-
-### Phase 3 - Production Features (Advanced)
-- Database integration
-- User authentication
-- Advanced AI/ML models
-- Real-time alerting system
-
-## File Structure Verification:
-
-Your project should now look like this:
-
-yosai_intel_dashboard/
-├── app.py                      # ✓ Updated with multi-page support
-├── assets/                     # ✓ Your existing assets
-├── components/
-│   ├── analytics/              # ✓ New analytics components
-│   │   ├── __init__.py
-│   │   ├── file_uploader.py
-│   │   ├── data_preview.py
-│   │   └── analytics_charts.py
-│   ├── navbar.py              # ✓ Updated with analytics link
-│   └── [existing components]   # ✓ Your existing components
-├── config/                     # ✓ New configuration system
-│   ├── __init__.py
-│   ├── settings.py
-│   └── database.py
-├── models/                     # ✓ New data models
-│   ├── __init__.py
-│   ├── base.py
-│   ├── access_event.py
-│   └── anomaly.py
-├── services/                   # ✓ New business logic layer
-│   ├── __init__.py
-│   ├── file_processor.py
-│   └── analytics_service.py
-├── pages/
-│   └── deep_analytics.py       # ✓ Updated analytics page
-├── utils/                      # ✓ New utilities
-│   ├── __init__.py
-│   └── sample_data_generator.py
-├── data/                       # ✓ New data directory
-│   ├── uploads/
-│   └── [sample files]
-├── modals/                     # ✓ Your existing modals
-└── [other existing files]      # ✓ Your existing files
+# Geographic/Map (optional)
+geopandas>=0.13.0
+shapely>=2.0.0
