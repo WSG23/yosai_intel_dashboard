@@ -16,8 +16,6 @@ def test_basic_imports() -> Tuple[bool, str]:
     try:
         from config.yaml_config import (
             ConfigurationManager,
-            EnvironmentOverrideProcessor,
-            ConfigurationValidator,
             AppConfig,
             DatabaseConfig,
             CacheConfig,
@@ -116,86 +114,95 @@ def test_yaml_file_loading() -> Tuple[bool, str]:
         return False, f"YAML file loading failed: {e}"
 
 def test_environment_overrides() -> Tuple[bool, str]:
-    """Test environment variable overrides"""
+    """Test environment variable substitution during configuration loading"""
     try:
-        from config.yaml_config import EnvironmentOverrideProcessor
-        
+        from config.yaml_config import ConfigurationManager
+
         # Store original environment
         original_env = dict(os.environ)
-        
+
         try:
             # Set test environment variables
             os.environ['DB_HOST'] = 'override-host'
             os.environ['DB_PORT'] = '9999'
             os.environ['DEBUG'] = 'false'
             os.environ['YOSAI_APP_TITLE'] = 'Override Title'
-            
-            # Create test config
-            config = {
-                'app': {'debug': True, 'title': 'Original Title'},
-                'database': {'host': 'localhost', 'port': 5432}
-            }
-            
-            # Process overrides
-            processor = EnvironmentOverrideProcessor()
-            result = processor.process_overrides(config)
-            
-            # Verify overrides
-            if result['database']['host'] != 'override-host':
-                return False, "DB_HOST override failed"
-            
-            if result['database']['port'] != 9999:
-                return False, "DB_PORT override failed"
-            
-            if result['app']['debug'] != False:
-                return False, "DEBUG override failed"
-            
-            if result['app']['title'] != 'Override Title':
-                return False, "YOSAI_APP_TITLE override failed"
-            
-            return True, "Environment overrides work correctly"
-            
+
+            yaml_content = """
+app:
+  debug: ${DEBUG}
+  title: ${YOSAI_APP_TITLE}
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+"""
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                f.write(yaml_content)
+                temp_file = f.name
+
+            try:
+                manager = ConfigurationManager()
+                manager.load_configuration(temp_file)
+
+                if manager.database_config.host != 'override-host':
+                    return False, "DB_HOST substitution failed"
+
+                if manager.database_config.port != 9999:
+                    return False, "DB_PORT substitution failed"
+
+                if manager.app_config.debug is not False:
+                    return False, "DEBUG substitution failed"
+
+                if manager.app_config.title != 'Override Title':
+                    return False, "YOSAI_APP_TITLE substitution failed"
+
+                return True, "Environment variable substitution works correctly"
+
+            finally:
+                os.unlink(temp_file)
+
         finally:
-            # Restore original environment
             os.environ.clear()
             os.environ.update(original_env)
-        
+
     except Exception as e:
         return False, f"Environment override test failed: {e}"
 
 def test_configuration_validation() -> Tuple[bool, str]:
     """Test configuration validation"""
     try:
-        from config.yaml_config import ConfigurationValidator
-        
-        # Test configuration with issues
-        problem_config = {
-            'app': {'debug': True, 'host': '0.0.0.0'},
-            'security': {'secret_key': 'dev-key-change-in-production'},
-            'database': {'type': 'postgresql', 'password': ''},
-            'monitoring': {'error_reporting_enabled': True, 'sentry_dsn': None}
-        }
-        
-        warnings = ConfigurationValidator.validate(problem_config)
-        
-        # Should detect multiple issues
+        from config.yaml_config import ConfigurationManager
+
+        manager = ConfigurationManager()
+
+        # Simulate production-like configuration with several issues
+        manager.app_config.debug = False
+        manager.app_config.host = '127.0.0.1'
+        manager.database_config.type = 'mock'
+        manager.security_config.secret_key = 'dev-key-change-in-production'
+        manager.security_config.cors_enabled = True
+        manager.security_config.cors_origins = []
+        manager.analytics_config.max_records_per_query = 60000
+
+        warnings = manager.validate_configuration()
+
         if len(warnings) < 3:
             return False, f"Expected multiple warnings, got {len(warnings)}"
-        
-        # Check for specific warnings
+
         warning_text = ' '.join(warnings).lower()
-        
-        if 'debug' not in warning_text:
-            return False, "Debug mode warning not detected"
-        
-        if 'secret' not in warning_text:
+
+        if 'secret key' not in warning_text:
             return False, "Secret key warning not detected"
-        
-        if 'password' not in warning_text:
-            return False, "Password warning not detected"
-        
+
+        if 'production app' not in warning_text:
+            return False, "Host warning not detected"
+
+        if 'mock database' not in warning_text:
+            return False, "Database warning not detected"
+
         return True, f"Configuration validation detected {len(warnings)} issues correctly"
-        
+
     except Exception as e:
         return False, f"Configuration validation test failed: {e}"
 
