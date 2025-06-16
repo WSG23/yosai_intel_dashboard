@@ -1,7 +1,7 @@
-# pages/deep_analytics.py - FIXED: No register_page at import time
+# pages/deep_analytics.py - UPDATED: Now uses Dependency Injection
 """
-Deep Analytics page for Yōsai Intel Dashboard
-FIXED: Removed dash.register_page() call to prevent import-time errors
+Deep Analytics page with Dependency Injection
+UPDATED: Services now injected instead of imported directly
 """
 
 import pandas as pd
@@ -24,7 +24,7 @@ except ImportError as e:
     print(f"Warning: Analytics components not fully available: {e}")
     ANALYTICS_COMPONENTS_AVAILABLE = False
     
-    # Create fallback functions
+    # Create fallback functions (same as before)
     def create_file_uploader(*args, **kwargs):
         return html.Div("File uploader not available")
     
@@ -51,7 +51,7 @@ except ImportError as e:
             return {}
 
 def layout():
-    """Deep Analytics page layout - FIXED: Now a function, no register_page call"""
+    """Deep Analytics page layout - same as before"""
     return dbc.Container([
         # Page header
         dbc.Row([
@@ -77,8 +77,8 @@ def layout():
         
     ], fluid=True, className="p-4")
 
-def register_analytics_callbacks(app):
-    """Register analytics page callbacks - called after app creation"""
+def register_analytics_callbacks(app, container=None):
+    """Register analytics page callbacks with DI container"""
     
     if not ANALYTICS_COMPONENTS_AVAILABLE:
         print("Warning: Analytics callbacks not registered - components not available")
@@ -96,7 +96,7 @@ def register_analytics_callbacks(app):
         contents_list: Optional[Union[str, List[str]]], 
         filename_list: Optional[Union[str, List[str]]]
     ) -> Tuple[List[html.Div], Dict[str, Any], List[html.Div]]:
-        """Process uploaded files with proper type safety"""
+        """Process uploaded files with Dependency Injection"""
         
         # Early return with proper types if no content
         if not contents_list or not filename_list:
@@ -108,9 +108,20 @@ def register_analytics_callbacks(app):
         if isinstance(filename_list, str):
             filename_list = [filename_list]
         
-        # Additional safety check
-        if contents_list is None or filename_list is None:
-            return [], {}, []
+        # Get services from DI container
+        analytics_service = None
+        file_processor = None
+        
+        if container is not None:
+            try:
+                analytics_service = container.get('analytics_service')
+                file_processor = container.get('file_processor')
+            except Exception as e:
+                print(f"Warning: Could not get services from container: {e}")
+        
+        # Fallback to static classes if DI not available
+        if file_processor is None:
+            file_processor = FileProcessor
         
         status_messages: List[html.Div] = []
         all_data: List[Dict[str, Any]] = []
@@ -118,8 +129,12 @@ def register_analytics_callbacks(app):
         # Process each uploaded file
         for contents, filename in zip(contents_list, filename_list):
             try:
-                # Use the modular FileProcessor
-                df = FileProcessor.process_file_content(contents, filename)
+                # Use the injected or fallback FileProcessor
+                if hasattr(file_processor, 'process_file_content'):
+                    df = file_processor.process_file_content(contents, filename)
+                else:
+                    # Static method call
+                    df = FileProcessor.process_file_content(contents, filename)
                 
                 if df is None:
                     status_messages.append(
@@ -128,7 +143,11 @@ def register_analytics_callbacks(app):
                     continue
                 
                 # Validate the data
-                valid, message, suggestions = FileProcessor.validate_dataframe(df)
+                if hasattr(file_processor, 'validate_dataframe'):
+                    valid, message, suggestions = file_processor.validate_dataframe(df)
+                else:
+                    # Static method call
+                    valid, message, suggestions = FileProcessor.validate_dataframe(df)
                 
                 if not valid:
                     alert_div = _create_warning_alert(f"{filename}: {message}")
@@ -172,8 +191,25 @@ def register_analytics_callbacks(app):
             combined_df = _combine_uploaded_data(all_data)
             
             if not combined_df.empty:
-                # Generate analytics using the modular AnalyticsGenerator
-                analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
+                # Generate analytics using DI service or fallback
+                if analytics_service is not None:
+                    try:
+                        # Use injected analytics service
+                        analytics_data = analytics_service.process_uploaded_file(
+                            combined_df, 
+                            f"Combined Data ({len(all_data)} files)"
+                        )
+                        if analytics_data.get('success', False):
+                            analytics_data = analytics_data['analytics']
+                        else:
+                            analytics_data = {}
+                    except Exception as e:
+                        print(f"Error using injected analytics service: {e}")
+                        # Fallback to static generator
+                        analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
+                else:
+                    # Use static AnalyticsGenerator as fallback
+                    analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
                 
                 # Create analytics components
                 analytics_components = [
@@ -191,7 +227,7 @@ def register_analytics_callbacks(app):
         
         return status_messages, {'files': all_data}, analytics_components
 
-# Helper functions
+# Helper functions (same as before)
 def _combine_uploaded_data(all_data: List[Dict[str, Any]]) -> pd.DataFrame:
     """Combine multiple uploaded files into a single DataFrame"""
     combined_df = pd.DataFrame()
