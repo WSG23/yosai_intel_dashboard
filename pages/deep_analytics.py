@@ -1,4 +1,4 @@
-# pages/deep_analytics.py - Updated to use modular analytics components
+# pages/deep_analytics.py - FIXED: Type-safe version with all Pylance errors resolved
 import dash
 from dash import html, dcc, callback, Output, Input, State, no_update
 import dash_bootstrap_components as dbc
@@ -45,7 +45,7 @@ def layout():
         
     ], fluid=True, className="p-4")
 
-# Main callback for file upload processing
+# FIXED: Main callback with proper type annotations and null checking
 @callback(
     [Output('upload-status', 'children'),
      Output('uploaded-data-store', 'data'),
@@ -58,21 +58,26 @@ def process_uploaded_files(
     contents_list: Optional[Union[str, List[str]]], 
     filename_list: Optional[Union[str, List[str]]]
 ) -> Tuple[List[html.Div], Dict[str, Any], List[html.Div]]:
-    """Process uploaded files and generate analytics using modular components"""
+    """FIXED: Process uploaded files with proper type safety"""
     
-    if not contents_list:
+    # FIXED: Early return with proper types if no content
+    if not contents_list or not filename_list:
         return [], {}, []
     
-    # Ensure inputs are lists
+    # FIXED: Ensure inputs are lists with proper null checking
     if isinstance(contents_list, str):
         contents_list = [contents_list]
     if isinstance(filename_list, str):
         filename_list = [filename_list]
     
-    status_messages = []
-    all_data = []
+    # FIXED: Additional safety check for None values
+    if contents_list is None or filename_list is None:
+        return [], {}, []
     
-    # Process each uploaded file
+    status_messages: List[html.Div] = []
+    all_data: List[Dict[str, Any]] = []
+    
+    # FIXED: Process each uploaded file with proper iteration
     for contents, filename in zip(contents_list, filename_list):
         try:
             # Use the modular FileProcessor
@@ -88,12 +93,21 @@ def process_uploaded_files(
             valid, message, suggestions = FileProcessor.validate_dataframe(df)
             
             if not valid:
-                alert = _create_warning_alert(f"{filename}: {message}")
+                alert_div = _create_warning_alert(f"{filename}: {message}")
+                
+                # FIXED: Proper handling of suggestions with type safety
                 if suggestions:
-                    alert.children.append(html.Ul([
+                    suggestions_list = html.Ul([
                         html.Li(suggestion) for suggestion in suggestions
-                    ]))
-                status_messages.append(alert)
+                    ])
+                    # FIXED: Create a new div that combines alert and suggestions
+                    combined_alert = html.Div([
+                        alert_div,
+                        suggestions_list
+                    ])
+                    status_messages.append(combined_alert)
+                else:
+                    status_messages.append(alert_div)
                 continue
             
             # Success message
@@ -117,8 +131,8 @@ def process_uploaded_files(
                 _create_error_alert(f"Error processing {filename}: {str(e)}")
             )
     
-    # Generate analytics if we have data
-    analytics_components = []
+    # FIXED: Generate analytics with proper return type
+    analytics_components: List[html.Div] = []
     
     if all_data:
         # Combine all uploaded data for analysis
@@ -128,35 +142,39 @@ def process_uploaded_files(
             # Generate analytics using the modular AnalyticsGenerator
             analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
             
-            # Create analytics components using modular functions
+            # FIXED: Create analytics components with proper typing
             analytics_components = [
-                html.Hr(),
-                html.H3("📊 Analytics Results", className="mb-4"),
+                html.Div(html.Hr()),  # Wrap Hr in Div
+                html.Div([
+                    html.H3("📊 Analytics Results", className="mb-4")
+                ]),
                 
-                # Summary cards
-                create_summary_cards(analytics_data),
+                # Summary cards (already returns html.Div)
+                html.Div(create_summary_cards(analytics_data)),
                 
-                # Data preview
-                create_data_preview(combined_df, f"Combined Data ({len(all_data)} files)"),
+                # Data preview (already returns html.Div)
+                html.Div(create_data_preview(combined_df, f"Combined Data ({len(all_data)} files)")),
                 
                 # Visualizations
-                html.H4("📈 Visualizations", className="mb-3"),
-                create_analytics_charts(analytics_data),
+                html.Div([
+                    html.H4("📈 Visualizations", className="mb-3")
+                ]),
+                html.Div(create_analytics_charts(analytics_data)),
                 
                 # Data quality section
-                _create_data_quality_section(combined_df, all_data)
+                html.Div(_create_data_quality_section(combined_df, all_data))
             ]
     
     return status_messages, {'files': all_data}, analytics_components
 
-# Helper callback for real-time analytics updates
+# FIXED: Helper callback with proper return type
 @callback(
     Output('analytics-results', 'children', allow_duplicate=True),
     Input('uploaded-data-store', 'data'),
     prevent_initial_call=True
 )
 def update_analytics_display(stored_data: Optional[Dict[str, Any]]) -> List[html.Div]:
-    """Update analytics display when data changes"""
+    """FIXED: Update analytics display when data changes"""
     
     if not stored_data or 'files' not in stored_data:
         return []
@@ -170,16 +188,21 @@ def update_analytics_display(stored_data: Optional[Dict[str, Any]]) -> List[html
     # Generate analytics using modular components
     analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
     
+    # FIXED: Return proper List[html.Div] type
     return [
-        html.Hr(),
-        html.H3("📊 Analytics Results", className="mb-4"),
-        create_summary_cards(analytics_data),
-        create_data_preview(combined_df, f"Combined Data ({len(stored_data['files'])} files)"),
-        html.H4("📈 Visualizations", className="mb-3"),
-        create_analytics_charts(analytics_data)
+        html.Div(html.Hr()),
+        html.Div([
+            html.H3("📊 Analytics Results", className="mb-4")
+        ]),
+        html.Div(create_summary_cards(analytics_data)),
+        html.Div(create_data_preview(combined_df, f"Combined Data ({len(stored_data['files'])} files)")),
+        html.Div([
+            html.H4("📈 Visualizations", className="mb-3")
+        ]),
+        html.Div(create_analytics_charts(analytics_data))
     ]
 
-# Helper functions
+# FIXED: Helper functions with proper return types
 
 def _combine_uploaded_data(all_data: List[Dict[str, Any]]) -> pd.DataFrame:
     """Combine multiple uploaded files into a single DataFrame"""
@@ -196,29 +219,35 @@ def _combine_uploaded_data(all_data: List[Dict[str, Any]]) -> pd.DataFrame:
     
     return combined_df
 
-def _create_success_alert(message: str) -> dbc.Alert:
-    """Create a success alert message"""
-    return dbc.Alert([
+def _create_success_alert(message: str) -> html.Div:
+    """FIXED: Create a success alert message wrapped in Div"""
+    alert = dbc.Alert([
         html.I(className="fas fa-check-circle me-2"),
         message
     ], color="success", className="mb-2")
+    
+    return html.Div(alert)
 
-def _create_warning_alert(message: str) -> dbc.Alert:
-    """Create a warning alert message"""
-    return dbc.Alert([
+def _create_warning_alert(message: str) -> html.Div:
+    """FIXED: Create a warning alert message wrapped in Div"""
+    alert = dbc.Alert([
         html.I(className="fas fa-exclamation-triangle me-2"),
         message
     ], color="warning", className="mb-2")
+    
+    return html.Div(alert)
 
-def _create_error_alert(message: str) -> dbc.Alert:
-    """Create an error alert message"""
-    return dbc.Alert([
+def _create_error_alert(message: str) -> html.Div:
+    """FIXED: Create an error alert message wrapped in Div"""
+    alert = dbc.Alert([
         html.I(className="fas fa-times-circle me-2"),
         message
     ], color="danger", className="mb-2")
+    
+    return html.Div(alert)
 
 def _create_data_quality_section(df: pd.DataFrame, all_data: List[Dict[str, Any]]) -> html.Div:
-    """Create a data quality assessment section"""
+    """FIXED: Create a data quality assessment section that returns html.Div"""
     
     # Calculate data quality metrics
     total_cells = df.shape[0] * df.shape[1]
@@ -226,11 +255,12 @@ def _create_data_quality_section(df: pd.DataFrame, all_data: List[Dict[str, Any]
     completeness = ((total_cells - missing_cells) / total_cells * 100) if total_cells > 0 else 0
     
     # Collect all suggestions
-    all_suggestions = []
+    all_suggestions: List[str] = []
     for file_data in all_data:
         all_suggestions.extend(file_data.get('suggestions', []))
     
-    return dbc.Card([
+    # FIXED: Return html.Div containing the card
+    card = dbc.Card([
         dbc.CardHeader([
             html.H5("🔍 Data Quality Assessment", className="mb-0")
         ]),
@@ -266,6 +296,8 @@ def _create_data_quality_section(df: pd.DataFrame, all_data: List[Dict[str, Any]
             ]) if all_suggestions else html.Div()
         ])
     ], className="mb-4")
+    
+    return html.Div(card)
 
 # Export layout function for external use
 __all__ = ['layout']

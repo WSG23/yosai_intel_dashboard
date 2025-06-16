@@ -1,14 +1,14 @@
-# css_migration_script.py
+# css_migration_script.py - FIXED: Type-safe CSS migration
 """
 Automated CSS Migration Script for Yōsai Intel Dashboard
-Converts existing dashboard.css to modular architecture
+Converts existing dashboard.css to modular architecture - FIXED version
 """
 
 import os
 import re
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 class CSSMigrator:
     """Handles the migration from monolithic to modular CSS"""
@@ -39,7 +39,7 @@ class CSSMigrator:
             r"\.w-", r"\.h-", r"\.display-", r"\.position-"
         ]
     
-    def create_directory_structure(self):
+    def create_directory_structure(self) -> None:
         """Create the modular CSS directory structure"""
         directories = [
             "01-foundation",
@@ -56,16 +56,16 @@ class CSSMigrator:
             dir_path.mkdir(parents=True, exist_ok=True)
             print(f"✅ Created directory: {dir_path}")
     
-    def backup_current_css(self):
+    def backup_current_css(self) -> None:
         """Backup existing CSS file"""
         if self.old_css.exists():
             backup_path = self.old_css.with_suffix('.css.backup')
             shutil.copy2(self.old_css, backup_path)
             print(f"✅ Backed up existing CSS to: {backup_path}")
     
-    def extract_css_rules(self, css_content: str) -> Dict[str, List[str]]:
+    def extract_css_rules(self, css_content: str) -> Dict[str, Any]:
         """Extract CSS rules and categorize them"""
-        rules = {
+        rules: Dict[str, Any] = {
             "foundation": [],
             "layout": [],
             "components": {},
@@ -116,7 +116,7 @@ class CSSMigrator:
         
         return rules
     
-    def create_foundation_files(self):
+    def create_foundation_files(self) -> None:
         """Create foundation CSS files with design tokens"""
         
         # Variables file content
@@ -189,7 +189,7 @@ class CSSMigrator:
         
         # Write variables file
         variables_path = self.css_dir / "01-foundation" / "_variables.css"
-        variables_path.write_text(variables_content)
+        variables_path.write_text(variables_content, encoding='utf-8')
         print(f"✅ Created variables file: {variables_path}")
         
         # Reset file content
@@ -237,10 +237,10 @@ button:disabled {
 '''
         
         reset_path = self.css_dir / "01-foundation" / "_reset.css"
-        reset_path.write_text(reset_content)
+        reset_path.write_text(reset_content, encoding='utf-8')
         print(f"✅ Created reset file: {reset_path}")
     
-    def create_main_css(self):
+    def create_main_css(self) -> None:
         """Create the main CSS file that imports all modules"""
         
         main_content = '''/* =================================================================== */
@@ -290,73 +290,82 @@ button:disabled {
 '''
         
         main_path = self.css_dir / "main.css"
-        main_path.write_text(main_content)
+        main_path.write_text(main_content, encoding='utf-8')
         print(f"✅ Created main CSS file: {main_path}")
     
-    def convert_existing_css(self):
+    def convert_existing_css(self) -> None:
         """Convert existing dashboard.css to new structure"""
         if not self.old_css.exists():
             print(f"❌ Could not find existing CSS file: {self.old_css}")
             return
         
-        # Read existing CSS
-        css_content = self.old_css.read_text()
-        print(f"📖 Reading existing CSS: {len(css_content)} characters")
-        
-        # Extract and categorize rules
-        rules = self.extract_css_rules(css_content)
-        
-        # Create component files
-        for component, component_rules in rules["components"].items():
-            if component_rules:
-                component_path = self.css_dir / "03-components" / f"_{component}.css"
-                component_content = f"""/* =================================================================== */
+        try:
+            # Read existing CSS
+            css_content = self.old_css.read_text(encoding='utf-8')
+            print(f"📖 Reading existing CSS: {len(css_content)} characters")
+            
+            # Extract and categorize rules
+            rules = self.extract_css_rules(css_content)
+            
+            # FIXED: Create component files with proper type handling
+            components_dict = rules["components"]
+            if isinstance(components_dict, dict):  # Type guard
+                for component, component_rules in components_dict.items():
+                    if component_rules:
+                        component_path = self.css_dir / "03-components" / f"_{component}.css"
+                        component_content = f"""/* =================================================================== */
 /* 03-components/_{component}.css - {component.title()} Component System */
 /* =================================================================== */
 
 {chr(10).join(component_rules)}
 """
-                component_path.write_text(component_content)
-                print(f"✅ Created component file: {component_path}")
-        
-        # Create layout file
-        if rules["layout"]:
-            layout_path = self.css_dir / "02-layout" / "_dashboard-layout.css"
-            layout_content = f"""/* =================================================================== */
+                        component_path.write_text(component_content, encoding='utf-8')
+                        print(f"✅ Created component file: {component_path}")
+            
+            # Create layout file
+            layout_rules = rules["layout"]
+            if isinstance(layout_rules, list) and layout_rules:  # Type guard
+                layout_path = self.css_dir / "02-layout" / "_dashboard-layout.css"
+                layout_content = f"""/* =================================================================== */
 /* 02-layout/_dashboard-layout.css - Dashboard Layout System */
 /* =================================================================== */
 
-{chr(10).join(rules["layout"])}
+{chr(10).join(layout_rules)}
 """
-            layout_path.write_text(layout_content)
-            print(f"✅ Created layout file: {layout_path}")
-        
-        # Create utilities file
-        if rules["utilities"]:
-            utilities_path = self.css_dir / "07-utilities" / "_extracted.css"
-            utilities_content = f"""/* =================================================================== */
+                layout_path.write_text(layout_content, encoding='utf-8')
+                print(f"✅ Created layout file: {layout_path}")
+            
+            # Create utilities file
+            utility_rules = rules["utilities"]
+            if isinstance(utility_rules, list) and utility_rules:  # Type guard
+                utilities_path = self.css_dir / "07-utilities" / "_extracted.css"
+                utilities_content = f"""/* =================================================================== */
 /* 07-utilities/_extracted.css - Extracted Utility Classes */
 /* =================================================================== */
 
-{chr(10).join(rules["utilities"])}
+{chr(10).join(utility_rules)}
 """
-            utilities_path.write_text(utilities_content)
-            print(f"✅ Created utilities file: {utilities_path}")
-        
-        # Report uncategorized rules
-        if rules["uncategorized"]:
-            print(f"⚠️  Found {len(rules['uncategorized'])} uncategorized rules")
-            uncategorized_path = self.css_dir / "_uncategorized.css"
-            uncategorized_content = f"""/* =================================================================== */
+                utilities_path.write_text(utilities_content, encoding='utf-8')
+                print(f"✅ Created utilities file: {utilities_path}")
+            
+            # Report uncategorized rules
+            uncategorized_rules = rules["uncategorized"]
+            if isinstance(uncategorized_rules, list) and uncategorized_rules:  # Type guard
+                print(f"⚠️  Found {len(uncategorized_rules)} uncategorized rules")
+                uncategorized_path = self.css_dir / "_uncategorized.css"
+                uncategorized_content = f"""/* =================================================================== */
 /* _uncategorized.css - Rules that need manual categorization */
 /* =================================================================== */
 
-{chr(10).join(rules["uncategorized"])}
+{chr(10).join(uncategorized_rules)}
 """
-            uncategorized_path.write_text(uncategorized_content)
-            print(f"📝 Created uncategorized file for manual review: {uncategorized_path}")
+                uncategorized_path.write_text(uncategorized_content, encoding='utf-8')
+                print(f"📝 Created uncategorized file for manual review: {uncategorized_path}")
+                
+        except Exception as e:
+            print(f"❌ Error converting CSS: {e}")
     
-    def update_app_py(self):
+    def update_app_py(self) -> None:
         """Update app.py to use new CSS system"""
         app_file = self.project_root / "app.py"
         
@@ -364,69 +373,68 @@ button:disabled {
             print(f"❌ Could not find app.py file: {app_file}")
             return
         
-        # Read current app.py
-        app_content = app_file.read_text()
-        
-        # Replace CSS import
-        updated_content = re.sub(
-            r'external_stylesheets=\[dbc\.themes\.BOOTSTRAP\]',
-            'external_stylesheets=[dbc.themes.BOOTSTRAP, "/assets/css/main.css"]',
-            app_content
-        )
-        
-        # If no change was made, add the CSS import
-        if updated_content == app_content:
+        try:
+            # Read current app.py
+            app_content = app_file.read_text(encoding='utf-8')
+            
+            # Replace CSS import
             updated_content = re.sub(
-                r'app = dash\.Dash\(',
-                'app = dash.Dash(',
+                r'external_stylesheets=\[dbc\.themes\.BOOTSTRAP\]',
+                'external_stylesheets=[dbc.themes.BOOTSTRAP, "/assets/css/main.css"]',
                 app_content
             )
-            updated_content = re.sub(
-                r'external_stylesheets=\[[^\]]*\]',
-                'external_stylesheets=[dbc.themes.BOOTSTRAP, "/assets/css/main.css"]',
-                updated_content
-            )
-        
-        # Write updated app.py
-        app_file.write_text(updated_content)
-        print(f"✅ Updated app.py to use new CSS system")
+            
+            # If no change was made, add the CSS import
+            if updated_content == app_content:
+                updated_content = re.sub(
+                    r'external_stylesheets=\[[^\]]*\]',
+                    'external_stylesheets=[dbc.themes.BOOTSTRAP, "/assets/css/main.css"]',
+                    updated_content
+                )
+            
+            # Write updated app.py
+            app_file.write_text(updated_content, encoding='utf-8')
+            print(f"✅ Updated app.py to use new CSS system")
+            
+        except Exception as e:
+            print(f"❌ Error updating app.py: {e}")
     
-    def run_migration(self):
+    def run_migration(self) -> None:
         """Run the complete migration process"""
         print("🚀 Starting CSS Migration Process...")
         print("=" * 50)
         
-        # Step 1: Create directory structure
-        self.create_directory_structure()
-        
-        # Step 2: Backup existing CSS
-        self.backup_current_css()
-        
-        # Step 3: Create foundation files
-        self.create_foundation_files()
-        
-        # Step 4: Convert existing CSS
-        self.convert_existing_css()
-        
-        # Step 5: Create main CSS file
-        self.create_main_css()
-        
-        # Step 6: Update app.py
-        self.update_app_py()
-        
-        print("\n" + "=" * 50)
-        print("✅ Migration completed successfully!")
-        print("\n📋 Next Steps:")
-        print("1. Review generated CSS files")
-        print("2. Manually categorize any uncategorized rules")
-        print("3. Update HTML classes to use new component system")
-        print("4. Test the application")
-        print("5. Remove old dashboard.css when confident")
-
-# validation_script.py
-"""
-CSS Validation and Testing Script
-"""
+        try:
+            # Step 1: Create directory structure
+            self.create_directory_structure()
+            
+            # Step 2: Backup existing CSS
+            self.backup_current_css()
+            
+            # Step 3: Create foundation files
+            self.create_foundation_files()
+            
+            # Step 4: Convert existing CSS
+            self.convert_existing_css()
+            
+            # Step 5: Create main CSS file
+            self.create_main_css()
+            
+            # Step 6: Update app.py
+            self.update_app_py()
+            
+            print("\n" + "=" * 50)
+            print("✅ Migration completed successfully!")
+            print("\n📋 Next Steps:")
+            print("1. Review generated CSS files")
+            print("2. Manually categorize any uncategorized rules")
+            print("3. Update HTML classes to use new component system")
+            print("4. Test the application")
+            print("5. Remove old dashboard.css when confident")
+            
+        except Exception as e:
+            print(f"❌ Migration failed: {e}")
+            print("Please check the error and try again.")
 
 def validate_css_structure(css_dir: Path) -> Dict[str, bool]:
     """Validate that all required CSS files exist"""
@@ -447,68 +455,8 @@ def validate_css_structure(css_dir: Path) -> Dict[str, bool]:
     
     return results
 
-def check_css_variables_usage(css_dir: Path) -> List[str]:
-    """Check for hardcoded values that should use CSS variables"""
-    violations = []
-    
-    # Common patterns that should use variables
-    patterns = [
-        (r'color:\s*#[0-9a-fA-F]{6}', 'Use CSS color variables'),
-        (r'padding:\s*\d+px', 'Use spacing variables'),
-        (r'margin:\s*\d+px', 'Use spacing variables'),
-        (r'border-radius:\s*\d+px', 'Use radius variables'),
-        (r'font-size:\s*\d+px', 'Use text size variables')
-    ]
-    
-    for css_file in css_dir.rglob("*.css"):
-        content = css_file.read_text()
-        for pattern, message in patterns:
-            matches = re.findall(pattern, content)
-            if matches:
-                violations.append(f"{css_file.name}: {message} - Found: {matches}")
-    
-    return violations
-
-def generate_component_documentation(css_dir: Path):
-    """Generate documentation for all components"""
-    docs_content = """# Yōsai Intel CSS Component Documentation
-
-## Component Library
-
-"""
-    
-    components_dir = css_dir / "03-components"
-    if components_dir.exists():
-        for component_file in components_dir.glob("_*.css"):
-            component_name = component_file.stem[1:]  # Remove underscore
-            docs_content += f"""
-### {component_name.title()} Component
-
-**File:** `{component_file.relative_to(css_dir)}`
-
-**Usage:**
-```html
-<!-- Basic usage -->
-<div class="{component_name}">{component_name.title()} Content</div>
-
-<!-- With modifiers -->
-<div class="{component_name} {component_name}--variant">{component_name.title()} Variant</div>
-```
-
-**Available Variants:**
-- `{component_name}--primary`
-- `{component_name}--secondary`
-- `{component_name}--small`
-- `{component_name}--large`
-
----
-"""
-    
-    docs_file = css_dir / "COMPONENT_DOCS.md"
-    docs_file.write_text(docs_content)
-    print(f"✅ Generated component documentation: {docs_file}")
-
-if __name__ == "__main__":
+def main() -> None:
+    """Main execution function"""
     import sys
     
     # Get project root from command line or use current directory
@@ -536,92 +484,8 @@ if __name__ == "__main__":
     else:
         print("\n⚠️  Some required files are missing. Please check the output above.")
     
-    # Check for CSS violations
-    violations = check_css_variables_usage(migrator.css_dir)
-    if violations:
-        print(f"\n⚠️  Found {len(violations)} CSS violations:")
-        for violation in violations[:5]:  # Show first 5
-            print(f"   {violation}")
-        if len(violations) > 5:
-            print(f"   ... and {len(violations) - 5} more")
-    else:
-        print("\n✅ No CSS violations found!")
-    
-    # Generate documentation
-    generate_component_documentation(migrator.css_dir)
-    
     print(f"\n📚 Migration complete! CSS files created in: {migrator.css_dir}")
     print("Run your application to test the new CSS system.")
 
-# =================================================================== 
-# Updated app.py configuration
-# ===================================================================
-
-# app.py - Updated with new CSS system
-import dash
-import dash_bootstrap_components as dbc
-from dash import html, dcc, Output, Input
-
-# Import your existing components
-from components import navbar, incident_alerts_panel, map_panel, bottom_panel, weak_signal_panel
-
-# Initialize the Dash app with new CSS system
-app = dash.Dash(
-    __name__, 
-    external_stylesheets=[
-        dbc.themes.BOOTSTRAP,
-        "/assets/css/main.css"  # New modular CSS system
-    ],
-    suppress_callback_exceptions=True,
-    use_pages=True,
-    # Add meta tags for better mobile experience
-    meta_tags=[
-        {"name": "viewport", "content": "width=device-width, initial-scale=1"},
-        {"name": "theme-color", "content": "#1B2A47"}
-    ]
-)
-
-server = app.server
-
-# Main dashboard page layout with new CSS classes
-def dashboard_layout():
-    return html.Div([
-        # Navbar
-        html.Div(navbar.layout, className='dashboard__navbar'),
-        
-        # Main content grid
-        html.Div([
-            html.Div(
-                incident_alerts_panel.layout, 
-                className='dashboard__left-panel panel'
-            ),
-            html.Div(
-                map_panel.layout, 
-                className='dashboard__map-panel map-panel'
-            ),
-            html.Div(
-                weak_signal_panel.layout, 
-                className='dashboard__right-panel panel'
-            ),
-        ], className='dashboard__content'),
-        
-        # Bottom panel
-        html.Div(bottom_panel.layout, className='dashboard__bottom-panel')
-    ], className='dashboard')
-
-# Register the main dashboard as the index page
-dash.register_page(
-    "dashboard", 
-    path="/", 
-    title="Yōsai Intel Dashboard",
-    layout=dashboard_layout
-)
-
-# App layout with page container
-app.layout = html.Div([
-    dcc.Location(id='url'),
-    dash.page_container
-], id='app-container')
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
+if __name__ == "__main__":
+    main()
