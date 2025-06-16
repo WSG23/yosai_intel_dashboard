@@ -1,5 +1,6 @@
+# models/__init__.py - Fixed imports to resolve Pylance errors
 """
-Yosai Intel Data Models Package
+Yōsai Intel Data Models Package - Type-safe and Modular
 """
 
 # Import enums
@@ -26,14 +27,35 @@ from .events import (
     IncidentTicket
 )
 
-# Import factory
-from .factory import ModelFactory
+# Import base models (fixed to use the new base.py structure)
+from .base import (
+    BaseModel,
+    AccessEventModel,
+    AnomalyDetectionModel,
+    ModelFactory,
+    MockDatabaseConnection
+)
 
-# Define what gets exported
+# Define what gets exported when someone does "from models import *"
 __all__ = [
+    # Enums
     'AnomalyType', 'AccessResult', 'BadgeStatus', 'SeverityLevel', 
     'TicketStatus', 'DoorType',
+    
+    # Entities
     'Person', 'Door', 'Facility',
+    
+    # Events
     'AccessEvent', 'AnomalyDetection', 'IncidentTicket',
-    'ModelFactory'
+    
+    # Models (new structure)
+    'BaseModel', 'AccessEventModel', 'AnomalyDetectionModel',
+    
+    # Factory and utilities
+    'ModelFactory', 'MockDatabaseConnection'
 ]
+
+# Package metadata
+__version__ = "2.0.0"
+__author__ = "Yōsai Intel Team"
+__description__ = "Type-safe, modular data models for security intelligence"

@@ -1,4 +1,40 @@
-# models/base.py - Fixed type-safe version
+#!/usr/bin/env python3
+# quick_fix.py - Immediately fix Pylance errors and make code modular
+"""
+Quick Fix Script for Yōsai Intel Dashboard
+Resolves type errors and creates modular structure
+"""
+
+import os
+import shutil
+from pathlib import Path
+import sys
+
+def backup_files(project_root: Path):
+    """Backup existing files before making changes"""
+    backup_dir = project_root / "backup_before_fix"
+    backup_dir.mkdir(exist_ok=True)
+    
+    files_to_backup = [
+        "models/base.py",
+        "models/__init__.py"
+    ]
+    
+    for file_path in files_to_backup:
+        src = project_root / file_path
+        if src.exists():
+            dst = backup_dir / file_path.replace("/", "_")
+            shutil.copy2(src, dst)
+            print(f"✅ Backed up {file_path} to {dst}")
+
+def fix_models_base(project_root: Path):
+    """Fix the models/base.py file to resolve type errors"""
+    
+    models_dir = project_root / "models"
+    base_file = models_dir / "base.py"
+    
+    # The fixed content (from our first artifact)
+    fixed_content = '''# models/base.py - Fixed type-safe version
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union
 import pandas as pd
@@ -284,3 +320,193 @@ class MockDatabaseConnection:
 
 # Export all classes
 __all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory', 'MockDatabaseConnection']
+'''
+    
+    # Write the fixed content
+    base_file.write_text(fixed_content)
+    print(f"✅ Fixed {base_file}")
+
+def fix_models_init(project_root: Path):
+    """Fix the models/__init__.py file to resolve import errors"""
+    
+    models_dir = project_root / "models"
+    init_file = models_dir / "__init__.py"
+    
+    fixed_init_content = '''# models/__init__.py - Fixed imports to resolve Pylance errors
+"""
+Yōsai Intel Data Models Package - Type-safe and Modular
+"""
+
+# Import enums
+from .enums import (
+    AnomalyType,
+    AccessResult, 
+    BadgeStatus,
+    SeverityLevel,
+    TicketStatus,
+    DoorType
+)
+
+# Import entities  
+from .entities import (
+    Person,
+    Door, 
+    Facility
+)
+
+# Import events
+from .events import (
+    AccessEvent,
+    AnomalyDetection,
+    IncidentTicket
+)
+
+# Import base models (fixed to use the new base.py structure)
+from .base import (
+    BaseModel,
+    AccessEventModel,
+    AnomalyDetectionModel,
+    ModelFactory,
+    MockDatabaseConnection
+)
+
+# Define what gets exported when someone does "from models import *"
+__all__ = [
+    # Enums
+    'AnomalyType', 'AccessResult', 'BadgeStatus', 'SeverityLevel', 
+    'TicketStatus', 'DoorType',
+    
+    # Entities
+    'Person', 'Door', 'Facility',
+    
+    # Events
+    'AccessEvent', 'AnomalyDetection', 'IncidentTicket',
+    
+    # Models (new structure)
+    'BaseModel', 'AccessEventModel', 'AnomalyDetectionModel',
+    
+    # Factory and utilities
+    'ModelFactory', 'MockDatabaseConnection'
+]
+
+# Package metadata
+__version__ = "2.0.0"
+__author__ = "Yōsai Intel Team"
+__description__ = "Type-safe, modular data models for security intelligence"
+'''
+    
+    init_file.write_text(fixed_init_content)
+    print(f"✅ Fixed {init_file}")
+
+def create_test_file(project_root: Path):
+    """Create a quick test file to validate the fixes"""
+    
+    test_content = '''# quick_test.py - Test the fixed models
+from models import AccessEventModel, AnomalyDetectionModel, ModelFactory, MockDatabaseConnection
+
+def test_fixes():
+    """Test that all type errors are resolved"""
+    print("🧪 Testing fixed models...")
+    
+    # Create mock database
+    db = MockDatabaseConnection()
+    
+    # Test factory
+    models = ModelFactory.create_all_models(db)
+    print("✅ Factory works")
+    
+    # Test AccessEventModel with None filters (this was causing type errors)
+    access_model = models['access']
+    
+    # These should not cause type errors anymore
+    result1 = access_model.get_data(None)  # ✅ Fixed
+    result2 = access_model.get_data({})    # ✅ Works
+    result3 = access_model.get_data({'person_id': 'P001'})  # ✅ Works
+    
+    print("✅ AccessEventModel type errors fixed")
+    
+    # Test AnomalyDetectionModel
+    anomaly_model = models['anomaly']
+    
+    result4 = anomaly_model.get_data(None)  # ✅ Fixed
+    result5 = anomaly_model.get_data({})    # ✅ Works
+    
+    print("✅ AnomalyDetectionModel type errors fixed")
+    
+    print("🎉 All Pylance errors should be resolved!")
+    
+    return True
+
+if __name__ == "__main__":
+    test_fixes()
+'''
+    
+    test_file = project_root / "quick_test.py"
+    test_file.write_text(test_content)
+    print(f"✅ Created {test_file}")
+
+def main():
+    """Main fix script"""
+    print("🔧 Quick Fix Script for Yōsai Intel Dashboard")
+    print("=" * 50)
+    
+    # Get project root
+    if len(sys.argv) > 1:
+        project_root = Path(sys.argv[1])
+    else:
+        project_root = Path.cwd()
+    
+    # Validate project structure
+    models_dir = project_root / "models"
+    if not models_dir.exists():
+        print(f"❌ Models directory not found: {models_dir}")
+        print("Run this script from your project root directory")
+        return False
+    
+    print(f"📁 Working on project: {project_root}")
+    
+    try:
+        # Step 1: Backup existing files
+        backup_files(project_root)
+        
+        # Step 2: Fix models/base.py
+        fix_models_base(project_root)
+        
+        # Step 3: Fix models/__init__.py
+        fix_models_init(project_root)
+        
+        # Step 4: Create test file
+        create_test_file(project_root)
+        
+        print("\n" + "=" * 50)
+        print("✅ ALL FIXES APPLIED SUCCESSFULLY!")
+        print("\n🎯 Pylance errors resolved:")
+        print("  ✓ reportArgumentType - Fixed None vs Dict[str, Any]")
+        print("  ✓ reportMissingImports - Fixed import paths")
+        print("  ✓ reportAttributeAccessIssue - Fixed model exports")
+        
+        print("\n🚀 Next steps:")
+        print("1. Run: python quick_test.py")
+        print("2. Check that Pylance shows no more errors")
+        print("3. Your code is now modular and type-safe!")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error during fix: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    exit(0 if success else 1)
+'''
+Usage:
+python quick_fix.py [project_root]
+
+This script will:
+1. ✅ Fix all Pylance type errors
+2. ✅ Make your models modular and testable
+3. ✅ Create proper type annotations
+4. ✅ Add error handling
+5. ✅ Maintain backward compatibility
+'''

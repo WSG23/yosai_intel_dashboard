@@ -1,36 +1,33 @@
-# models/base.py - Fixed type-safe version
+# models/base.py
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 import pandas as pd
 from datetime import datetime, timedelta
-import logging
 
 class BaseModel(ABC):
-    """Base class for all data models with proper type safety"""
+    """Base class for all data models"""
     
     def __init__(self, db_connection):
         self.db = db_connection
     
     @abstractmethod
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Get data with optional filtering - subclasses must implement"""
+    def get_data(self, filters: Dict[str, Any] = None) -> pd.DataFrame:
         pass
     
     @abstractmethod
     def get_summary_stats(self) -> Dict[str, Any]:
-        """Get summary statistics - subclasses must implement"""
         pass
-    
-    def validate_data(self, data: pd.DataFrame) -> bool:
-        """Basic data validation - can be overridden by subclasses"""
-        if data is None or data.empty:
-            return False
-        return True
+
+# models/access_event.py
+from .base import BaseModel
+from datetime import datetime, timedelta
+import pandas as pd
+import logging
 
 class AccessEventModel(BaseModel):
-    """Model for access control events with proper type safety"""
+    """Model for access control events"""
     
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    def get_data(self, filters: Dict[str, Any] = None) -> pd.DataFrame:
         """Get access events with optional filtering"""
         
         base_query = """
@@ -50,10 +47,6 @@ class AccessEventModel(BaseModel):
         """
         
         params = []
-        
-        # Use empty dict if filters is None to avoid type issues
-        if filters is None:
-            filters = {}
         
         if filters:
             if 'start_date' in filters:
@@ -76,7 +69,7 @@ class AccessEventModel(BaseModel):
         
         try:
             df = self.db.execute_query(base_query, tuple(params) if params else None)
-            return df if df is not None else pd.DataFrame()
+            return df
         except Exception as e:
             logging.error(f"Error fetching access events: {e}")
             return pd.DataFrame()
@@ -97,7 +90,7 @@ class AccessEventModel(BaseModel):
         
         try:
             result = self.db.execute_query(query)
-            if result is not None and not result.empty:
+            if not result.empty:
                 return result.iloc[0].to_dict()
             return {}
         except Exception as e:
@@ -124,16 +117,20 @@ class AccessEventModel(BaseModel):
         """
         
         try:
-            result = self.db.execute_query(query, (days,))
-            return result if result is not None else pd.DataFrame()
+            return self.db.execute_query(query, (days,))
         except Exception as e:
             logging.error(f"Error getting trend analysis: {e}")
             return pd.DataFrame()
 
-class AnomalyDetectionModel(BaseModel):
-    """Model for anomaly detection data with proper type safety"""
+# models/anomaly.py
+from .base import BaseModel
+import pandas as pd
+import logging
+
+class AnomalyModel(BaseModel):
+    """Model for anomaly detection data"""
     
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    def get_data(self, filters: Dict[str, Any] = None) -> pd.DataFrame:
         """Get anomaly detections"""
         
         base_query = """
@@ -155,10 +152,6 @@ class AnomalyDetectionModel(BaseModel):
         
         params = []
         
-        # Use empty dict if filters is None
-        if filters is None:
-            filters = {}
-        
         if filters:
             if 'anomaly_type' in filters:
                 base_query += " AND a.anomaly_type = %s"
@@ -173,8 +166,7 @@ class AnomalyDetectionModel(BaseModel):
         base_query += " ORDER BY a.detected_at DESC LIMIT 5000"
         
         try:
-            result = self.db.execute_query(base_query, tuple(params) if params else None)
-            return result if result is not None else pd.DataFrame()
+            return self.db.execute_query(base_query, tuple(params) if params else None)
         except Exception as e:
             logging.error(f"Error fetching anomalies: {e}")
             return pd.DataFrame()
@@ -192,7 +184,7 @@ class AnomalyDetectionModel(BaseModel):
         
         try:
             result = self.db.execute_query(query)
-            if result is not None and not result.empty:
+            if not result.empty:
                 return result.iloc[0].to_dict()
             return {}
         except Exception as e:
@@ -213,74 +205,14 @@ class AnomalyDetectionModel(BaseModel):
         """
         
         try:
-            result = self.db.execute_query(query)
-            return result if result is not None else pd.DataFrame()
+            return self.db.execute_query(query)
         except Exception as e:
             logging.error(f"Error getting anomaly breakdown: {e}")
             return pd.DataFrame()
 
-# Factory class for creating model instances (modular and testable)
-class ModelFactory:
-    """Factory class for creating data model instances"""
-    
-    @staticmethod
-    def create_access_model(db_connection) -> AccessEventModel:
-        """Create an AccessEventModel instance"""
-        return AccessEventModel(db_connection)
-    
-    @staticmethod
-    def create_anomaly_model(db_connection) -> AnomalyDetectionModel:
-        """Create an AnomalyDetectionModel instance"""
-        return AnomalyDetectionModel(db_connection)
-    
-    @staticmethod
-    def create_all_models(db_connection) -> Dict[str, BaseModel]:
-        """Create all standard models with a single data source"""
-        return {
-            'access': ModelFactory.create_access_model(db_connection),
-            'anomaly': ModelFactory.create_anomaly_model(db_connection)
-        }
+# models/__init__.py
+from .base import BaseModel
+from .access_event import AccessEventModel
+from .anomaly import AnomalyModel
 
-# Mock database connection for testing
-class MockDatabaseConnection:
-    """Mock database connection for testing purposes"""
-    
-    def __init__(self):
-        self.sample_data = self._generate_sample_data()
-    
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
-        """Mock query execution that returns sample data"""
-        # Simple query parsing for testing
-        if "access_events" in query.lower():
-            return self.sample_data['access_events']
-        elif "anomaly_detections" in query.lower():
-            return self.sample_data['anomaly_detections']
-        else:
-            return pd.DataFrame()
-    
-    def _generate_sample_data(self) -> Dict[str, pd.DataFrame]:
-        """Generate sample data for testing"""
-        access_events = pd.DataFrame({
-            'event_id': ['E001', 'E002', 'E003'],
-            'timestamp': [datetime.now() - timedelta(hours=i) for i in range(3)],
-            'person_id': ['P001', 'P002', 'P001'],
-            'door_id': ['D001', 'D002', 'D001'],
-            'access_result': ['Granted', 'Denied', 'Granted'],
-            'badge_status': ['Valid', 'Invalid', 'Valid']
-        })
-        
-        anomaly_detections = pd.DataFrame({
-            'anomaly_id': ['A001', 'A002'],
-            'event_id': ['E002', 'E003'],
-            'anomaly_type': ['unusual_time', 'multiple_attempts'],
-            'severity': ['medium', 'high'],
-            'confidence_score': [0.75, 0.95]
-        })
-        
-        return {
-            'access_events': access_events,
-            'anomaly_detections': anomaly_detections
-        }
-
-# Export all classes
-__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory', 'MockDatabaseConnection']
+__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyModel']
