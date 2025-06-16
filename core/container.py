@@ -14,6 +14,7 @@ class ServiceDefinition:
     factory: Callable[..., Any]
     singleton: bool = True
     dependencies: List[str] = field(default_factory=list)
+    lifecycle: bool = False
 
 class Container:
     """Simple but powerful dependency injection container"""
@@ -24,16 +25,18 @@ class Container:
         self._lock = threading.Lock()
         self._resolving: set = set()  # Prevent circular dependencies
     
-    def register(self, 
-                 name: str, 
-                 factory: Callable[..., T], 
+    def register(self,
+                 name: str,
+                 factory: Callable[..., T],
                  singleton: bool = True,
-                 dependencies: Optional[List[str]] = None) -> None:
+                 dependencies: Optional[List[str]] = None,
+                 lifecycle: bool = False) -> None:
         """Register a service with the container"""
         self._services[name] = ServiceDefinition(
             factory=factory,
             singleton=singleton,
-            dependencies=dependencies or []
+            dependencies=dependencies or [],
+            lifecycle=lifecycle
         )
         logger.debug(f"Registered service: {name}")
     
@@ -103,6 +106,28 @@ class Container:
     def list_services(self) -> List[str]:
         """List all registered services"""
         return list(self._services.keys()) + list(self._instances.keys())
+
+    def start(self) -> None:
+        """Start lifecycle services if they implement a start method."""
+        for name, definition in self._services.items():
+            if definition.lifecycle:
+                instance = self.get(name)
+                start_method = getattr(instance, "start", None)
+                if callable(start_method):
+                    start_method()
+
+    def stop(self) -> None:
+        """Stop lifecycle services if they implement a stop method."""
+        for name, definition in self._services.items():
+            if definition.lifecycle and name in self._instances:
+                instance = self._instances[name]
+                stop_method = getattr(instance, "stop", None)
+                if callable(stop_method):
+                    stop_method()
+
+    def health_check(self) -> Dict[str, str]:
+        """Simple health check for the container."""
+        return {"status": "healthy"}
 
 # Global container instance
 _container: Optional[Container] = None
