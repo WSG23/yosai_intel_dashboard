@@ -4,11 +4,17 @@ Data preview component for analytics page
 FIXED: Properly exports create_data_preview function
 """
 
+from typing import Any, Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import dash_bootstrap_components as dbc
+    from dash import html
+    import pandas as pd
+
 try:
     import dash_bootstrap_components as dbc
     from dash import html
     import pandas as pd
-    from typing import Optional, List
     DASH_AVAILABLE = True
 except ImportError:
     print("Warning: Dash components not available in data_preview")
@@ -18,9 +24,7 @@ except ImportError:
     html = None
     pd = None
 
-from typing import Any
-
-def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> Any:
+def create_data_preview(df: Optional['pd.DataFrame'] = None, filename: str = "") -> Any:
     """Create data preview component - FIXED: Properly exported function"""
 
     if not DASH_AVAILABLE or html is None or dbc is None:
@@ -51,7 +55,7 @@ def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -
         ], className="mb-4")
     ])
 
-def _create_type_safe_table(df: pd.DataFrame) -> Any:
+def _create_type_safe_table(df: 'pd.DataFrame') -> Any:
     """Create a completely type-safe HTML table"""
 
     if not DASH_AVAILABLE or html is None or dbc is None or pd is None or df.empty:
@@ -163,7 +167,7 @@ def _create_type_safe_table(df: pd.DataFrame) -> Any:
     
     return html.Div(result_components)
 
-def create_dataset_summary(df: pd.DataFrame) -> Any:
+def create_dataset_summary(df: 'pd.DataFrame') -> Any:
     """Create dataset summary with guaranteed type safety"""
 
     if not DASH_AVAILABLE or html is None or dbc is None or pd is None or df.empty:
@@ -196,7 +200,7 @@ def create_dataset_summary(df: pd.DataFrame) -> Any:
         html.Div(summary_items, className="summary-list text-muted", style={'fontSize': '0.9rem'})
     ])
 
-def create_enhanced_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> Any:
+def create_enhanced_preview(df: Optional['pd.DataFrame'] = None, filename: str = "") -> Any:
     """Enhanced preview with summary - completely type safe"""
 
     if not DASH_AVAILABLE or html is None or dbc is None or pd is None:
