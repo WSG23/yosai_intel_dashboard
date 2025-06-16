@@ -145,6 +145,27 @@ PORT=8050            # Application port
 SECRET_KEY=your-key  # Change for production
 ```
 
+### Environment Overrides
+
+`ConfigurationManager` loads YAML files from `config/` and then checks for
+environment variables. When a variable name matches a key used in the YAML
+configuration (for example `DB_HOST`, `DB_USER`, `REDIS_HOST` or
+`SECRET_KEY`), its value replaces the one from the file. This lets you adjust
+settings without editing the YAML files.
+
+Example:
+
+```bash
+DB_HOST=localhost
+DB_USER=postgres
+REDIS_HOST=localhost
+SECRET_KEY=supersecret
+python app.py
+```
+
+These values override `database.host`, `database.username`, `cache.host` and
+`security.secret_key` from the loaded YAML.
+
 ## 📊 Modular Components
 
 ### Database Layer (`config/`)
