@@ -18,7 +18,13 @@ from .entities import Person, Door, Facility
 from .events import AccessEvent, AnomalyDetection, IncidentTicket
 
 # Import base models
-from .base import BaseModel, AccessEventModel, AnomalyDetectionModel, ModelFactory
+from .base import (
+    BaseModel,
+    AccessEventModel,
+    AnomalyDetectionModel,
+    ModelFactory,
+    MockDatabaseConnection,
+)
 
 # Define exports
 __all__ = [
@@ -33,5 +39,9 @@ __all__ = [
     'AccessEvent', 'AnomalyDetection', 'IncidentTicket',
     
     # Models
-    'BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory'
+    'BaseModel',
+    'AccessEventModel',
+    'AnomalyDetectionModel',
+    'ModelFactory',
+    'MockDatabaseConnection'
 ]
