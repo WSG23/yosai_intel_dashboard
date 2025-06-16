@@ -1,0 +1,46 @@
+/* =================================================================== */
+/* assets/css/main.css - Master Import File */
+/* =================================================================== */
+
+/* Critical CSS - Foundation Layer (loads first) */
+@import './01-foundation/_variables.css';
+@import './01-foundation/_reset.css';
+@import './01-foundation/_typography.css';
+@import './01-foundation/_accessibility.css';
+
+/* Layout System */
+@import './02-layout/_grid.css';
+@import './02-layout/_containers.css';
+@import './02-layout/_spacing.css';
+@import './02-layout/_positioning.css';
+
+/* Component Library */
+@import './03-components/_buttons.css';
+@import './03-components/_cards.css';
+@import './03-components/_chips.css';
+@import './03-components/_alerts.css';
+@import './03-components/_forms.css';
+@import './03-components/_navigation.css';
+@import './03-components/_modals.css';
+
+/* Dashboard Panels */
+@import './04-panels/_panel-base.css';
+@import './04-panels/_map-panel.css';
+@import './04-panels/_alert-panel.css';
+@import './04-panels/_signal-panel.css';
+@import './04-panels/_bottom-panel.css';
+@import './04-panels/_navbar.css';
+
+/* Page-Specific Styles */
+@import './05-pages/_dashboard.css';
+@import './05-pages/_analytics.css';
+
+/* Theme System */
+@import './06-themes/_dark-theme.css';
+
+/* Utility Classes */
+@import './07-utilities/_display.css';
+@import './07-utilities/_flexbox.css';
+@import './07-utilities/_colors.css';
+@import './07-utilities/_sizing.css';
+@import './07-utilities/_text.css';

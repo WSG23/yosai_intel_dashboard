@@ -10,39 +10,18 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 import io
 
 # Import your new components
-from components.analytics.file_uploader import create_file_uploader
-from components.analytics.data_preview import create_data_preview
-from components.analytics.analytics_charts import create_analytics_charts, create_summary_cards
+#from components.analytics.file_uploader import create_file_uploader
+#from components.analytics.data_preview import create_data_preview
+#from components.analytics.analytics_charts import create_analytics_charts, create_summary_cards
 
 # Register this page with Dash
 dash.register_page(__name__, path="/analytics", title="Deep Analytics")
 
 def layout():
-    """Deep Analytics page layout"""
-    
+    """Temporary analytics page layout"""
     return dbc.Container([
-        # Page Header
-        dbc.Row([
-            dbc.Col([
-                html.H1("Deep Analytics", className="mb-1"),
-                html.P("Upload and analyze access control data", className="text-muted mb-4")
-            ])
-        ]),
-        
-        # File Upload Section
-        dbc.Row([
-            dbc.Col([
-                create_file_uploader()
-            ])
-        ]),
-        
-        # Analysis Results Section
-        html.Div(id="analytics-results"),
-        
-        # Store components for data persistence
-        dcc.Store(id="uploaded-data-store"),
-        dcc.Store(id="analytics-data-store")
-        
+        html.H1("Deep Analytics - Coming Soon", className="text-primary"),
+        html.P("Analytics features will be added here.", className="text-secondary")
     ], fluid=True, className="p-4")
 
 # Callback for file upload processing
