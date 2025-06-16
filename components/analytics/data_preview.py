@@ -1,11 +1,28 @@
-# components/analytics/data_preview.py - COMPLETELY FIXED: Zero type errors
-import dash_bootstrap_components as dbc
-from dash import html
-import pandas as pd
-from typing import Optional, List
+# components/analytics/data_preview.py - FIXED: Proper exports
+"""
+Data preview component for analytics page
+FIXED: Properly exports create_data_preview function
+"""
+
+try:
+    import dash_bootstrap_components as dbc
+    from dash import html
+    import pandas as pd
+    from typing import Optional, List
+    DASH_AVAILABLE = True
+except ImportError:
+    print("Warning: Dash components not available in data_preview")
+    DASH_AVAILABLE = False
+    # Create fallback types
+    dbc = None
+    html = None
+    pd = None
 
 def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> html.Div:
-    """Create data preview component - COMPLETELY FIXED: Zero type errors"""
+    """Create data preview component - FIXED: Properly exported function"""
+    
+    if not DASH_AVAILABLE:
+        return html.Div("Data preview not available - Dash not installed")
     
     if df is None or df.empty:
         return html.Div([
@@ -31,9 +48,9 @@ def create_data_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -
     ])
 
 def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
-    """Create a completely type-safe HTML table with zero typing issues"""
+    """Create a completely type-safe HTML table"""
     
-    if df.empty:
+    if not DASH_AVAILABLE or df.empty:
         return html.Div("No data available", className="text-muted")
     
     # Limit for performance and display
@@ -117,16 +134,16 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
         }
     )
     
-    # 7. Info section (using only html.Div to avoid typing issues)
+    # 7. Info section
     info_parts: List[str] = []
     if len(df.columns) > max_cols:
         info_parts.append(f"Showing {max_cols} of {len(df.columns)} columns")
     if len(df) > max_rows:
         info_parts.append(f"Showing {max_rows} of {len(df)} rows")
     
-    # 8. Build final component with explicit structure
+    # 8. Build final component
     result_components: List[html.Div] = [
-        html.Div([table_container])  # Table wrapped in Div
+        html.Div([table_container])
     ]
     
     if info_parts:
@@ -143,7 +160,7 @@ def _create_type_safe_table(df: pd.DataFrame) -> html.Div:
 def create_dataset_summary(df: pd.DataFrame) -> html.Div:
     """Create dataset summary with guaranteed type safety"""
     
-    if df.empty:
+    if not DASH_AVAILABLE or df.empty:
         return html.Div("No data to summarize", className="text-muted")
     
     # Calculate basic stats
@@ -174,6 +191,9 @@ def create_dataset_summary(df: pd.DataFrame) -> html.Div:
 def create_enhanced_preview(df: Optional[pd.DataFrame] = None, filename: str = "") -> html.Div:
     """Enhanced preview with summary - completely type safe"""
     
+    if not DASH_AVAILABLE:
+        return html.Div("Enhanced preview not available - Dash not installed")
+    
     if df is None or df.empty:
         return html.Div([
             dbc.Alert("No data available for preview", color="info", className="text-center")
@@ -197,5 +217,5 @@ def create_enhanced_preview(df: Optional[pd.DataFrame] = None, filename: str = "
         ], className="mb-4")
     ])
 
-# Export clean interface
-__all__ = ['create_data_preview', 'create_enhanced_preview']
+# FIXED: Explicitly export the main function
+__all__ = ['create_data_preview', 'create_enhanced_preview', 'create_dataset_summary']

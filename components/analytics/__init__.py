@@ -1,7 +1,6 @@
-# components/analytics/__init__.py - FIXED: Type-safe imports
+# components/analytics/__init__.py - FIXED: Safe analytics imports
 """
-Analytics components module for Yōsai Intel Dashboard
-Modular, testable components for data analysis and visualization
+Analytics components module - Type-safe imports
 """
 
 # Import main component functions with error handling
@@ -33,7 +32,7 @@ except ImportError as e:
         from dash import html
         return html.Div("Summary cards component not available")
 
-# Handle file processing imports with proper fallbacks
+# Handle file processing imports
 FileProcessor = None
 AnalyticsGenerator = None
 
@@ -44,7 +43,7 @@ try:
 except ImportError as e:
     print(f"Warning: Could not import file_processing: {e}")
     
-    # Create fallback classes if import fails
+    # Create fallback classes
     class _FallbackFileProcessor:
         @staticmethod
         def process_file_content(contents, filename):
@@ -71,8 +70,3 @@ __all__ = [
     'FileProcessor',
     'AnalyticsGenerator'
 ]
-
-# Version information
-__version__ = "1.0.1"
-__author__ = "Yōsai Intel Team"
-__description__ = "Type-safe, modular analytics components"

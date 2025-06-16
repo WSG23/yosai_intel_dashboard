@@ -1,66 +1,87 @@
-# components/navbar.py - Updated with new CSS classes
-import dash_bootstrap_components as dbc
-from dash import html, dcc, callback, Output, Input
-import datetime
+# components/navbar.py - FIXED: Type-safe navbar
+"""
+Navigation bar component with complete type safety
+"""
 
-# Updated navbar with new CSS classes
-layout = dbc.Navbar([
-    dbc.Container([
-        # Left side - Logo  
-        dbc.Row([
-            dbc.Col([
-                html.Img(
-                    src="/assets/yosai_logo_name_white.png", 
-                    height="40px",
-                    className="navbar__logo"  # ← NEW CSS CLASS
-                )
-            ], width="auto")
-        ], align="center"),
-        
-        # Center - Current page info
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    html.H5("Main Panel", className="navbar__title text-primary"),  # ← NEW CLASSES
-                    html.Small("Logged in as: HQ Tower - East Wing", className="navbar__subtitle text-secondary"),  # ← NEW CLASSES
-                    html.Small(id="live-time", className="navbar__subtitle text-tertiary")  # ← NEW CLASSES
-                ], className="text-center")
-            ])
-        ], align="center", className="flex-grow-1"),
-        
-        # Right side - Navigation links
-        dbc.Row([
-            dbc.Col([
-                dbc.Nav([
-                    dbc.NavItem(dbc.NavLink("Dashboard", href="/", className="nav-link", active="exact")),  # ← NEW CLASS
-                    dbc.NavItem(dbc.NavLink("Deep Analytics", href="/analytics", className="nav-link", active="exact")),  # ← NEW CLASS
-                    dbc.NavItem(dbc.NavLink("Export Log", href="#", className="nav-link")),  # ← NEW CLASS
-                    dbc.NavItem(dbc.NavLink("Executive Report", href="#", className="nav-link")),  # ← NEW CLASS
-                    dbc.NavItem(dbc.NavLink("Settings", href="#", className="nav-link")),  # ← NEW CLASS
-                    dbc.NavItem(dbc.NavLink("Logoff", href="#", className="nav-link"))  # ← NEW CLASS
-                ], navbar=True, className="navbar__nav")  # ← NEW CLASS
-            ])
-        ], align="center")
-    ], fluid=True, className="navbar__container")  # ← NEW CLASS
-], color="dark", dark=True, className="navbar")  # ← UPDATED CLASS
+try:
+    import dash_bootstrap_components as dbc
+    from dash import html, dcc, callback, Output, Input
+    import datetime
+    DASH_AVAILABLE = True
+except ImportError:
+    print("Warning: Dash components not available")
+    DASH_AVAILABLE = False
+    # Create fallbacks
+    dbc = None
+    html = None
+    dcc = None
 
-# CALLBACK: Updated with error handling
-@callback(
-    Output("live-time", "children"),
-    Input("live-time", "id"),
-    prevent_initial_call=False  # ← IMPORTANT: Prevents callback errors
-)
-def update_time(_):
-    """Update live time display"""
+def create_navbar_layout():
+    """Create navbar layout with fallback"""
+    if not DASH_AVAILABLE:
+        return None
+    
     try:
-        return f"Live Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        return dbc.Navbar([
+            dbc.Container([
+                # Logo
+                dbc.Row([
+                    dbc.Col([
+                        html.Img(
+                            src="/assets/yosai_logo_name_white.png", 
+                            height="40px",
+                            className="navbar__logo"
+                        )
+                    ], width="auto")
+                ], align="center"),
+                
+                # Center content
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.H5("Main Panel", className="navbar__title text-primary"),
+                            html.Small("Logged in as: HQ Tower - East Wing", className="navbar__subtitle text-secondary"),
+                            html.Small(id="live-time", className="navbar__subtitle text-tertiary")
+                        ], className="text-center")
+                    ])
+                ], align="center", className="flex-grow-1"),
+                
+                # Navigation links
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Nav([
+                            dbc.NavItem(dbc.NavLink("Dashboard", href="/", className="nav-link", active="exact")),
+                            dbc.NavItem(dbc.NavLink("Deep Analytics", href="/analytics", className="nav-link", active="exact")),
+                            dbc.NavItem(dbc.NavLink("Export Log", href="#", className="nav-link")),
+                            dbc.NavItem(dbc.NavLink("Settings", href="#", className="nav-link")),
+                        ], navbar=True, className="navbar__nav")
+                    ])
+                ], align="center")
+            ], fluid=True, className="navbar__container")
+        ], color="dark", dark=True, className="navbar")
     except Exception as e:
-        return "Time unavailable"
+        print(f"Error creating navbar: {e}")
+        return html.Div("Navigation not available")
 
-# CLASS MAPPING REFERENCE:
-# OLD CLASS → NEW CLASS
-# .navbar-brand → .navbar__logo
-# .mb-0 text-white → .navbar__title text-primary  
-# .text-light → .navbar__subtitle text-secondary
-# .ms-auto → .navbar__nav
-# Standard Bootstrap → .nav-link
+# Create the layout
+layout = create_navbar_layout()
+
+# Safe callback registration
+def register_navbar_callbacks(app):
+    """Register navbar callbacks safely"""
+    if not DASH_AVAILABLE:
+        return
+    
+    try:
+        @app.callback(
+            Output("live-time", "children"),
+            Input("live-time", "id"),
+            prevent_initial_call=False
+        )
+        def update_time(_):
+            try:
+                return f"Live Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            except Exception:
+                return "Time unavailable"
+    except Exception as e:
+        print(f"Error registering navbar callbacks: {e}")
