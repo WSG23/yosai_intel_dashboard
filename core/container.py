@@ -1,7 +1,7 @@
 # core/container.py
 """Dependency Injection Container for Yōsai Intel Dashboard"""
 from typing import Dict, Any, TypeVar, Callable, Optional, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import threading
 import logging
 
@@ -13,7 +13,7 @@ class ServiceDefinition:
     """Definition of a registered service"""
     factory: Callable[..., Any]
     singleton: bool = True
-    dependencies: List[str] = None
+    dependencies: List[str] = field(default_factory=list)
 
 class Container:
     """Simple but powerful dependency injection container"""
