@@ -60,11 +60,14 @@ except ImportError as e:
         def __init__(self, children=None, **kwargs):
             self.children = children
             self.kwargs = kwargs
-        
+
         # Add themes attribute for fallback
         class themes:
             BOOTSTRAP = "mock-bootstrap"
-    
+
+    # Ensure a dbc fallback exists when dash_bootstrap_components is unavailable
+    dbc = _MockDBC
+
     class _MockDCC:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
