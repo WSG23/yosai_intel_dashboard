@@ -6,7 +6,6 @@ import uuid
 from typing import Dict, Any, Optional, Tuple, Sequence
 import logging
 from datetime import datetime
-import openpyxl
 
 class FileProcessor:
     """Service for processing uploaded files"""
