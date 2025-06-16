@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 import uuid
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Sequence
 import logging
 from datetime import datetime
 import openpyxl
@@ -153,7 +153,7 @@ class FileProcessor:
         
         # If exact matches not found, try fuzzy matching
         if missing_columns:
-            fuzzy_matches = self._fuzzy_match_columns(df.columns, required_columns)
+            fuzzy_matches = self._fuzzy_match_columns(list(df.columns), required_columns)
             
             if fuzzy_matches:
                 return {
@@ -187,7 +187,7 @@ class FileProcessor:
         
         return {'valid': True}
     
-    def _fuzzy_match_columns(self, available_columns: list, required_columns: list) -> Dict[str, str]:
+    def _fuzzy_match_columns(self, available_columns: Sequence[str], required_columns: Sequence[str]) -> Dict[str, str]:
         """Suggest column mappings based on fuzzy matching"""
         
         suggestions = {}
