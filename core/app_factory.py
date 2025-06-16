@@ -2,12 +2,18 @@
 """App factory with Dependency Injection - replaces DashboardApp class from app.py"""
 from typing import Any, Optional
 import logging
+import dash
 from .config_manager import ConfigManager
-from .component_registry import ComponentRegistry  
+from .component_registry import ComponentRegistry
 from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container
 from .container import Container
+
+
+class YosaiDash(dash.Dash):
+    """Dash subclass with reference to the DI container."""
+    _yosai_container: Container
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +29,12 @@ class DashAppFactory:
             container = get_configured_container()
         
         try:
-            import dash
             
             # Get config from container
             config_manager = container.get('config')
             
             # Create Dash app with configuration
-            app = dash.Dash(
+            app = YosaiDash(
                 __name__,
                 external_stylesheets=config_manager.get_stylesheets(),
                 suppress_callback_exceptions=True,
@@ -66,8 +71,6 @@ class DashAppFactory:
 def create_application() -> Optional[Any]:
     """Create application with dependency injection"""
     try:
-        # Check if Dash is available
-        import dash
         
         # Create configured container
         container = get_configured_container()
