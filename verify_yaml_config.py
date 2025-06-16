@@ -219,7 +219,7 @@ def test_dependency_injection_integration() -> Tuple[bool, str]:
         
         # Create container and configure it
         container = Container()
-        configure_container_with_yaml(container, config_manager)
+        configure_container_with_yaml(container)
         
         # Verify configuration objects are registered
         required_services = [
@@ -395,7 +395,7 @@ def print_summary(results: List[Tuple[str, bool, str]]) -> None:
         print(f"   3. Check for syntax errors in config files")
         print(f"   4. Verify directory structure")
 
-def main() -> None:
+def main() -> int:
     """Main verification function"""
     print("🏯 YŌSAI INTEL DASHBOARD")
     print("🔧 Priority 3: Configuration Management Verification")
