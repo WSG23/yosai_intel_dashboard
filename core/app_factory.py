@@ -150,6 +150,14 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
         logger.error(f"Error creating application: {e}")
         return None
 
+def create_application_for_testing() -> Optional[YosaiDash]:
+    """Create application instance configured for unit tests."""
+    try:
+        return create_application(None)
+    except Exception as e:
+        logger.error(f"Error creating test application: {e}")
+        return None
+
 # ============================================================================
 # COMPLETE YAML CONFIGURATION SYSTEM SUMMARY
 """
@@ -319,7 +327,8 @@ if __name__ == "__main__":
 # Export main functions
 __all__ = [
     'create_application',
-    'DashAppFactory', 
+    'create_application_for_testing',
+    'DashAppFactory',
     'YosaiDash',
     'verify_yaml_system'
 ]

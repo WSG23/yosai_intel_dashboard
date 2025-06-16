@@ -317,8 +317,12 @@ def get_configured_container_with_yaml() -> Container:
     # Configure if not already configured
     if not container.has('config_manager'):
         configure_container_with_yaml(container)
-    
+
     return container
+
+def get_configured_container() -> Container:
+    """Legacy wrapper for backward compatibility"""
+    return get_configured_container_with_yaml()
 
 # ============================================================================
 # tests/test_yaml_configuration.py - NEW: Comprehensive configuration testing
@@ -555,6 +559,7 @@ if __name__ == "__main__":
 __all__ = [
     'configure_container_with_yaml',
     'get_configured_container_with_yaml',
+    'get_configured_container',
     'EnhancedHealthMonitor',
     'run_configuration_tests'
 ]
