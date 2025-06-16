@@ -1,0 +1,51 @@
+app:
+  debug: true
+  host: 127.0.0.1
+  port: 8050
+  title: "Y\u014Dsai Intel Dashboard"
+  timezone: UTC
+  log_level: INFO
+  enable_profiling: false
+database:
+  type: mock
+  host: localhost
+  port: 5432
+  database: yosai_intel
+  username: postgres
+  password: ''
+  pool_size: 5
+  ssl_mode: prefer
+  connection_timeout: 30
+cache:
+  type: memory
+  host: localhost
+  port: 6379
+  database: 0
+  timeout_seconds: 300
+  max_memory_mb: 100
+  key_prefix: 'yosai:'
+security:
+  secret_key: dev-key-change-in-production
+  session_timeout_minutes: 60
+  max_file_size_mb: 100
+  allowed_file_types:
+  - .csv
+  - .json
+  - .xlsx
+  - .xls
+  cors_enabled: false
+  cors_origins: []
+analytics:
+  cache_timeout_seconds: 300
+  max_records_per_query: 10000
+  enable_real_time: true
+  batch_size: 1000
+  anomaly_detection_enabled: true
+  ml_models_path: models/ml
+monitoring:
+  health_check_enabled: true
+  metrics_enabled: true
+  health_check_interval_seconds: 30
+  performance_monitoring: false
+  error_reporting_enabled: false
+  sentry_dsn: null

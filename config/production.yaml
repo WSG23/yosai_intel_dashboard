@@ -1,0 +1,33 @@
+app:
+  debug: false
+  host: 0.0.0.0
+  port: 8050
+  log_level: WARNING
+  enable_profiling: false
+database:
+  type: postgresql
+  host: ${DB_HOST}
+  port: 5432
+  database: ${DB_NAME}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+  pool_size: 10
+  ssl_mode: require
+cache:
+  type: redis
+  host: ${REDIS_HOST}
+  port: 6379
+  timeout_seconds: 600
+security:
+  secret_key: ${SECRET_KEY}
+  session_timeout_minutes: 30
+  max_file_size_mb: 50
+  cors_enabled: true
+  cors_origins:
+  - https://yourdomain.com
+monitoring:
+  health_check_enabled: true
+  metrics_enabled: true
+  performance_monitoring: true
+  error_reporting_enabled: true
+  sentry_dsn: ${SENTRY_DSN}

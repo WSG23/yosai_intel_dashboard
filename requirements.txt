@@ -48,3 +48,6 @@ dash-leaflet>=1.0.0
 
 # CSS Utilities (optional)
 cssutils>=2.6.0
+
+# YAML Configuration Support
+PyYAML>=6.0
