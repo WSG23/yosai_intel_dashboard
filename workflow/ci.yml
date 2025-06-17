@@ -28,6 +28,15 @@ jobs:
           pip install -r requirements.txt
           pip install black flake8 mypy bandit pytest pytest-cov safety
 
+      - name: 🌐 Extract translations
+        run: pybabel extract -F babel.cfg -o messages.pot .
+
+      - name: 🌐 Compile translations
+        run: pybabel compile -d translations
+
+      - name: 🔎 Check missing translations
+        run: python scripts/check_missing_translations.py
+
       # ----- Lint & static analysis -----
       - name: 🧹 Black (format check)
         run: black --check --diff .
