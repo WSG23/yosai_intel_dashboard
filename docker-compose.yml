@@ -3,6 +3,8 @@ version: '3.8'
 services:
   dashboard:
     build: .
+    env_file:
+      - .env
     ports:
       - "8050:8050"
     environment:
@@ -10,7 +12,7 @@ services:
       - DB_HOST=postgres
       - DB_NAME=yosai_intel
       - DB_USER=postgres
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
       - postgres
     volumes:
@@ -22,7 +24,7 @@ services:
     environment:
       POSTGRES_DB: yosai_intel
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database_setup.sql:/docker-entrypoint-initdb.d/init.sql
