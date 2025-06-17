@@ -269,8 +269,8 @@ def configure_container_with_yaml(container: Container, config_manager: Optional
     
     logger.info("✅ Container configuration complete!")
 
-def get_configured_container_with_yaml(config_manager: Optional[Any] = None) -> Container:
-    """Get container configured with YAML configuration - MAIN ENTRY POINT"""
+def create_container_with_yaml(config_manager: Optional[Any] = None) -> Container:
+    """Create container configured with YAML configuration"""
     container = Container()
     configure_container_with_yaml(container, config_manager)
     return container
