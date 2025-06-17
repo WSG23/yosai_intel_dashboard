@@ -401,6 +401,19 @@ class ConfigurationManager:
         
         logger.info(f"Effective configuration saved to: {output_path}")
 
+    def print_startup_info(self) -> None:
+        """Print startup information similar to the legacy ConfigManager"""
+        print("\n" + "=" * 60)
+        print("🏯 YŌSAI INTEL DASHBOARD")
+        print("=" * 60)
+        print(f"🌐 URL: http://{self.app_config.host}:{self.app_config.port}")
+        print(f"🔧 Debug Mode: {self.app_config.debug}")
+        print(f"📊 Analytics: http://{self.app_config.host}:{self.app_config.port}/analytics")
+        print("=" * 60)
+        if self.app_config.debug:
+            print("⚠️  Running in DEBUG mode - do not use in production!")
+        print("\n🚀 Dashboard starting...")
+
 # Factory function for dependency injection
 def create_configuration_manager() -> ConfigurationManager:
     """Factory function to create and load configuration manager"""
