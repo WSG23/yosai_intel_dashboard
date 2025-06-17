@@ -333,6 +333,23 @@ class ConfigurationManager:
         print(f"Log Level: {self.config.app.log_level}")
         print("=" * 40)
 
+    def print_startup_info(self) -> None:
+        """Print startup information similar to yaml_config"""
+        if not self.config:
+            print("Configuration not loaded")
+            return
+
+        print("\n" + "=" * 60)
+        print("🏯 YŌSAI INTEL DASHBOARD")
+        print("=" * 60)
+        print(f"🌐 URL: http://{self.config.app.host}:{self.config.app.port}")
+        print(f"🔧 Debug Mode: {self.config.app.debug}")
+        print(f"📊 Analytics: http://{self.config.app.host}:{self.config.app.port}/analytics")
+        print("=" * 60)
+        if self.config.app.debug:
+            print("⚠️  Running in DEBUG mode - do not use in production!")
+        print("\n🚀 Dashboard starting...")
+
 # Global configuration manager
 config_manager = ConfigurationManager()
 
