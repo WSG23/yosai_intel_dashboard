@@ -438,7 +438,6 @@ Enhanced service registry using the new container features
 """
 
 from .enhanced_container import EnhancedContainer, LifecycleScope
-from .providers import SingletonProvider, FactoryProvider, ConfigurationProvider
 
 def create_production_container() -> EnhancedContainer:
     """Create production-ready container with all features"""
