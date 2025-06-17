@@ -6,6 +6,7 @@ from typing import Any
 import logging
 from .container import Container, get_container
 from config.yaml_config import ConfigurationManager, get_configuration_manager
+import sys
 
 logger = logging.getLogger(__name__)
 
