@@ -33,7 +33,7 @@ class YosaiDash(dash.Dash):
     def container(self) -> Container:
         """Get DI container"""
         if self._yosai_container is None:
-           self._yosai_container = get_configured_container()
+            self._yosai_container = get_configured_container_with_yaml()
         return self._yosai_container
     
     def get_service(self, name: str) -> Any:
@@ -69,7 +69,7 @@ class DashAppFactory:
             config_manager.load_configuration(config_path)
             
             # Get configured container with YAML config
-            container = get_configured_container()
+            container = get_configured_container_with_yaml()
             # Create Dash app with configuration
             app = YosaiDash(
                 __name__,
@@ -292,7 +292,7 @@ def verify_yaml_system():
         config_manager.load_configuration()
         
         # Test DI integration
-        container = get_configured_container()
+        container = get_configured_container_with_yaml()
         test_config = container.get('app_config')   
         # Test app creation
         app = create_application()
