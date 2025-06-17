@@ -252,13 +252,16 @@ class ConfigurationManager:
         instance.load_configuration()
         return instance
     
-    def load_configuration(self) -> None:
+    def load_configuration(self, config_path: Optional[str] = None) -> None:
         """Load configuration from YAML files with environment overrides"""
         try:
             # Load base configuration
-            if self._config_path and Path(self._config_path).exists():
-                self._load_yaml_file(self._config_path)
-                logger.info(f"Loaded configuration from: {self._config_path}")
+            effective_path = config_path or self._config_path
+            if effective_path and Path(effective_path).exists():
+
+    
+                self._load_yaml_file(effective_path)
+                logger.info(f"Loaded configuration from: {effective_path}")
             else:
                 logger.info("No configuration file specified, using defaults")
                 self._raw_config = self._get_default_config()
