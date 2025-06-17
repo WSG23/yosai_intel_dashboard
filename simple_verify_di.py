@@ -22,7 +22,8 @@ def test_service_registry():
     """Test service registry imports"""
     print("\n🔍 Testing service registry...")
     try:
-        from core.service_registry import get_configured_container        print("   ✅ get_configured_container_with_yaml - OK")
+        from core.service_registry import get_configured_container
+        print("   ✅ get_configured_container_with_yaml - OK")
         return True
     except ImportError as e:
         print(f"   ❌ get_configured_container_with_yaml - FAILED: {e}")

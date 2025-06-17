@@ -665,10 +665,11 @@ class CodeQualityAnalyzer:
         for rec in report.recommendations:
             md += f"- {rec}\n"
         
-        md += f"\n## Metrics
-- **Functions Analyzed**: {report.metrics.get('functions_analyzed', 0)}
-- **Classes Analyzed**: {report.metrics.get('classes_analyzed', 0)}
-"""
+        md += (
+            f"\n## Metrics\n"
+            f"- **Functions Analyzed**: {report.metrics.get('functions_analyzed', 0)}\n"
+            f"- **Classes Analyzed**: {report.metrics.get('classes_analyzed', 0)}\n"
+        )
         
         if report.metrics.get('function_lengths'):
             avg_func_length = sum(report.metrics['function_lengths']) / len(report.metrics['function_lengths'])
