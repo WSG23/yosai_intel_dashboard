@@ -32,7 +32,7 @@ class ServiceLifecycle(Protocol):
     def configure(self, **kwargs) -> None: ...
 
 @dataclass
-class ServiceDefinition:
+class EnhancedServiceDefinition:
     """Enhanced service definition with industry standard features"""
     factory: Callable[..., Any]
     scope: LifecycleScope = LifecycleScope.SINGLETON
@@ -49,6 +49,8 @@ class EnhancedContainer(Container):
     def __init__(self, name: str = "default"):
         super().__init__()
         self.name = name
+        # Override service storage type for enhanced definition
+        self._services: Dict[str, EnhancedServiceDefinition] = {}
         self._scoped_instances: Dict[str, Dict[str, Any]] = {}  # NEW: Scoped instances
         self._lifecycle_services: List[Any] = []
         self._started = False
@@ -72,7 +74,7 @@ class EnhancedContainer(Container):
         if dependencies is None:
             dependencies = self._auto_detect_dependencies(factory)
         
-        self._services[name] = ServiceDefinition(
+        self._services[name] = EnhancedServiceDefinition(
             factory=factory,
             scope=scope,
             dependencies=dependencies,
