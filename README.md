@@ -103,6 +103,9 @@ Run the complete test suite:
 # Validate modular architecture
 python test_modular_system.py
 
+# Run dashboard integration tests
+python tests/test_dashboard.py
+
 # Run unit tests
 pytest
 
