@@ -38,9 +38,12 @@ class AnalyticsService:
         current_time = datetime.now()
         
         # Check if cached and not expired
-        if (cache_key in self._cache and 
-            cache_key in self._cache_timestamps and
-            (current_time - self._cache_timestamps[cache_key]).seconds < self.config.cache_timeout_seconds):
+        if (
+            cache_key in self._cache
+            and cache_key in self._cache_timestamps
+            and (current_time - self._cache_timestamps[cache_key]).total_seconds()
+            < self.config.cache_timeout_seconds
+        ):
             return self._cache[cache_key]
         
         # Execute and cache
