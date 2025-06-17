@@ -16,24 +16,44 @@ import os
 import yaml
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 from dataclasses import dataclass
 import logging
 
-# Assuming the main review tool is available
+if TYPE_CHECKING:
+    from yaml_config_review import (
+        YAMLConfigurationReviewer,
+        SecurityAnalyzer,
+        PerformanceAnalyzer,
+        MaintainabilityAnalyzer,
+        EnvironmentAnalyzer,
+        ConfigurationIssue,
+        SeverityLevel,
+        ConfigurationIssueType,
+    )
+
 try:
     from yaml_config_review import (
-        YAMLConfigurationReviewer, SecurityAnalyzer, PerformanceAnalyzer,
-        MaintainabilityAnalyzer, EnvironmentAnalyzer, ConfigurationIssue,
-        SeverityLevel, ConfigurationIssueType
+        YAMLConfigurationReviewer,
+        SecurityAnalyzer,
+        PerformanceAnalyzer,
+        MaintainabilityAnalyzer,
+        EnvironmentAnalyzer,
+        ConfigurationIssue,
+        SeverityLevel,
+        ConfigurationIssueType,
     )
-except ImportError:
-    # Mock classes for standalone testing
-    class YAMLConfigurationReviewer:
-        pass
-    
-    class SecurityAnalyzer:
-        pass
+except ImportError:  # pragma: no cover - stubs for runtime
+    from typing import Any
+
+    YAMLConfigurationReviewer = Any
+    SecurityAnalyzer = Any
+    PerformanceAnalyzer = Any
+    MaintainabilityAnalyzer = Any
+    EnvironmentAnalyzer = Any
+    ConfigurationIssue = Any
+    SeverityLevel = Any
+    ConfigurationIssueType = Any
 
 
 class ConfigurationTestCase(unittest.TestCase):
