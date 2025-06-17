@@ -19,6 +19,7 @@ class AppConfig:
     debug: bool = False
     host: str = "127.0.0.1"
     port: int = 8050
+    title: str = "Yōsai Intel Dashboard"
     log_level: str = "INFO"
     app_name: str = "Yōsai Intel Dashboard"
     enable_profiling: bool = False
@@ -334,6 +335,7 @@ class ConfigurationManager:
                 'debug': self._environment == 'development',
                 'host': '127.0.0.1',
                 'port': 8050,
+                'title': 'Yōsai Intel Dashboard',
                 'log_level': 'DEBUG' if self._environment == 'development' else 'INFO',
                 'app_name': 'Yōsai Intel Dashboard'
             },
