@@ -58,7 +58,7 @@ yosai_intel_dashboard/
 4. **Set up environment:**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env with your configuration (e.g. set HOST and database info)
    ```
 
 5. **Run the application:**

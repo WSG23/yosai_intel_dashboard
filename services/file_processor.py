@@ -81,20 +81,24 @@ class FileProcessor:
         
         # Try different delimiters
         delimiters = [',', ';', '\t', '|']
-        
+
+        # Read the header only once to determine date parsing
+        header = pd.read_csv(file_path, nrows=0).columns
+        parse_dates = ['timestamp'] if 'timestamp' in header else False
+
         for delimiter in delimiters:
             try:
                 df = pd.read_csv(
-                    file_path, 
+                    file_path,
                     delimiter=delimiter,
                     encoding='utf-8',
-                    parse_dates=['timestamp'] if 'timestamp' in pd.read_csv(file_path, nrows=0).columns else False
+                    parse_dates=parse_dates
                 )
-                
+
                 # Check if we got reasonable columns (more than 1 column)
                 if len(df.columns) > 1:
                     return df
-                    
+
             except Exception:
                 continue
         
@@ -214,57 +218,3 @@ class FileProcessor:
         """Check if file extension is allowed"""
         return '.' in filename and \
                filename.rsplit('.', 1)[1].lower() in self.allowed_extensions
-
-# services/analytics_service.py
-import pandas as pd
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-import numpy as np
-
-class AnalyticsService:
-    """Service for analytics calculations"""
-    
-    def __init__(self, access_model, anomaly_model):
-        self.access_model = access_model
-        self.anomaly_model = anomaly_model
-    
-    def process_uploaded_data(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Process uploaded data and generate analytics"""
-        
-        # Basic statistics
-        total_events = len(df)
-        date_range = {
-            'start': df['timestamp'].min() if 'timestamp' in df.columns else None,
-            'end': df['timestamp'].max() if 'timestamp' in df.columns else None
-        }
-        
-        # Access patterns
-        access_patterns = {}
-        if 'access_result' in df.columns:
-            access_patterns = df['access_result'].value_counts().to_dict()
-        
-        # Hourly patterns
-        hourly_patterns = {}
-        if 'timestamp' in df.columns:
-            df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
-            hourly_patterns = df['hour'].value_counts().sort_index().to_dict()
-        
-        # Top users/doors
-        top_users = {}
-        top_doors = {}
-        
-        if 'person_id' in df.columns:
-            top_users = df['person_id'].value_counts().head(10).to_dict()
-        
-        if 'door_id' in df.columns:
-            top_doors = df['door_id'].value_counts().head(10).to_dict()
-        
-        return {
-            'total_events': total_events,
-            'date_range': date_range,
-            'access_patterns': access_patterns,
-            'hourly_patterns': hourly_patterns,
-            'top_users': top_users,
-            'top_doors': top_doors,
-            'processed_at': datetime.now()
-        }

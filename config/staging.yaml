@@ -14,7 +14,7 @@
 app:
   # Staging should be production-like but allow some debugging
   debug: ${DEBUG_MODE:false}
-  host: ${APP_HOST:0.0.0.0}
+  host: ${HOST:0.0.0.0}
   port: ${PORT:8050}
   title: "Yōsai Intel Dashboard - Staging"
   timezone: ${TIMEZONE:UTC}
