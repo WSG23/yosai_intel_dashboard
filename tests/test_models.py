@@ -1,30 +1,29 @@
-# test_models.py
-from models import AccessEvent, Person, AnomalyDetection
-from models.enums import AccessResult, AnomalyType, SeverityLevel
 from datetime import datetime
 
-# Test creating entities
-person = Person(person_id="EMP001", name="Test User")
-print(f"Created person: {person.person_id}")
+from models import AccessEvent, AnomalyDetection, Person
+from models.enums import AccessResult, AnomalyType, SeverityLevel
 
-event = AccessEvent(
-    event_id="TEST001",
-    timestamp=datetime.now(),
-    person_id="EMP001", 
-    door_id="MAIN",
-    access_result=AccessResult.GRANTED
-)
-print(f"Created event: {event.to_dict()}")
 
-anomaly = AnomalyDetection(
-    anomaly_id="ANOM001",
-    event_id="TEST001",
-    anomaly_type=AnomalyType.ODD_TIME,
-    severity=SeverityLevel.MEDIUM,
-    confidence_score=0.75,
-    description="Access outside normal hours",
-    detected_at=datetime.now()
-)
-print(f"Created anomaly: {anomaly.to_dict()}")
+def test_model_creation() -> None:
+    person = Person(person_id="EMP001", name="Test User")
+    assert person.person_id == "EMP001"
 
-print("✓ All models working correctly!")
+    event = AccessEvent(
+        event_id="TEST001",
+        timestamp=datetime.now(),
+        person_id=person.person_id,
+        door_id="MAIN",
+        access_result=AccessResult.GRANTED,
+    )
+    assert event.person_id == person.person_id
+
+    anomaly = AnomalyDetection(
+        anomaly_id="ANOM001",
+        event_id=event.event_id,
+        anomaly_type=AnomalyType.ODD_TIME,
+        severity=SeverityLevel.MEDIUM,
+        confidence_score=0.75,
+        description="Access outside normal hours",
+        detected_at=datetime.now(),
+    )
+    assert anomaly.event_id == event.event_id
