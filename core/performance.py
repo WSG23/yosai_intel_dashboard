@@ -212,8 +212,16 @@ class PerformanceMonitor:
         if self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=5)
 
-# Global performance monitor instance
-performance_monitor = PerformanceMonitor()
+# Lazy-loaded global performance monitor instance
+_performance_monitor: Optional[PerformanceMonitor] = None
+
+
+def get_performance_monitor() -> PerformanceMonitor:
+    """Return the singleton performance monitor, creating it if necessary."""
+    global _performance_monitor
+    if _performance_monitor is None:
+        _performance_monitor = PerformanceMonitor()
+    return _performance_monitor
 
 def measure_performance(
     name: str = None,
@@ -244,7 +252,7 @@ def measure_performance(
                 memory_delta = end_memory - start_memory
                 
                 # Record performance metrics
-                performance_monitor.record_metric(
+                get_performance_monitor().record_metric(
                     name=metric_name,
                     value=duration,
                     metric_type=metric_type,
@@ -261,7 +269,7 @@ def measure_performance(
                 
                 # Log slow operations
                 if threshold and duration > threshold:
-                    performance_monitor.logger.warning(
+                    get_performance_monitor().logger.warning(
                         f"Slow operation: {metric_name} took {duration:.3f}s (threshold: {threshold}s)"
                     )
             
@@ -299,7 +307,7 @@ def measure_async_performance(
                 memory_delta = end_memory - start_memory
                 
                 # Record performance metrics
-                performance_monitor.record_metric(
+                get_performance_monitor().record_metric(
                     name=metric_name,
                     value=duration,
                     metric_type=metric_type,
@@ -315,7 +323,7 @@ def measure_async_performance(
                 
                 # Log slow operations
                 if threshold and duration > threshold:
-                    performance_monitor.logger.warning(
+                    get_performance_monitor().logger.warning(
                         f"Slow async operation: {metric_name} took {duration:.3f}s"
                     )
             
@@ -392,7 +400,7 @@ class CacheMonitor:
     def record_cache_hit(self, cache_name: str) -> None:
         """Record cache hit"""
         self.cache_stats[cache_name]['hits'] += 1
-        performance_monitor.record_metric(
+        get_performance_monitor().record_metric(
             f"cache.{cache_name}.hit", 
             1, 
             MetricType.API_CALL,
@@ -402,7 +410,7 @@ class CacheMonitor:
     def record_cache_miss(self, cache_name: str) -> None:
         """Record cache miss"""
         self.cache_stats[cache_name]['misses'] += 1
-        performance_monitor.record_metric(
+        get_performance_monitor().record_metric(
             f"cache.{cache_name}.miss", 
             1, 
             MetricType.API_CALL,
@@ -450,7 +458,7 @@ class DatabaseQueryMonitor:
         self.query_stats[normalized_query].append(duration)
         
         # Record as performance metric
-        performance_monitor.record_metric(
+        get_performance_monitor().record_metric(
             f"database.query.{normalized_query[:50]}",
             duration,
             MetricType.DATABASE_QUERY,
@@ -525,7 +533,7 @@ class PerformanceContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.start_time:
             duration = time.time() - self.start_time
-            performance_monitor.record_metric(
+            get_performance_monitor().record_metric(
                 self.name,
                 duration,
                 self.metric_type,
@@ -564,9 +572,9 @@ def get_performance_dashboard() -> Dict[str, Any]:
     """Get comprehensive performance dashboard data"""
     return {
         'timestamp': datetime.now(),
-        'system_snapshot': performance_monitor.get_system_snapshot().__dict__,
-        'metrics_summary': performance_monitor.get_metrics_summary(),
-        'slow_operations': performance_monitor.get_slow_operations(),
+        'system_snapshot': get_performance_monitor().get_system_snapshot().__dict__,
+        'metrics_summary': get_performance_monitor().get_metrics_summary(),
+        'slow_operations': get_performance_monitor().get_slow_operations(),
         'cache_stats': cache_monitor.get_all_cache_stats(),
         'slow_queries': db_monitor.get_slow_queries(),
         'query_patterns': db_monitor.get_query_patterns()
@@ -577,7 +585,7 @@ def export_performance_report(hours: int = 24) -> pd.DataFrame:
     metrics = []
     cutoff = datetime.now() - timedelta(hours=hours)
     
-    for metric in performance_monitor.metrics:
+    for metric in get_performance_monitor().metrics:
         if metric.timestamp >= cutoff:
             metrics.append({
                 'timestamp': metric.timestamp,
