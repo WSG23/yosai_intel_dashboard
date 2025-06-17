@@ -94,8 +94,6 @@ def generate_sample_access_data(num_records=1000):
     return df
 
 def save_sample_data():
-    """Generate and save sample data files"""
-    
     # Generate different sized datasets
     datasets = {
         'sample_small.csv': 100,
@@ -142,21 +140,20 @@ Run this after setting up the project structure
 
 def test_file_upload():
     """Test file upload functionality"""
-    
+
     # Generate test data
     from utils.sample_data_generator import generate_sample_access_data
-    
+
     df = generate_sample_access_data(100)
     print(f"Generated test data: {len(df)} records")
     print(f"Columns: {list(df.columns)}")
     print(f"Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-    
+
     # Test basic analytics
     print("\nBasic Analytics:")
     print(f"Total events: {len(df)}")
     print(f"Unique users: {df['person_id'].nunique()}")
     print(f"Access results: {df['access_result'].value_counts().to_dict()}")
-    
     return True
 
 if __name__ == "__main__":
