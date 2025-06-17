@@ -13,6 +13,8 @@ import inspect
 from contextlib import contextmanager
 from enum import Enum
 
+from .container import Container
+
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
@@ -41,17 +43,14 @@ class ServiceDefinition:
     priority: int = 0  # NEW: Service priority for ordering
     config_section: Optional[str] = None  # NEW: Configuration binding
 
-class EnhancedContainer:
+class EnhancedContainer(Container):
     """Industry-standard DI container with advanced features"""
     
     def __init__(self, name: str = "default"):
+        super().__init__()
         self.name = name
-        self._services: Dict[str, ServiceDefinition] = {}
-        self._instances: Dict[str, Any] = {}
         self._scoped_instances: Dict[str, Dict[str, Any]] = {}  # NEW: Scoped instances
         self._lifecycle_services: List[Any] = []
-        self._lock = threading.Lock()
-        self._resolving: set = set()
         self._started = False
         self._current_scope: Optional[str] = None  # NEW: Current scope context
         self._event_handlers: Dict[str, List[Callable]] = {}  # NEW: Event system
