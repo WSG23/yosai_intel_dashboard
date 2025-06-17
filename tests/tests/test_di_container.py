@@ -10,7 +10,10 @@ import time
 from typing import Any, Dict
 
 from core.container import Container, ServiceDefinition
-from core.service_registry import configure_container, get_configured_container
+from core.service_registry import (
+    configure_container_with_yaml,
+    get_configured_container_with_yaml as get_configured_container,
+)
 from core.config_manager import ConfigManager
 
 class MockService:
@@ -178,7 +181,7 @@ class TestServiceRegistry(unittest.TestCase):
     
     def test_full_container_configuration(self):
         """Test that all services can be configured"""
-        configure_container(self.container)
+        configure_container_with_yaml(self.container)
         
         # Check that key services are registered
         essential_services = ['config', 'database', 'cache_manager']
@@ -188,7 +191,7 @@ class TestServiceRegistry(unittest.TestCase):
     
     def test_service_dependency_resolution(self):
         """Test that services resolve their dependencies correctly"""
-        configure_container(self.container)
+        configure_container_with_yaml(self.container)
         
         # These should not raise exceptions
         config = self.container.get('config')
