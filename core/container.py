@@ -4,6 +4,7 @@ from typing import Dict, Any, TypeVar, Callable, Optional, List
 from dataclasses import dataclass, field
 import threading
 import logging
+from contextlib import contextmanager
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
@@ -124,6 +125,17 @@ class Container:
                 stop_method = getattr(instance, "stop", None)
                 if callable(stop_method):
                     stop_method()
+
+    @contextmanager
+    def test_scope(self):
+        """Temporarily isolate service registrations for testing."""
+        saved_services = dict(self._services)
+        saved_instances = dict(self._instances)
+        try:
+            yield self
+        finally:
+            self._services = saved_services
+            self._instances = saved_instances
 
     def health_check(self) -> Dict[str, str]:
         """Simple health check for the container."""
