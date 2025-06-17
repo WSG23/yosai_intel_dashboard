@@ -1207,7 +1207,7 @@ def test_yaml_file_loading() -> Tuple[bool, str]:
         from config.yaml_config import ConfigurationManager
         
         # Create test YAML config manually (no PyYAML dependency)
-        test_config_text = '''app:
+        test_config_text = """app:
   debug: false
   host: 0.0.0.0
   port: 9000
@@ -1219,7 +1219,7 @@ database:
 cache:
   type: redis
   timeout_seconds: 600
-'''
+"""
         
         # Write to temporary file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
