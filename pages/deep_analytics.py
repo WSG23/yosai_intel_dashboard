@@ -6,6 +6,7 @@ UPDATED: Services now injected instead of imported directly
 
 import pandas as pd
 from dash import html, dcc, callback, Output, Input, State, no_update
+from flask_babel import _l
 from core.auth import role_required
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any, Optional, Tuple, Union
@@ -28,16 +29,16 @@ except ImportError as e:
 
     # Create fallback functions (same as before)
     def create_file_uploader(*args, **kwargs):
-        return html.Div("File uploader not available")
+        return html.Div(_l("File uploader not available"))
 
     def create_data_preview(*args, **kwargs):
-        return html.Div("Data preview not available")
+        return html.Div(_l("Data preview not available"))
 
     def create_analytics_charts(*args, **kwargs):
-        return html.Div("Charts not available")
+        return html.Div(_l("Charts not available"))
 
     def create_summary_cards(*args, **kwargs):
-        return html.Div("Summary cards not available")
+        return html.Div(_l("Summary cards not available"))
 
     class FallbackFileProcessor:
         @staticmethod
@@ -69,9 +70,13 @@ def layout():
                 [
                     dbc.Col(
                         [
-                            html.H1("🔍 Deep Analytics", className="text-primary mb-0"),
+                            html.H1(
+                                _l("🔍 Deep Analytics"), className="text-primary mb-0"
+                            ),
                             html.P(
-                                "Advanced data analysis and visualization for security intelligence",
+                                _l(
+                                    "Advanced data analysis and visualization for security intelligence"
+                                ),
                                 className="text-secondary mb-4",
                             ),
                         ]

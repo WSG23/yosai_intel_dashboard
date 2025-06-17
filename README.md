@@ -214,6 +214,12 @@ All secrets can be provided via the `SecretManager` which supports `env`,
 Docker secrets. See the [architecture diagram](docs/auth_flow.png) for
 implementation details.
 
+## 🌐 Language Toggle
+
+Internationalization is built in with Flask-Babel. Click the language dropdown in the navigation bar to switch between English and Japanese. No additional environment variables are required.
+
+![Language Toggle Demo](docs/i18n_demo.gif)
+
 ## 🤝 Contributing
 
 1. Ensure all tests pass: `python test_modular_system.py`
