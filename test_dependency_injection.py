@@ -155,7 +155,7 @@ def test_app_creation_with_di():
             # Check that container is attached
             if hasattr(app, '_yosai_container'):
                 container = app._yosai_container
-                if container.has('config'):
+                if container is not None and container.has('config'):
                     print("✅ App created with DI container successfully")
                     return True
                 else:
