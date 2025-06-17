@@ -103,6 +103,17 @@ class Container:
         self._services.clear()
         self._instances.clear()
         logger.debug("Container cleared")
+
+    @contextmanager
+    def test_scope(self):
+        """Temporarily isolate registrations and instances for testing"""
+        saved_services = self._services.copy()
+        saved_instances = self._instances.copy()
+        try:
+            yield self
+        finally:
+            self._services = saved_services
+            self._instances = saved_instances
     
     def list_services(self) -> List[str]:
         """List all registered services"""
