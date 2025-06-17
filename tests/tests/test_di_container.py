@@ -10,7 +10,10 @@ import time
 from typing import Any, Dict
 
 from core.container import Container, ServiceDefinition
-from core.service_registry import configure_container, get_configured_container
+from core.service_registry import (
+    configure_container_with_yaml,
+    get_configured_container_with_yaml as get_configured_container,
+)
 from core.config_manager import ConfigManager
 
 class MockService:
@@ -178,7 +181,7 @@ class TestServiceRegistry(unittest.TestCase):
     
     def test_full_container_configuration(self):
         """Test that all services can be configured"""
-        configure_container(self.container)
+        configure_container_with_yaml(self.container)
         
         # Check that key services are registered
         essential_services = ['config', 'database', 'cache_manager']
@@ -188,7 +191,7 @@ class TestServiceRegistry(unittest.TestCase):
     
     def test_service_dependency_resolution(self):
         """Test that services resolve their dependencies correctly"""
-        configure_container(self.container)
+        configure_container_with_yaml(self.container)
         
         # These should not raise exceptions
         config = self.container.get('config')
@@ -264,9 +267,9 @@ Enhanced callback manager with improved DI container access
 from typing import Any, Optional, Callable
 import logging
 from functools import wraps
-from .component_registry import ComponentRegistry
-from .layout_manager import LayoutManager
-from .container import Container
+from core.component_registry import ComponentRegistry
+from core.layout_manager import LayoutManager
+from core.container import Container
 
 logger = logging.getLogger(__name__)
 
@@ -276,29 +279,25 @@ def inject_services(*service_names: str):
         @wraps(callback_func)
         def wrapper(*args, **kwargs):
             # Get container from current app context
-            from dash import callback_context
-            
+            from dash import Dash, callback_context
+
             if hasattr(callback_context, 'triggered_prop_ids'):
-                # We're in a callback context, try to get app
                 try:
-                    import dash
-                    current_app = dash.current_app
-                    
-                    if hasattr(current_app, 'get_service'):
-                        # Inject requested services
-                        services = {}
-                        for service_name in service_names:
-                            try:
-                                services[service_name] = current_app.get_service(service_name)
-                            except Exception as e:
-                                logger.warning(f"Could not inject service {service_name}: {e}")
-                                services[service_name] = None
-                        
-                        # Add services to kwargs
-                        kwargs.update(services)
-                
+                    current_app = Dash._get_app()
                 except Exception as e:
-                    logger.warning(f"Could not inject services: {e}")
+                    logger.warning(f"Could not retrieve Dash app: {e}")
+                    current_app = None
+
+                if current_app and hasattr(current_app, 'get_service'):
+                    services = {}
+                    for service_name in service_names:
+                        try:
+                            services[service_name] = current_app.get_service(service_name)
+                        except Exception as e:
+                            logger.warning(f"Could not inject service {service_name}: {e}")
+                            services[service_name] = None
+
+                    kwargs.update(services)
             
             return callback_func(*args, **kwargs)
         return wrapper

@@ -4,6 +4,7 @@ from typing import Dict, Any, TypeVar, Callable, Optional, List
 from dataclasses import dataclass, field
 import threading
 import logging
+from contextlib import contextmanager
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
@@ -126,6 +127,7 @@ class Container:
                     stop_method()
 
     def health_check(self) -> Dict[str, Any]:
+
         """Simple health check for the container."""
         return {
             "status": "healthy",
