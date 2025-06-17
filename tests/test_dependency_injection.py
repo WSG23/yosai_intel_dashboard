@@ -8,10 +8,10 @@ def test_container_basic_functionality():
     print("🧪 Testing Container Basic Functionality...")
     
     try:
-        from core.container import Container
-        
+        from core.di_container import DIContainer
+
         # Create container
-        container = Container()
+        container = DIContainer()
         
         # Register a simple service
         def create_test_service():
@@ -37,10 +37,10 @@ def test_dependency_injection():
     print("🧪 Testing Dependency Injection...")
     
     try:
-        from core.container import Container
-        
+        from core.di_container import DIContainer
+
         # Create container
-        container = Container()
+        container = DIContainer()
         
         # Register config service
         def create_config():
@@ -66,6 +66,18 @@ def test_dependency_injection():
     except Exception as e:
         print(f"❌ Dependency injection test failed: {e}")
         return False
+
+def test_di_container_has_method():
+    """Ensure DIContainer.has works for services and instances"""
+    from core.di_container import DIContainer
+
+    container = DIContainer()
+    container.register('service_a', lambda: 'a')
+    container.register_instance('instance_a', object())
+
+    assert container.has('service_a')
+    assert container.has('instance_a')
+    assert not container.has('missing')
 
 def test_service_registry():
     """Test that the service registry configures all services"""
@@ -177,10 +189,10 @@ def test_mock_replacement():
     print("🧪 Testing Mock Replacement (DI Testing Benefit)...")
     
     try:
-        from core.container import Container
-        
+        from core.di_container import DIContainer
+
         # Create container
-        container = Container()
+        container = DIContainer()
         
         # Register original service
         def real_service():
@@ -218,6 +230,7 @@ def main():
     tests = [
         ("Container Basic Functionality", test_container_basic_functionality),
         ("Dependency Injection", test_dependency_injection),
+        ("DIContainer has()", test_di_container_has_method),
         ("Service Registry", test_service_registry),
         ("Analytics Service Injection", test_analytics_service_injection),
         ("App Creation with DI", test_app_creation_with_di),
