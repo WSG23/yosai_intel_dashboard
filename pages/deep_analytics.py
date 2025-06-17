@@ -99,7 +99,7 @@ def register_analytics_callbacks(app, container=None):
         prevent_initial_call=True
     )
     def process_uploaded_files(
-        contents_list: Optional[Union[str, List[str]]], 
+        contents_list: Optional[Union[str, List[str]]],
         filename_list: Optional[Union[str, List[str]]]
     ) -> Tuple[List[html.Div], Dict[str, Any], List[html.Div]]:
         """Process uploaded files with Dependency Injection"""
@@ -131,7 +131,7 @@ def register_analytics_callbacks(app, container=None):
         
         status_messages: List[html.Div] = []
         all_data: List[Dict[str, Any]] = []
-        
+
         # Process each uploaded file
         for contents, filename in zip(contents_list, filename_list):
             try:
@@ -139,42 +139,19 @@ def register_analytics_callbacks(app, container=None):
                 if hasattr(file_processor, 'process_file_content'):
                     df = file_processor.process_file_content(contents, filename)
                 else:
-                    # Static method call
                     df = FileProcessor.process_file_content(contents, filename)
-                
+
                 if df is None:
                     status_messages.append(
                         _create_error_alert(f"Unsupported file type: {filename}")
                     )
                     continue
-                
-                # Validate the data
-                if hasattr(file_processor, 'validate_dataframe'):
-                    valid, message, suggestions = file_processor.validate_dataframe(df)
-                else:
-                    # Static method call
-                    valid, message, suggestions = FileProcessor.validate_dataframe(df)
-                
+
+                valid, alerts, suggestions = _validate_file(file_processor, df, filename)
+                status_messages.extend(alerts)
                 if not valid:
-                    alert_div = _create_warning_alert(f"{filename}: {message}")
-                    
-                    if suggestions:
-                        suggestions_list = html.Ul([
-                            html.Li(suggestion) for suggestion in suggestions
-                        ])
-                        combined_alert = html.Div([alert_div, suggestions_list])
-                        status_messages.append(combined_alert)
-                    else:
-                        status_messages.append(alert_div)
                     continue
-                
-                # Success message
-                status_messages.append(
-                    _create_success_alert(
-                        f"✅ Successfully loaded {filename}: {len(df):,} rows × {len(df.columns)} columns"
-                    )
-                )
-                
+
                 # Store processed data
                 all_data.append({
                     'filename': filename,
@@ -183,7 +160,7 @@ def register_analytics_callbacks(app, container=None):
                     'rows': len(df),
                     'suggestions': suggestions
                 })
-                
+
             except Exception as e:
                 status_messages.append(
                     _create_error_alert(f"Error processing {filename}: {str(e)}")
@@ -191,49 +168,102 @@ def register_analytics_callbacks(app, container=None):
         
         # Generate analytics components
         analytics_components: List[html.Div] = []
-        
+
         if all_data:
-            # Combine all uploaded data for analysis
             combined_df = _combine_uploaded_data(all_data)
-            
+
             if not combined_df.empty:
-                # Generate analytics using DI service or fallback
-                if analytics_service is not None:
-                    try:
-                        # Use injected analytics service
-                        analytics_data = analytics_service.process_uploaded_file(
-                            combined_df, 
-                            f"Combined Data ({len(all_data)} files)"
-                        )
-                        if analytics_data.get('success', False):
-                            analytics_data = analytics_data['analytics']
-                        else:
-                            analytics_data = {}
-                    except Exception as e:
-                        print(f"Error using injected analytics service: {e}")
-                        # Fallback to static generator
-                        analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
-                else:
-                    # Use static AnalyticsGenerator as fallback
-                    analytics_data = AnalyticsGenerator.generate_analytics(combined_df)
-                
-                # Create analytics components
+                analytics_data = _generate_analytics_data(
+                    analytics_service,
+                    combined_df,
+                    len(all_data)
+                )
+
                 analytics_components = [
                     html.Div(html.Hr()),
-                    html.Div([
-                        html.H3("📊 Analytics Results", className="mb-4")
-                    ]),
+                    html.Div([html.H3("📊 Analytics Results", className="mb-4")]),
                     html.Div(create_summary_cards(analytics_data)),
-                    html.Div(create_data_preview(combined_df, f"Combined Data ({len(all_data)} files)")),
-                    html.Div([
-                        html.H4("📈 Visualizations", className="mb-3")
-                    ]),
-                    html.Div(create_analytics_charts(analytics_data))
+                    html.Div(
+                        create_data_preview(
+                            combined_df,
+                            f"Combined Data ({len(all_data)} files)"
+                        )
+                    ),
+                    html.Div([html.H4("📈 Visualizations", className="mb-3")]),
+                    html.Div(create_analytics_charts(analytics_data)),
                 ]
         
         return status_messages, {'files': all_data}, analytics_components
 
 # Helper functions (same as before)
+
+def _validate_file(file_processor: Any, df: pd.DataFrame, filename: str) -> Tuple[bool, List[html.Div], List[str]]:
+    """Validate an uploaded DataFrame and build alert messages.
+
+    Parameters
+    ----------
+    file_processor : Any
+        Processor instance providing ``validate_dataframe``.
+    df : pd.DataFrame
+        Parsed DataFrame from the uploaded file.
+    filename : str
+        Name of the uploaded file.
+
+    Returns
+    -------
+    Tuple[bool, List[html.Div], List[str]]
+        ``valid`` flag, list of alert ``html.Div`` messages and suggestions.
+    """
+
+    if hasattr(file_processor, 'validate_dataframe'):
+        valid, message, suggestions = file_processor.validate_dataframe(df)
+    else:
+        valid, message, suggestions = FileProcessor.validate_dataframe(df)
+
+    alerts: List[html.Div] = []
+    if not valid:
+        alert_div = _create_warning_alert(f"{filename}: {message}")
+        if suggestions:
+            suggestions_list = html.Ul([html.Li(s) for s in suggestions])
+            alerts.append(html.Div([alert_div, suggestions_list]))
+        else:
+            alerts.append(alert_div)
+    else:
+        alerts.append(
+            _create_success_alert(
+                f"✅ Successfully loaded {filename}: {len(df):,} rows × {len(df.columns)} columns"
+            )
+        )
+
+    return valid, alerts, suggestions
+
+
+def _generate_analytics_data(
+    analytics_service: Any, combined_df: pd.DataFrame, num_files: int
+) -> Dict[str, Any]:
+    """Generate analytics data using DI service or fallback.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing analytics results.
+    """
+
+    if analytics_service is not None:
+        try:
+            analytics_data = analytics_service.process_uploaded_file(
+                combined_df,
+                f"Combined Data ({num_files} files)"
+            )
+            if analytics_data.get('success', False):
+                return analytics_data['analytics']
+            return {}
+        except Exception as e:
+            print(f"Error using injected analytics service: {e}")
+            return AnalyticsGenerator.generate_analytics(combined_df)
+
+    return AnalyticsGenerator.generate_analytics(combined_df)
+
 def _combine_uploaded_data(all_data: List[Dict[str, Any]]) -> pd.DataFrame:
     """Combine multiple uploaded files into a single DataFrame"""
     combined_df = pd.DataFrame()
