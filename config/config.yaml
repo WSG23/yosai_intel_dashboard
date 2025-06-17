@@ -25,7 +25,7 @@ cache:
   max_memory_mb: 100
   key_prefix: 'yosai:'
 security:
-  secret_key: dev-key-change-in-production
+  secret_key: ${SECRET_KEY}
   session_timeout_minutes: 60
   max_file_size_mb: 100
   allowed_file_types:
