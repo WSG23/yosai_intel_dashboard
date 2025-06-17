@@ -211,11 +211,11 @@ class ImmediateActionsExecutor:
         try:
             # Test dependency injection with fallbacks
             try:
-                from core.service_registry import get_configured_container_with_yaml
+                from core.service_registry import get_configured_container
                 from core.container import Container
                 
-                container = get_configured_container_with_yaml()
-                
+                container = get_configured_container()
+            
                 # Check core services
                 required_services = [
                     'config_manager', 'app_config', 'database_config', 

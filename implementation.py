@@ -39,7 +39,7 @@ except ImportError:
     YosaiConfiguration = None
 
 from core.protocols import DatabaseProtocol, AnalyticsServiceProtocol, FileProcessorProtocol
-from core.service_registry import get_configured_container_with_yaml, EnhancedHealthMonitor as HealthMonitor
+from core.service_registry import get_configured_container, EnhancedHealthMonitor as HealthMonitor
 from core.container import Container
 
 # Try to import error handling, use basic if not available
@@ -216,8 +216,7 @@ class YosaiIntelDashboard:
             
             print("   📦 Setting up dependency injection...")
             # 2. DEPENDENCY INJECTION CONTAINER with PROTOCOLS
-            self.container = get_configured_container_with_yaml()
-            
+            self.container = get_configured_container()
             print("   🚨 Configuring error handling...")
             # 3. ENHANCED ERROR HANDLING (don't register in problematic container)
             self.error_handler = ErrorHandler()
@@ -650,8 +649,8 @@ def main():
             
             # Test container
             print("📦 Testing dependency injection...")
-            from core.service_registry import get_configured_container_with_yaml
-            container = get_configured_container_with_yaml()
+            from core.service_registry import get_configured_container
+            container = get_configured_container()
             print("✅ Container configured")
             
             print("\n🎉 Basic components working! Try full mode.")
