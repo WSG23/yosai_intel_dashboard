@@ -126,20 +126,15 @@ class Container:
                 if callable(stop_method):
                     stop_method()
 
-    @contextmanager
-    def test_scope(self):
-        """Temporarily isolate service registrations for testing."""
-        saved_services = dict(self._services)
-        saved_instances = dict(self._instances)
-        try:
-            yield self
-        finally:
-            self._services = saved_services
-            self._instances = saved_instances
+    def health_check(self) -> Dict[str, Any]:
 
-    def health_check(self) -> Dict[str, str]:
         """Simple health check for the container."""
-        return {"status": "healthy"}
+        return {
+            "status": "healthy",
+            "services_registered": len(self._services),
+            "instances_created": len(self._instances),
+            "started": True,
+        }
 
 # Global container instance
 _container: Optional[Container] = None
