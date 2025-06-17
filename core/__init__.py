@@ -6,18 +6,25 @@ Your current DI implementation is perfect - no changes needed!
 
 from .container import Container, get_container, reset_container
 from .config_manager import ConfigManager
-from .app_factory import create_application
+
+try:
+    from .app_factory import create_application
+except Exception:  # pragma: no cover - optional dependency
+    create_application = None  # type: ignore
+
 from .service_registry import get_configured_container
 
 # Export public API
 __all__ = [
     'Container',
-    'get_container', 
+    'get_container',
     'reset_container',
     'ConfigManager',
-    'create_application',
     'get_configured_container'
 ]
+
+if create_application is not None:
+    __all__.insert(4, 'create_application')
 
 # Version info
 __version__ = '1.0.0'
@@ -50,4 +57,4 @@ def verify_di_system():
 # Quick test on import
 if __name__ == "__main__":
     status = verify_di_system()
-    print(f"DI Status: {status['message']}")
+    print(f"DI Status: {status["message"]}")

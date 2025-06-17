@@ -156,11 +156,18 @@ def configure_container_fixed(container: Container, config_manager: Optional[Any
     
     # Layer 4: Business services (FIXED - minimal dependencies)
     logger.info("   ⚙️ Layer 4: Business services...")
-    container.register(
-        'analytics_service',
-        lambda analytics_config: create_analytics_service_simple(analytics_config),
-        dependencies=['analytics_config'] if config_manager else []
-    )
+    if config_manager:
+        container.register(
+            'analytics_service',
+            lambda analytics_config: create_analytics_service_simple(analytics_config),
+            dependencies=['analytics_config']
+        )
+    else:
+        container.register(
+            'analytics_service',
+            lambda: create_analytics_service_simple(None),
+            dependencies=[]
+        )
     
     # Layer 5: Monitoring services
     logger.info("   📈 Layer 5: Monitoring services...")
