@@ -439,6 +439,11 @@ Enhanced service registry using the new container features
 """
 
 from .enhanced_container import EnhancedContainer, LifecycleScope
+from .service_registry import (
+    create_database_with_yaml_config,
+    create_cache_with_yaml_config,
+    create_analytics_service_with_config,
+)
 
 def create_production_container() -> EnhancedContainer:
     """Create production-ready container with all features"""
@@ -455,7 +460,7 @@ def create_production_container() -> EnhancedContainer:
     # Register database with lifecycle management
     container.register(
         'database',
-        create_database_connection,
+        create_database_with_yaml_config,
         scope=LifecycleScope.SINGLETON,
         dependencies=['config'],
         lifecycle=True,
@@ -466,7 +471,7 @@ def create_production_container() -> EnhancedContainer:
     # Register cache manager with request scope for web apps
     container.register(
         'cache_manager',
-        EnhancedCacheManager,
+        create_cache_with_yaml_config,
         scope=LifecycleScope.REQUEST,
         dependencies=['config'],
         lifecycle=True,
@@ -476,7 +481,7 @@ def create_production_container() -> EnhancedContainer:
     # Register analytics service with high priority
     container.register(
         'analytics_service',
-        create_analytics_service,
+        create_analytics_service_with_config,
         scope=LifecycleScope.SINGLETON,
         dependencies=['access_model', 'anomaly_model', 'config', 'cache_manager'],
         tags=['business', 'analytics'],
