@@ -8,6 +8,16 @@ from datetime import datetime
 
 class FileProcessor:
     """Handles file processing for analytics uploads - COMPLETELY FIXED"""
+
+    # Default maximum upload size in **bytes**. Updated from `core.service_registry`
+    # using the value from ``SecurityConfig.max_file_size_mb`` when the container
+    # is configured.
+    MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100 MB
+
+    # Set of allowed file extensions (without leading dot). This can also be
+    # overridden via ``SecurityConfig.allowed_file_types`` at container
+    # configuration time.
+    ALLOWED_EXTENSIONS: set[str] = {"csv", "json", "xlsx", "xls"}
     
     @staticmethod
     def process_file_content(contents: str, filename: str) -> Optional[pd.DataFrame]:
