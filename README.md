@@ -93,6 +93,8 @@ Using Docker Compose:
 ```bash
 docker-compose up -d
 ```
+Docker Compose reads variables from a `.env` file in this directory. Set
+`DB_PASSWORD` there (or export it in your shell) before starting the services.
 
 ## 🧪 Testing
 
@@ -133,11 +135,11 @@ YAML files in `config/` and can be overridden via environment variables.
 Configure your database in `.env`:
 ```
 DB_TYPE=postgresql  # or 'sqlite' or 'mock'
-DB_HOST=localhost
+DB_HOST=your_db_host
 DB_PORT=5432
-DB_NAME=yosai_intel
-DB_USER=your_user
-DB_PASSWORD=your_password
+DB_NAME=your_db_name
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
 ```
 
 ### Application
