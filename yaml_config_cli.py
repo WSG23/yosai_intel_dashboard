@@ -11,6 +11,7 @@ Python Version: 3.8+
 """
 
 import unittest
+import io
 import tempfile
 import os
 import yaml
@@ -620,7 +621,7 @@ class ConfigurationTestRunner:
         suite = loader.loadTestsFromTestCase(suite_class)
         
         # Capture test results
-        stream = unittest.StringIO()
+        stream = io.StringIO()
         runner = unittest.TextTestRunner(stream=stream, verbosity=2 if verbose else 1)
         result = runner.run(suite)
         
