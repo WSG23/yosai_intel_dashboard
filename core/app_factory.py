@@ -7,6 +7,8 @@ import logging
 import dash
 from flask_login import login_required
 from flask_wtf import CSRFProtect
+from flask import session, redirect, request
+from flask_babel import Babel
 from .auth import init_auth
 from config.yaml_config import ConfigurationManager, get_configuration_manager
 from .component_registry import ComponentRegistry
@@ -113,6 +115,17 @@ class DashAppFactory:
             server.view_functions["dash.index"] = login_required(
                 server.view_functions["dash.index"]
             )
+
+            babel = Babel(server)
+
+            @babel.localeselector
+            def get_locale():
+                return session.get("lang", "en")
+
+            @server.route("/i18n/<lang>")
+            def set_lang(lang: str):
+                session["lang"] = lang
+                return redirect(request.referrer or "/")
 
             logger.info(
                 "Dashboard application created successfully with YAML configuration"
