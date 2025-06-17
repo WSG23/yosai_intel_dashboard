@@ -123,6 +123,11 @@ flake8 .
 
 ## 🔧 Configuration
 
+This project uses **`config/yaml_config.py`** as the single source of
+configuration. Earlier versions included a `unified_config.py` module, but it
+has been removed in favor of the YAML-based system. All settings are loaded from
+YAML files in `config/` and can be overridden via environment variables.
+
 ### Database
 
 Configure your database in `.env`:

@@ -1,7 +1,9 @@
 # app.py - UPDATED: Now uses YAML Configuration System
 """
 Yōsai Intel Dashboard - Main Application Entry Point
-UPDATED: Now supports YAML configuration with environment overrides
+
+This version uses the `config/yaml_config.py` configuration system. The
+previous `unified_config.py` module has been removed.
 """
 
 import sys
