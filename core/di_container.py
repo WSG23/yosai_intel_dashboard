@@ -185,6 +185,10 @@ class DIContainer:
             return self.get(name)
         except ValueError:
             return None
+
+    def has(self, name: str) -> bool:
+        """Check if a service or instance is registered"""
+        return name in self._services or name in self._instances
     
     def start_lifecycle_services(self) -> None:
         """Start all lifecycle-managed services in layer order"""
