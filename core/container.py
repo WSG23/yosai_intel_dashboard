@@ -125,9 +125,14 @@ class Container:
                 if callable(stop_method):
                     stop_method()
 
-    def health_check(self) -> Dict[str, str]:
+    def health_check(self) -> Dict[str, Any]:
         """Simple health check for the container."""
-        return {"status": "healthy"}
+        return {
+            "status": "healthy",
+            "services_registered": len(self._services),
+            "instances_created": len(self._instances),
+            "started": True,
+        }
 
 # Global container instance
 _container: Optional[Container] = None
