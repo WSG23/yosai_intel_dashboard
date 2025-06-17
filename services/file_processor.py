@@ -81,20 +81,24 @@ class FileProcessor:
         
         # Try different delimiters
         delimiters = [',', ';', '\t', '|']
-        
+
+        # Read the header only once to determine date parsing
+        header = pd.read_csv(file_path, nrows=0).columns
+        parse_dates = ['timestamp'] if 'timestamp' in header else False
+
         for delimiter in delimiters:
             try:
                 df = pd.read_csv(
-                    file_path, 
+                    file_path,
                     delimiter=delimiter,
                     encoding='utf-8',
-                    parse_dates=['timestamp'] if 'timestamp' in pd.read_csv(file_path, nrows=0).columns else False
+                    parse_dates=parse_dates
                 )
-                
+
                 # Check if we got reasonable columns (more than 1 column)
                 if len(df.columns) > 1:
                     return df
-                    
+
             except Exception:
                 continue
         
