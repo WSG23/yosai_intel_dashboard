@@ -199,6 +199,21 @@ These values override `database.host`, `database.username`, `cache.host` and
 - Independent and testable
 - Type-safe prop interfaces
 
+## 🔐 Authentication & Secrets
+
+This project uses Auth0 for OIDC login. Configure the following environment
+variables or Docker secrets:
+
+- `AUTH0_CLIENT_ID`
+- `AUTH0_CLIENT_SECRET`
+- `AUTH0_DOMAIN`
+- `AUTH0_AUDIENCE`
+
+All secrets can be provided via the `SecretManager` which supports `env`,
+`aws`, and `vault` backends. Place these values in `.env` or mount them as
+Docker secrets. See the [architecture diagram](docs/auth_flow.png) for
+implementation details.
+
 ## 🤝 Contributing
 
 1. Ensure all tests pass: `python test_modular_system.py`

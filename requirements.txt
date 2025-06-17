@@ -51,3 +51,8 @@ cssutils>=2.6.0
 
 # YAML Configuration Support
 PyYAML>=6.0
+authlib>=1.2.1
+flask-login>=0.6.2
+python-jose>=3.3.0
+cryptography>=41.0.3
+flask-wtf>=1.2.1

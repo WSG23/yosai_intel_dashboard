@@ -6,18 +6,18 @@ Run this script to set up the complete YAML configuration system
 """
 
 import os
+from core.secret_manager import SecretManager
 from pathlib import Path
+
 
 def create_directory_structure():
     """Create necessary directories"""
-    directories = [
-        "config",
-        "tests"
-    ]
-    
+    directories = ["config", "tests"]
+
     for directory in directories:
         Path(directory).mkdir(exist_ok=True)
         print(f"✅ Created directory: {directory}")
+
 
 def create_yaml_config_file():
     """Create config/yaml_config.py"""
@@ -156,8 +156,9 @@ class EnvironmentOverrideProcessor:
         }
         
         # Process each environment variable
+        manager = SecretManager()
         for env_var, config_path in env_mappings.items():
-            env_value = os.getenv(env_var)
+            env_value = manager.get(env_var, None)
             if env_value is not None:
                 EnvironmentOverrideProcessor._set_nested_value(
                     config, config_path, EnvironmentOverrideProcessor._convert_value(env_value)
@@ -517,10 +518,11 @@ __all__ = [
     'ConfigurationValidator'
 ]
 '''
-    
+
     file_path = Path("config/yaml_config.py")
     file_path.write_text(content)
     print(f"✅ Created: {file_path}")
+
 
 def update_service_registry():
     """Update core/service_registry.py to add YAML config support"""
@@ -799,13 +801,13 @@ def get_configured_container() -> Container:
     """Legacy function for backward compatibility"""
     return get_configured_container_with_yaml()
 '''
-    
+
     # Check if file exists and update it
     file_path = Path("core/service_registry.py")
     if file_path.exists():
         # Read existing file and check if it already has YAML support
         existing_content = file_path.read_text()
-        if 'configure_container_with_yaml' not in existing_content:
+        if "configure_container_with_yaml" not in existing_content:
             file_path.write_text(content)
             print(f"✅ Updated: {file_path}")
         else:
@@ -813,6 +815,7 @@ def get_configured_container() -> Container:
     else:
         file_path.write_text(content)
         print(f"✅ Created: {file_path}")
+
 
 def update_app_factory():
     """Update core/app_factory.py to add YAML config support"""
@@ -986,16 +989,17 @@ def create_production_app() -> Optional[Any]:
         logger.error(f"Error creating production app: {e}")
         return None
 '''
-    
+
     file_path = Path("core/app_factory.py")
     file_path.write_text(content)
     print(f"✅ Updated: {file_path}")
 
+
 def create_config_yaml_files():
     """Create the actual YAML configuration files"""
-    
+
     # config.yaml - Development configuration
-    dev_config = '''app:
+    dev_config = """app:
   debug: true
   host: 127.0.0.1
   port: 8050
@@ -1051,14 +1055,14 @@ monitoring:
   performance_monitoring: false
   error_reporting_enabled: false
   sentry_dsn: null
-'''
-    
+"""
+
     config_file = Path("config/config.yaml")
     config_file.write_text(dev_config)
     print(f"✅ Created: {config_file}")
-    
+
     # production.yaml - Production configuration
-    prod_config = '''app:
+    prod_config = """app:
   debug: false
   host: 0.0.0.0
   port: 8050
@@ -1095,14 +1099,14 @@ monitoring:
   performance_monitoring: true
   error_reporting_enabled: true
   sentry_dsn: ${SENTRY_DSN}
-'''
-    
+"""
+
     prod_file = Path("config/production.yaml")
     prod_file.write_text(prod_config)
     print(f"✅ Created: {prod_file}")
-    
+
     # test.yaml - Test configuration
-    test_config = '''app:
+    test_config = """app:
   debug: true
   host: 127.0.0.1
   port: 8051
@@ -1121,11 +1125,12 @@ analytics:
 
 monitoring:
   health_check_enabled: false
-'''
-    
+"""
+
     test_file = Path("config/test.yaml")
     test_file.write_text(test_config)
     print(f"✅ Created: {test_file}")
+
 
 def create_fixed_verification_script():
     """Create a fixed verification script that handles missing imports gracefully"""
@@ -1488,34 +1493,35 @@ if __name__ == "__main__":
     exit_code = main()
     sys.exit(exit_code)
 '''
-    
+
     file_path = Path("verify_yaml_config_fixed.py")
     file_path.write_text(content)
     print(f"✅ Created: {file_path}")
+
 
 def main():
     """Main function to create all missing files"""
     print("🔧 Creating Missing YAML Configuration Files...")
     print("=" * 60)
-    
+
     # Create directory structure
     create_directory_structure()
-    
+
     # Create the main YAML config file
     create_yaml_config_file()
-    
+
     # Update service registry
     update_service_registry()
-    
+
     # Update app factory
     update_app_factory()
-    
+
     # Create YAML config files
     create_config_yaml_files()
-    
+
     # Create fixed verification script
     create_fixed_verification_script()
-    
+
     print("\n" + "=" * 60)
     print("✅ ALL FILES CREATED SUCCESSFULLY!")
     print("\n📋 Next Steps:")
@@ -1526,6 +1532,6 @@ def main():
     print("\n3. Test your app:")
     print("   python app.py")
 
+
 if __name__ == "__main__":
     main()
-    
