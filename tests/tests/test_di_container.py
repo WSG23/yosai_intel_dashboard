@@ -267,9 +267,9 @@ Enhanced callback manager with improved DI container access
 from typing import Any, Optional, Callable
 import logging
 from functools import wraps
-from .component_registry import ComponentRegistry
-from .layout_manager import LayoutManager
-from .container import Container
+from core.component_registry import ComponentRegistry
+from core.layout_manager import LayoutManager
+from core.container import Container
 
 logger = logging.getLogger(__name__)
 
