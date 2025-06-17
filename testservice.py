@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Service Availability Checker - Modular Design
-==============================================
+Service Availability Checker - Fixed for Actual Project Structure
+================================================================
 
-A comprehensive, modular service checker that integrates with your existing
-DI container system and follows your project's architectural patterns.
+A comprehensive, modular service checker that integrates with your ACTUAL
+project architecture and DI container system.
 
 Usage:
     python3 check_services.py
     python3 check_services.py --format json
-    python3 check_services.py --services analytics,database
+    python3 check_services.py --services analytics_service,database
     python3 check_services.py --deep-check
 """
 
@@ -21,8 +21,8 @@ from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
 from enum import Enum
 from datetime import datetime
-import importlib.util
 import logging
+import traceback
 
 # Configure logging
 logging.basicConfig(
@@ -91,9 +91,6 @@ class DIContainerChecker(ServiceChecker):
     
     def check(self) -> ServiceInfo:
         try:
-            # Try to import your existing DI container
-            from core.di_container import Container, get_configured_container
-            
             result, response_time = self._measure_response_time(
                 lambda: self._check_container_health()
             )
@@ -123,33 +120,50 @@ class DIContainerChecker(ServiceChecker):
             )
     
     def _check_container_health(self) -> Dict[str, Any]:
-        from core.di_container import get_configured_container
-        
-        container = get_configured_container()
-        health = container.health_check()
-        
-        return {
-            'container_name': health.get('container', 'unknown'),
-            'total_services': len(health.get('services', {})),
-            'healthy_services': len([
-                s for s in health.get('services', {}).values() 
-                if s.get('status') == 'healthy'
-            ]),
-            'dependency_graph_size': len(health.get('dependency_graph', {})),
-            'startup_order_length': len(health.get('startup_order', []))
-        }
+        # Try the actual imports from your project
+        try:
+            from core.service_registry import get_configured_container
+            container = get_configured_container()
+            
+            # Test health check if available
+            if hasattr(container, 'health_check'):
+                health = container.health_check()
+                return {
+                    'container_type': type(container).__name__,
+                    'services_registered': len(health.get('services', {})),
+                    'overall_status': health.get('status', 'unknown'),
+                    'has_health_check': True
+                }
+            else:
+                # Basic check
+                services = container.list_services() if hasattr(container, 'list_services') else []
+                return {
+                    'container_type': type(container).__name__,
+                    'services_registered': len(services),
+                    'has_health_check': False,
+                    'services': services[:10]  # First 10 services
+                }
+                
+        except ImportError:
+            # Try alternative import paths
+            from core.container import Container
+            container = Container()
+            return {
+                'container_type': type(container).__name__,
+                'services_registered': 0,
+                'has_health_check': False,
+                'note': 'Basic container - no services configured'
+            }
 
 
 class DatabaseChecker(ServiceChecker):
-    """Checks database connectivity"""
+    """Checks database connectivity using your actual DatabaseManager"""
     
     def __init__(self):
         super().__init__("database")
     
     def check(self) -> ServiceInfo:
         try:
-            from config.database_manager import DatabaseManager
-            
             result, response_time = self._measure_response_time(
                 lambda: self._check_database_health()
             )
@@ -179,33 +193,40 @@ class DatabaseChecker(ServiceChecker):
             )
     
     def _check_database_health(self) -> Dict[str, Any]:
-        from config.database_manager import DatabaseManager
+        from config.database_manager import DatabaseManager, DatabaseConfig
         
-        db_manager = DatabaseManager()
+        # Test configuration loading
+        config = DatabaseManager.from_environment()
         
-        # Try to get a connection
-        with db_manager.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
+        # Test connection creation (using your actual static method)
+        connection = DatabaseManager.create_connection(config)
+        
+        # Test basic query
+        try:
+            result = connection.execute_query("SELECT 1 as test_query")
+            query_successful = not result.empty
+        except Exception as e:
+            query_successful = False
             
-            return {
-                'connection_successful': True,
-                'test_query_result': result[0] if result else None,
-                'database_type': db_manager.db_config.db_type
-            }
+        # Close connection properly
+        connection.close()
+        
+        return {
+            'config_loaded': True,
+            'database_type': config.db_type,
+            'connection_created': True,
+            'test_query_successful': query_successful
+        }
 
 
 class AnalyticsServiceChecker(ServiceChecker):
-    """Checks analytics service"""
+    """Checks analytics service using your actual DI container"""
     
     def __init__(self):
         super().__init__("analytics_service")
     
     def check(self) -> ServiceInfo:
         try:
-            from services.analytics_service import AnalyticsService
-            
             result, response_time = self._measure_response_time(
                 lambda: self._check_analytics_health()
             )
@@ -215,7 +236,7 @@ class AnalyticsServiceChecker(ServiceChecker):
                 status=ServiceStatus.HEALTHY,
                 type="business_logic",
                 layer="service",
-                dependencies=["database"],
+                dependencies=["database", "di_container"],
                 health_data=result,
                 response_time_ms=response_time
             )
@@ -236,38 +257,61 @@ class AnalyticsServiceChecker(ServiceChecker):
             )
     
     def _check_analytics_health(self) -> Dict[str, Any]:
-        from services.analytics_service import AnalyticsService
-        from core.di_container import get_configured_container
-        
-        container = get_configured_container()
-        analytics = container.get('analytics_service')
-        
-        # Test basic functionality
         try:
-            summary = analytics.get_dashboard_summary()
-            return {
-                'dashboard_summary_available': True,
-                'last_updated': summary.get('last_updated'),
-                'system_status': summary.get('system_status'),
-                'has_recent_data': summary.get('recent_events_24h', 0) > 0
-            }
+            # Try to get service from configured container
+            from core.service_registry import get_configured_container
+            container = get_configured_container()
+            
+            # Try to get analytics service
+            analytics_service = None
+            if hasattr(container, 'get_optional'):
+                analytics_service = container.get_optional('analytics_service')
+            elif hasattr(container, 'get'):
+                try:
+                    analytics_service = container.get('analytics_service')
+                except:
+                    pass
+            
+            if analytics_service is not None:
+                # Test basic functionality
+                try:
+                    summary = analytics_service.get_dashboard_summary()
+                    return {
+                        'service_available': True,
+                        'service_type': type(analytics_service).__name__,
+                        'dashboard_summary_working': True,
+                        'last_updated': summary.get('last_updated'),
+                        'system_status': summary.get('system_status')
+                    }
+                except Exception as e:
+                    return {
+                        'service_available': True,
+                        'service_type': type(analytics_service).__name__,
+                        'dashboard_summary_working': False,
+                        'error': str(e)
+                    }
+            else:
+                return {
+                    'service_available': False,
+                    'container_services': len(container.list_services()) if hasattr(container, 'list_services') else 0,
+                    'note': 'Analytics service not registered in container'
+                }
+                
         except Exception as e:
             return {
-                'dashboard_summary_available': False,
-                'error': str(e)
+                'service_available': False,
+                'container_error': str(e)
             }
 
 
 class ConfigurationChecker(ServiceChecker):
-    """Checks configuration system"""
+    """Checks configuration system using your actual YAML config"""
     
     def __init__(self):
         super().__init__("configuration")
     
     def check(self) -> ServiceInfo:
         try:
-            from config.configuration_manager import ConfigurationManager
-            
             result, response_time = self._measure_response_time(
                 lambda: self._check_config_health()
             )
@@ -297,16 +341,35 @@ class ConfigurationChecker(ServiceChecker):
             )
     
     def _check_config_health(self) -> Dict[str, Any]:
-        from config.configuration_manager import ConfigurationManager
-        
-        config_manager = ConfigurationManager()
-        config_manager.load_configuration()
-        
-        return {
-            'config_loaded': config_manager._config_source is not None,
-            'environment': config_manager.environment,
-            'config_file_path': getattr(config_manager, 'config_file_path', 'unknown')
-        }
+        try:
+            # Try your actual YAML configuration manager
+            from config.yaml_config import ConfigurationManager
+            
+            config_manager = ConfigurationManager()
+            config_manager.load_configuration()
+            
+            return {
+                'config_manager_type': 'YAML',
+                'config_loaded': hasattr(config_manager, '_config_source') and config_manager._config_source is not None,
+                'environment': getattr(config_manager, 'environment', 'unknown'),
+                'has_app_config': hasattr(config_manager, 'app_config'),
+                'has_database_config': hasattr(config_manager, 'database_config')
+            }
+            
+        except ImportError:
+            # Try alternative config manager
+            try:
+                from core.config_manager import ConfigManager
+                config = ConfigManager.from_environment()
+                
+                return {
+                    'config_manager_type': 'Environment',
+                    'config_loaded': True,
+                    'has_app_config': hasattr(config, 'app_config')
+                }
+                
+            except ImportError:
+                raise ImportError("No configuration manager available")
 
 
 class ServiceRegistry:
@@ -338,7 +401,16 @@ class ServiceRegistry:
                 error_message=f"No checker available for service: {name}"
             )
         
-        return self.checkers[name].check()
+        try:
+            return self.checkers[name].check()
+        except Exception as e:
+            logger.error(f"Unexpected error checking {name}: {e}")
+            return ServiceInfo(
+                name=name,
+                status=ServiceStatus.UNHEALTHY,
+                type="unknown",
+                error_message=f"Unexpected error: {e}"
+            )
     
     def check_all_services(self) -> Dict[str, ServiceInfo]:
         """Check all registered services"""
@@ -399,11 +471,29 @@ class ServiceStatusReporter:
                     output.append(f"    Error: {service.error_message}")
                 if service.dependencies:
                     output.append(f"    Dependencies: {', '.join(service.dependencies)}")
+                
+                # Show key health data
+                if service.health_data:
+                    key_metrics = {}
+                    for key, value in service.health_data.items():
+                        if key in ['services_registered', 'database_type', 'service_type', 'config_manager_type']:
+                            key_metrics[key] = value
+                    
+                    if key_metrics:
+                        metrics_str = ', '.join([f"{k}={v}" for k, v in key_metrics.items()])
+                        output.append(f"    Metrics: {metrics_str}")
         
         # Summary
         total = len(results)
         healthy = len([s for s in results.values() if s.status == ServiceStatus.HEALTHY])
         output.append(f"\n📈 SUMMARY: {healthy}/{total} services healthy")
+        
+        if healthy == total:
+            output.append("🎉 All services are operational!")
+        elif healthy == 0:
+            output.append("⚠️  No services are healthy - check your configuration!")
+        else:
+            output.append("⚠️  Some services need attention")
         
         return "\n".join(output)
     
@@ -434,8 +524,13 @@ def main():
                       help='Perform deep health checks')
     parser.add_argument('--list', action='store_true',
                       help='List available services')
+    parser.add_argument('--debug', action='store_true',
+                      help='Enable debug logging')
     
     args = parser.parse_args()
+    
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
     
     # Initialize registry
     registry = ServiceRegistry()

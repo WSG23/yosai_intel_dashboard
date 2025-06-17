@@ -362,22 +362,3 @@ def debug_configuration_loading() -> Dict[str, Any]:
             debug_info['import_status'][import_name] = f'FAILED: {e}'
     
     return debug_info
-
-# ============================================================================
-# FIXED ANALYTICS SERVICE REGISTRATION
-# ============================================================================
-
-def get_configured_container_no_timeout(config_manager: Optional[Any] = None) -> Container:
-    """Get container configured WITHOUT problematic analytics service dependencies"""
-    from .service_registry_fixed import get_configured_container_fixed
-    return get_configured_container_fixed(config_manager)
-
-def configure_container_no_timeout(container: Container, config_manager: Optional[Any] = None) -> None:
-    """Configure container WITHOUT problematic analytics service dependencies"""
-    from .service_registry_fixed import configure_container_fixed
-    configure_container_fixed(container, config_manager)
-
-# Override the main functions to use fixed versions
-def get_configured_container_with_yaml(config_manager: Optional[Any] = None) -> Container:
-    """FIXED: Get container with working analytics service"""
-    return get_configured_container_no_timeout(config_manager)
