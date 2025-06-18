@@ -1,7 +1,7 @@
 # yosai_intel_dashboard/components/bottom_panel.py
 
 from dash import html, dcc
-from flask_babel import _l
+from flask_babel import lazy_gettext as _l
 
 layout = html.Div(
     [

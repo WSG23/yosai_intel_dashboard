@@ -5,7 +5,7 @@
 import dash_leaflet as dl
 from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
 from dash import html, dcc, Output, Input, callback_context, no_update
-from flask_babel import _l
+from flask_babel import lazy_gettext as _l
 
 # Predefined map centers for each view
 view_centers = {

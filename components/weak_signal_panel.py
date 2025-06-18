@@ -2,7 +2,7 @@
 
 from dash import html
 import dash_bootstrap_components as dbc
-from flask_babel import _l
+from flask_babel import lazy_gettext as _l
 
 
 # Example signal card
