@@ -1,14 +1,14 @@
+import json
 from flask.json.provider import DefaultJSONProvider
-from flask_babel import LazyString
-
+from .json_serializer import YosaiJSONEncoder
 
 class YosaiJSONProvider(DefaultJSONProvider):
-    """JSON provider that safely serializes LazyString objects."""
+    """Custom JSON provider using YosaiJSONEncoder for serialization."""
 
-    def default(self, obj):
-        if isinstance(obj, LazyString):
-            return str(obj)
-        return super().default(obj)
+    def dumps(self, obj, **kwargs):
+        kwargs.setdefault("cls", YosaiJSONEncoder)
+        kwargs.setdefault("ensure_ascii", False)
+        return json.dumps(obj, **kwargs)
 
-
-__all__ = ["YosaiJSONProvider"]
+    def loads(self, s, **kwargs):
+        return json.loads(s, **kwargs)
