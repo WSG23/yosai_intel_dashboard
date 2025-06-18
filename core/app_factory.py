@@ -17,6 +17,7 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
+from utils import YosaiJSONProvider
 
 logger = logging.getLogger(__name__)
 
