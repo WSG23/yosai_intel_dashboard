@@ -272,7 +272,8 @@ class ConfigurationManager:
         env = environment or manager.get("ENVIRONMENT", "development")
 
         # Determine config file path based on environment
-        config_dir = Path("config")
+        # Look for configuration files relative to this module
+        config_dir = Path(__file__).resolve().parent
         config_path = None
 
         # Try environment-specific file first
