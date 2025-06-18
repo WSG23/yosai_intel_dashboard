@@ -10,7 +10,6 @@ from flask_babel import lazy_gettext as _l
 from core.auth import role_required
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any, Optional, Tuple, Union
-from utils.lazystring_handler import sanitize_lazystring_recursive
 
 # Import the modular analytics components with safe fallbacks
 try:
@@ -30,16 +29,16 @@ except ImportError as e:
 
     # Create fallback functions (same as before)
     def create_file_uploader(*args, **kwargs):
-        return str(html.Div(_l("File uploader not available")))
+        return html.Div(_l("File uploader not available"))
 
     def create_data_preview(*args, **kwargs):
-        return str(html.Div(_l("Data preview not available")))
+        return html.Div(_l("Data preview not available"))
 
     def create_analytics_charts(*args, **kwargs):
-        return str(html.Div(_l("Charts not available")))
+        return html.Div(_l("Charts not available"))
 
     def create_summary_cards(*args, **kwargs):
-        return str(html.Div(_l("Summary cards not available")))
+        return html.Div(_l("Summary cards not available"))
 
     class FallbackFileProcessor:
         @staticmethod

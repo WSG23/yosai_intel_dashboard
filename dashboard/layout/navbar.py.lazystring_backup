@@ -6,7 +6,6 @@ Navigation bar component with complete type safety
 import datetime
 from typing import TYPE_CHECKING
 from flask_babel import lazy_gettext as _l
-from utils.lazystring_handler import sanitize_lazystring_recursive
 
 if TYPE_CHECKING:
     import dash_bootstrap_components as dbc
