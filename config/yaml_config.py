@@ -257,6 +257,9 @@ class ConfigurationManager:
         self._loaded_files: List[str] = []
         self._warnings: List[str] = []
         self._config_path = config_path
+        # Track where the configuration was loaded from for diagnostics
+        # None indicates that defaults were used
+        self._config_source: Optional[str] = None
         manager = SecretManager()
         self._environment = environment or manager.get("ENVIRONMENT", "development")
 
@@ -301,9 +304,11 @@ class ConfigurationManager:
 
                 self._load_yaml_file(effective_path)
                 logger.info(f"Loaded configuration from: {effective_path}")
+                self._config_source = effective_path
             else:
                 logger.info("No configuration file specified, using defaults")
                 self._raw_config = self._get_default_config()
+                self._config_source = "defaults"
 
             # Apply environment variable overrides
             self._raw_config = EnvironmentOverrideProcessor.process_overrides(
@@ -425,6 +430,11 @@ class ConfigurationManager:
     def get_loaded_files(self) -> List[str]:
         """Get list of loaded configuration files"""
         return self._loaded_files.copy()
+
+    @property
+    def config_source(self) -> Optional[str]:
+        """Return the path used to load configuration or 'defaults'."""
+        return self._config_source
 
     def validate_configuration(self) -> List[str]:
         """Validate configuration and return warnings"""
