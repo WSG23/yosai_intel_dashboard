@@ -10,6 +10,7 @@ previous `unified_config.py` module has been removed.
 CRITICAL: Load .env file FIRST before any other imports
 """
 import os
+
 from pathlib import Path
 
 # Force load .env file before importing anything else
