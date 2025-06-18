@@ -5,6 +5,41 @@ Yōsai Intel Dashboard - Main Application Entry Point
 This version uses the `config/yaml_config.py` configuration system. The
 previous `unified_config.py` module has been removed.
 """
+#!/usr/bin/env python3
+"""
+CRITICAL: Load .env file FIRST before any other imports
+"""
+import os
+from pathlib import Path
+
+# Force load .env file before importing anything else
+try:
+    from dotenv import load_dotenv
+    env_file = Path(".env")
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+        print("✅ Loaded .env file")
+    else:
+        print("⚠️  .env file not found")
+except ImportError:
+    print("⚠️  python-dotenv not installed")
+
+# Ensure critical variables are set
+required_vars = {
+    "DB_HOST": "localhost",
+    "SECRET_KEY": "dev-secret-change-in-production-12345",
+    "AUTH0_CLIENT_ID": "your-client-id",
+    "AUTH0_CLIENT_SECRET": "your-client-secret", 
+    "AUTH0_DOMAIN": "your-domain.auth0.com",
+    "AUTH0_AUDIENCE": "your-api-audience",
+    "YOSAI_ENV": "development"
+}
+
+for var, default in required_vars.items():
+    if not os.getenv(var):
+        os.environ[var] = default
+
+
 
 import sys
 import logging

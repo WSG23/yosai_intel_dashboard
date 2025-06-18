@@ -17,7 +17,7 @@ class ComponentRegistry:
         """Load all components with error handling"""
         # Extract all your current safe_import_* calls from app.py
         self._components["navbar"] = self._safe_import_component(
-            "dashboard.layout.navbar", "create_navbar_layout"
+            "dashboard.layout.navbar", "layout"
         )
         self._components["map_panel"] = self._safe_import_component(
             "components.map_panel", "layout"
