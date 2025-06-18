@@ -508,9 +508,21 @@ class ServiceStatusReporter:
                 'unhealthy_count': len([s for s in results.values() if s.status == ServiceStatus.UNHEALTHY]),
                 'not_found_count': len([s for s in results.values() if s.status == ServiceStatus.NOT_FOUND])
             },
-            'services': {name: asdict(info) for name, info in results.items()}
+            'services': {
+                name: {
+                    **asdict(info),
+                    'status': info.status.value
+                }
+                for name, info in results.items()
+            }
         }
-        return json.dumps(json_data, indent=2)
+
+        def _default(obj: Any) -> Any:
+            if callable(obj):
+                return obj.__name__
+            return str(obj)
+
+        return json.dumps(json_data, indent=2, default=_default)
 
 
 def main():
