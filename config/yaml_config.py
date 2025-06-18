@@ -136,7 +136,10 @@ class EnvironmentOverrideProcessor:
         # Process each environment variable
         manager = SecretManager()
         for env_var, config_path in env_mappings.items():
-            env_value = manager.get(env_var, None)
+            try:
+                env_value = manager.get(env_var)
+            except KeyError:
+                env_value = None
             if env_value is not None:
                 EnvironmentOverrideProcessor._set_nested_value(
                     config,

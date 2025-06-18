@@ -67,7 +67,10 @@ def get_config_path() -> Optional[str]:
 
     # Check for explicit config file in environment
     manager = SecretManager()
-    config_file = manager.get("YOSAI_CONFIG_FILE", None)
+    try:
+        config_file = manager.get("YOSAI_CONFIG_FILE")
+    except KeyError:
+        config_file = None
     if config_file and Path(config_file).exists():
         print(f"📋 Using config file from YOSAI_CONFIG_FILE: {config_file}")
         return config_file
