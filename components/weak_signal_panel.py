@@ -3,6 +3,7 @@
 from dash import html
 import dash_bootstrap_components as dbc
 from flask_babel import lazy_gettext as _l
+from utils.lazystring_handler import sanitize_lazystring_recursive
 
 
 # Example signal card
@@ -101,3 +102,6 @@ layout = html.Div(
     ],
     className="weak-signal-panel",
 )
+
+# Ensure no LazyString objects remain in the layout
+layout = sanitize_lazystring_recursive(layout)
