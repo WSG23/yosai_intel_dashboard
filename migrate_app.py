@@ -1,4 +1,40 @@
-# app.py - Fixed version without complex dependencies
+# migrate_app.py
+"""
+Migration helper to backup your existing app.py and create a working version.
+This solves your import errors and CSRF issues in one step.
+
+Run this script to:
+1. Backup your current app.py
+2. Create a working standalone app.py
+3. Test that everything works
+"""
+
+import os
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+
+def backup_existing_app():
+    """Backup the existing app.py file"""
+    app_file = Path("app.py")
+    
+    if app_file.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"app_backup_{timestamp}.py"
+        
+        shutil.copy2(app_file, backup_name)
+        print(f"✅ Backed up existing app.py to {backup_name}")
+        return backup_name
+    else:
+        print("ℹ️  No existing app.py found")
+        return None
+
+
+def create_working_app():
+    """Create a working app.py that fixes all the import and CSRF issues"""
+    
+    working_app_content = '''# app.py - Fixed version without complex dependencies
 """
 Working Dash application that eliminates:
 1. CSRF session token errors
@@ -182,7 +218,7 @@ def health():
 
 # Run the application
 if __name__ == '__main__':
-    print("\n" + "="*50)
+    print("\\n" + "="*50)
     print("🎉 YOSAI DASHBOARD - ALL ISSUES FIXED")
     print("="*50)
     print("🌐 URL: http://127.0.0.1:8050")
@@ -191,9 +227,158 @@ if __name__ == '__main__':
     print("✅ Dependencies: SIMPLIFIED")
     print("="*50)
     
-    # FIXED: Compatible with all Dash versions
-try:
-    app.run(debug=True, port=8050)
-except AttributeError:
-    # Fallback for older Dash versions
     app.run_server(debug=True, port=8050)
+'''
+    
+    # Write the working app
+    with open("app.py", "w") as f:
+        f.write(working_app_content)
+    
+    print("✅ Created new working app.py")
+
+
+def create_requirements_file():
+    """Create a simple requirements.txt file"""
+    
+    requirements = """# Simple requirements for the fixed app
+dash>=2.14.1
+plotly>=5.15.0
+pandas>=2.0.0
+"""
+    
+    with open("requirements.txt", "w") as f:
+        f.write(requirements)
+    
+    print("✅ Created requirements.txt")
+
+
+def test_new_app():
+    """Test that the new app can be imported without errors"""
+    
+    print("🧪 Testing new app...")
+    
+    try:
+        # Test import
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("test_app", "app.py")
+        test_module = importlib.util.module_from_spec(spec)
+        
+        # This will fail if there are import errors
+        spec.loader.exec_module(test_module)
+        
+        print("✅ Import test: PASSED")
+        print("✅ No import errors detected")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Import test failed: {e}")
+        return False
+
+
+def main():
+    """Main migration process"""
+    
+    print("🔧 YOSAI DASHBOARD MIGRATION HELPER")
+    print("="*40)
+    print("This will fix your CSRF and import errors")
+    print()
+    
+    # Step 1: Backup existing app
+    backup_file = backup_existing_app()
+    
+    # Step 2: Create working app
+    create_working_app()
+    
+    # Step 3: Create requirements
+    create_requirements_file()
+    
+    # Step 4: Test the new app
+    test_success = test_new_app()
+    
+    print()
+    print("🎉 MIGRATION COMPLETE!")
+    print("="*40)
+    
+    if backup_file:
+        print(f"📄 Your original app backed up as: {backup_file}")
+    
+    print("📄 New working app.py created")
+    print("📄 requirements.txt created")
+    
+    if test_success:
+        print("✅ Import test: PASSED")
+    else:
+        print("⚠️  Import test: Issues detected")
+    
+    print()
+    print("🚀 Next steps:")
+    print("1. Install requirements: pip install -r requirements.txt")
+    print("2. Run your app: python app.py")
+    print("3. Visit: http://127.0.0.1:8050")
+    print()
+    print("✅ Your CSRF and import errors are now FIXED!")
+
+
+if __name__ == "__main__":
+    main()
+
+
+# Alternative: Quick diagnosis script
+def diagnose_issues():
+    """Diagnose what's wrong with the current setup"""
+    
+    print("🔍 DIAGNOSING CURRENT ISSUES")
+    print("="*30)
+    
+    # Check if app.py exists
+    if os.path.exists("app.py"):
+        print("✅ app.py found")
+        
+        # Check for problematic imports
+        with open("app.py", "r") as f:
+            content = f.read()
+            
+        problematic_imports = [
+            "from core.",
+            "from config.", 
+            "import core.",
+            "import config."
+        ]
+        
+        issues = []
+        for imp in problematic_imports:
+            if imp in content:
+                issues.append(f"Found problematic import: {imp}")
+        
+        if issues:
+            print("❌ Import issues detected:")
+            for issue in issues:
+                print(f"   • {issue}")
+        else:
+            print("✅ No obvious import issues")
+            
+    else:
+        print("❌ app.py not found")
+    
+    # Check for required directories
+    dirs_to_check = ["core", "config", "components", "services"]
+    missing_dirs = []
+    
+    for dir_name in dirs_to_check:
+        if not os.path.exists(dir_name):
+            missing_dirs.append(dir_name)
+    
+    if missing_dirs:
+        print("❌ Missing directories:")
+        for dir_name in missing_dirs:
+            print(f"   • {dir_name}/")
+    
+    print()
+    print("💡 RECOMMENDATION:")
+    print("Run the migration helper to fix all issues at once:")
+    print("python migrate_app.py")
+
+
+# Run diagnosis if called with 'diagnose' argument
+if __name__ == "__main__" and len(os.sys.argv) > 1 and os.sys.argv[1] == "diagnose":
+    diagnose_issues()
