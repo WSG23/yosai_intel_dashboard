@@ -96,7 +96,7 @@ class DashAppFactory:
             callback_manager = CallbackManager(
                 app, component_registry, layout_manager, container,
 
-            # Set layout:
+            # Set layout
             app.layout = layout_manager.create_main_layout()
 
             # Register callbacks
