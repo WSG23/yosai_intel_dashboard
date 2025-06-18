@@ -123,9 +123,15 @@ class DashAppFactory:
 
             babel = Babel(server)
 
-            @babel.localeselector
             def get_locale():
                 return session.get("lang", "en")
+
+            if hasattr(babel, "localeselector"):
+                babel.localeselector(get_locale)
+            elif hasattr(babel, "locale_selector_func"):
+                babel.locale_selector_func = get_locale
+            else:
+                logger.warning("Babel does not support locale selection")
 
             @server.route("/i18n/<lang>")
             def set_lang(lang: str):
