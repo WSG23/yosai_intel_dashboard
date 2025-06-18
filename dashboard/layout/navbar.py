@@ -6,7 +6,10 @@ Navigation bar component with complete type safety
 import datetime
 from typing import TYPE_CHECKING
 from flask_babel import lazy_gettext as _l
-from utils.lazystring_handler import sanitize_lazystring_recursive
+from utils.lazystring_handler import (
+    sanitize_lazystring_recursive,
+    lazystring_safe_callback,
+)
 
 if TYPE_CHECKING:
     import dash_bootstrap_components as dbc
@@ -173,6 +176,7 @@ def register_navbar_callbacks(app):
             Input("live-time", "id"),
             prevent_initial_call=False,
         )
+        @lazystring_safe_callback
         def update_time(_):
             try:
                 return f"Live Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
