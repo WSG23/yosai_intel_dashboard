@@ -94,9 +94,10 @@ class DashAppFactory:
             component_registry = ComponentRegistry()
             layout_manager = LayoutManager(component_registry)
             callback_manager = CallbackManager(
-                app, component_registry, layout_manager, container,
+                app, component_registry, layout_manager, container
+            )
 
-            # Set layout:
+            # Set layout
             app.layout = layout_manager.create_main_layout()
 
             # Register callbacks
@@ -111,32 +112,8 @@ class DashAppFactory:
             )
             CSRFProtect(server)
             init_auth(server)
-            # Safely wrap dash.index with login_required
-            if "dash.index" in server.view_functions:
-            # Safely wrap dash.index with login_required
-            try:
-                if "dash.index" in server.view_functions:
-                    server.view_functions["dash.index"] = login_required(
-                        server.view_functions["dash.index"]
-                    )
-                else:
-                    logger.warning("dash.index view function not found")
-            except Exception as e:
-                logger.warning(f"Could not wrap dash.index with login_required: {e}")
-                logger.warning("dash.index view function not found - skipping login_required wrapper")
-                # Safely wrap dash.index with login_required
-                if "dash.index" in server.view_functions:
-            # Safely wrap dash.index with login_required
-            try:
-                if "dash.index" in server.view_functions:
-                    server.view_functions["dash.index"] = login_required(
-                        server.view_functions["dash.index"]
-                    )
-                else:
-                    logger.warning("dash.index view function not found")
-            except Exception as e:
-                logger.warning(f"Could not wrap dash.index with login_required: {e}")
-                    logger.warning("dash.index view function not found - skipping login_required wrapper")
+            server.view_functions["dash.index"] = login_required(
+                server.view_functions["dash.index"]
             )
 
             babel = Babel(server)
@@ -152,6 +129,7 @@ class DashAppFactory:
 
             logger.info(
                 "Dashboard application created successfully with YAML configuration"
+            )
             return app
 
         except ImportError:
@@ -199,12 +177,14 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
 
         logger.info(
             "Dashboard application created successfully with YAML configuration"
+        )
         return app
 
     except ImportError:
         logger.error("Cannot create application - Dash dependencies not available")
         print(
             "❌ Error: Dash not installed. Run: pip install dash dash-bootstrap-components"
+        )
         return None
     except Exception as e:
         logger.error(f"Error creating application: {e}")
