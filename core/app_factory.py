@@ -9,6 +9,7 @@ from flask_login import login_required
 from flask_wtf import CSRFProtect
 from flask import session, redirect, request
 from flask_babel import Babel
+from utils.json_encoder import YosaiJSONProvider
 from .auth import init_auth
 from config.yaml_config import ConfigurationManager, get_configuration_manager
 from .component_registry import ComponentRegistry
@@ -85,6 +86,20 @@ class DashAppFactory:
                 suppress_callback_exceptions=True,
                 meta_tags=DashAppFactory._get_meta_tags(config_manager),
             )
+
+            # Register custom JSON provider before using jsonify anywhere
+            try:
+                import flask
+                version_parts = flask.__version__.split(".")
+                major = int(version_parts[0])
+                minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+            except Exception:
+                major, minor = 2, 3
+
+            if major > 2 or (major == 2 and minor >= 3):
+                app.server.json = YosaiJSONProvider(app.server)
+            else:
+                app.server.json_encoder = YosaiJSONProvider
 
             # Configure app
             app.title = config_manager.app_config.title
