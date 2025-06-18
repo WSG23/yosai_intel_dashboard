@@ -109,6 +109,22 @@ class TestJsonSerializationPlugin(unittest.TestCase):
         self.assertTrue(result.get('error', False))
         self.assertIn('Test error', result['message'])
 
+    def test_lazystring_handling(self):
+        """Ensure LazyString objects are sanitized to plain strings"""
+        try:
+            from flask_babel import lazy_gettext
+        except Exception:
+            self.skipTest("flask_babel not available")
+
+        self.plugin.load(self.container, self.config)
+        service = self.container.get('json_serialization_service')
+
+        lazy_value = lazy_gettext("hello")
+        sanitized = service.sanitize_for_transport(lazy_value)
+
+        self.assertIsInstance(sanitized, str)
+        self.assertEqual(sanitized, str(lazy_value))
+
 class TestPluginManager(unittest.TestCase):
     """Test plugin manager with JSON serialization plugin"""
     

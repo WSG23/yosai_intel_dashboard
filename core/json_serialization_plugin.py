@@ -14,6 +14,12 @@ import logging
 import functools
 from enum import Enum
 
+try:
+    # Optional dependency - may not be installed in test environment
+    from flask_babel import LazyString  # type: ignore
+except Exception:  # pragma: no cover - fallback when Flask-Babel not installed
+    LazyString = None  # type: ignore
+
 from core.plugins.protocols import (
     PluginProtocol, PluginMetadata, PluginPriority,
     ServicePluginProtocol, CallbackPluginProtocol
@@ -45,6 +51,10 @@ class YosaiJSONEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         """Handle all Yōsai-specific types with proper error boundaries"""
         
+        # Handle Flask-Babel LazyString objects
+        if (LazyString is not None and isinstance(obj, LazyString)) or 'LazyString' in obj.__class__.__name__:
+            return str(obj)
+
         # Handle pandas DataFrames
         if isinstance(obj, pd.DataFrame):
             return self._encode_dataframe(obj)
@@ -196,7 +206,13 @@ class JsonSerializationService:
         
         if data is None:
             return None
-        
+
+        # Handle Flask-Babel LazyString objects
+        if (LazyString is not None and isinstance(data, LazyString)) or (
+            hasattr(data, '__class__') and 'LazyString' in data.__class__.__name__
+        ):
+            return str(data)
+
         # Handle DataFrames - convert to transport-safe format
         if isinstance(data, pd.DataFrame):
             return self._sanitize_dataframe(data)
