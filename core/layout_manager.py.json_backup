@@ -3,7 +3,6 @@
 from typing import Any
 import logging
 from .component_registry import ComponentRegistry
-from utils.safe_callbacks import sanitize_dash_output
 
 logger = logging.getLogger(__name__)
 
