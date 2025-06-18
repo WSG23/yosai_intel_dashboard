@@ -2,6 +2,7 @@
 
 from dash import html, dcc
 from flask_babel import lazy_gettext as _l
+from utils.lazystring_handler import sanitize_lazystring_recursive
 
 layout = html.Div(
     [
@@ -98,3 +99,6 @@ layout = html.Div(
     ],
     className="bottom-panel",
 )
+
+# Sanitize to avoid LazyString serialization issues
+layout = sanitize_lazystring_recursive(layout)

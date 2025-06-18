@@ -6,6 +6,7 @@ import dash_leaflet as dl
 from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
 from dash import html, dcc, Output, Input, callback_context, no_update
 from flask_babel import lazy_gettext as _l
+from utils.lazystring_handler import sanitize_lazystring_recursive
 
 # Predefined map centers for each view
 view_centers = {
@@ -68,6 +69,9 @@ layout = html.Div(
     className="map-panel",
     style={"width": "100%", "height": "100%", "backgroundColor": "#121212"},
 )
+
+# Convert any LazyString objects to regular strings for safe serialization
+layout = sanitize_lazystring_recursive(layout)
 
 
 # Register callbacks

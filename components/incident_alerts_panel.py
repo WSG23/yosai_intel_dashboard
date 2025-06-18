@@ -3,6 +3,7 @@
 from dash import html, dcc, callback, Output, Input, State
 import dash_bootstrap_components as dbc
 from flask_babel import lazy_gettext as _l
+from utils.lazystring_handler import sanitize_lazystring_recursive
 
 # Categories and their properties
 TICKET_CATEGORIES = [
@@ -124,3 +125,6 @@ layout = html.Div(
     ],
     className="incident-alert-panel",
 )
+
+# Sanitize layout to ensure LazyString objects are converted to plain strings
+layout = sanitize_lazystring_recursive(layout)
