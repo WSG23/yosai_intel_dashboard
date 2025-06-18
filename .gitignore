@@ -31,6 +31,13 @@ ENV/
 .env.local
 .env.production
 
+# SECRET_KEY=your-secret-key-here
+AUTH0_CLIENT_ID=your-client-id
+AUTH0_CLIENT_SECRET=your-client-secret
+AUTH0_DOMAIN=your-domain.auth0.com
+AUTH0_AUDIENCE=your-api-audience
+
+
 # IDE
 .vscode/
 .idea/
