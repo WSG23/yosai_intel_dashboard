@@ -127,9 +127,18 @@ class DashAppFactory:
 
             babel = Babel(server)
 
-            @babel.localeselector
-            def get_locale():
+            def _select_locale() -> str:
+                """Return preferred locale stored in the session"""
                 return session.get("lang", "en")
+
+            if hasattr(babel, "localeselector"):
+                # Flask-Babel < 4.x uses decorator based registration
+                @babel.localeselector
+                def get_locale() -> str:  # pragma: no cover - wrapper for older API
+                    return _select_locale()
+            else:
+                # Flask-Babel >= 4.x expects locale_selector_func attribute
+                babel.locale_selector_func = _select_locale
 
             @server.route("/i18n/<lang>")
             def set_lang(lang: str):
