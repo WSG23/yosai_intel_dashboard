@@ -16,6 +16,7 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
+from .plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,11 @@ class DashAppFactory:
             app.title = config_manager.app_config.title
             app._config_manager = config_manager
             app._yosai_container = container
+
+            # Initialize and load plugins
+            plugin_manager = PluginManager(container, config_manager)
+            plugin_results = plugin_manager.load_all_plugins()
+            app._yosai_plugin_manager = plugin_manager
 
             # Initialize components
             component_registry = ComponentRegistry()
@@ -388,4 +394,5 @@ __all__ = [
     "DashAppFactory",
     "YosaiDash",
     "verify_yaml_system",
+    "PluginManager",
 ]
