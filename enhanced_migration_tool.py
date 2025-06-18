@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 import re
+from typing import List
 
 def create_enhanced_csrf_plugin():
     """Create the enhanced CSRF plugin with your improvements"""
