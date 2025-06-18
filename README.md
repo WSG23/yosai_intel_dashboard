@@ -176,6 +176,23 @@ python app.py
 These values override `database.host`, `database.username`, `cache.host` and
 `security.secret_key` from the loaded YAML.
 
+### Additional Environment Variables
+
+Two optional variables control which configuration file is loaded:
+
+- `YOSAI_ENV` – set to `development`, `staging`, `production` or `test` to
+  automatically load the matching file in `config/` (default: `development`).
+- `YOSAI_CONFIG_FILE` – absolute path to a custom YAML configuration file. When
+  set it takes precedence over `YOSAI_ENV`.
+
+Example:
+
+```bash
+YOSAI_ENV=production python app.py
+# or
+YOSAI_CONFIG_FILE=/path/to/custom.yaml python app.py
+```
+
 ## 📊 Modular Components
 
 ### Database Layer (`config/`)
