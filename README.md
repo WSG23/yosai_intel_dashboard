@@ -125,6 +125,7 @@ flake8 .
 - **Modular Architecture**: Easy to maintain, test, and extend
 - **Multi-page Interface**: Organized functionality across multiple pages
 - **Type-Safe**: Full type annotations and validation
+- **CSRF Protection Plugin**: Optional production-ready CSRF middleware for Dash
 
 ## 🔧 Configuration
 
