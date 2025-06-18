@@ -272,18 +272,50 @@ class CSRFManager:
         """Add a route to CSRF exemption list"""
         if route not in self._exempt_routes:
             self._exempt_routes.append(route)
-            
+
             if self.csrf_protect:
-                # Try to exempt the route from CSRF checking
-                try:
-                    self.csrf_protect.exempt(route)
-                except Exception as e:
-                    logger.warning(f"Could not exempt route {route}: {e}")
+                # Try to exempt the associated view function if it exists
+                view_func = None
+                for rule in self.app.server.url_map.iter_rules():
+                    # Support wildcard routes using '*' suffix
+                    if rule.rule == route or (
+                        route.endswith('*') and rule.rule.startswith(route[:-1])
+                    ):
+                        view_func = self.app.server.view_functions.get(rule.endpoint)
+                        break
+
+                if view_func:
+                    try:
+                        self.csrf_protect.exempt(view_func)
+                    except Exception as e:
+                        logger.warning(
+                            f"Could not exempt view for route {route}: {e}"
+                        )
+                else:
+                    logger.debug(
+                        "No view function found for route %s; exemption may be applied later",
+                        route,
+                    )
     
     def add_exempt_view(self, view_function: str) -> None:
         """Add a view function to CSRF exemption list"""
         if view_function not in self._exempt_views:
             self._exempt_views.append(view_function)
+
+            if self.csrf_protect:
+                view = self.app.server.view_functions.get(view_function)
+                if view:
+                    try:
+                        self.csrf_protect.exempt(view)
+                    except Exception as e:
+                        logger.warning(
+                            f"Could not exempt view function {view_function}: {e}"
+                        )
+                else:
+                    logger.debug(
+                        "View function %s not found when attempting to exempt",
+                        view_function,
+                    )
     
     def get_csrf_token(self) -> str:
         """Get current CSRF token"""
