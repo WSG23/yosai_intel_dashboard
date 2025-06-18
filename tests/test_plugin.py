@@ -109,6 +109,20 @@ class TestDashCSRFPlugin:
         assert '/custom-route' in plugin.manager._exempt_routes
         assert '/_dash-dependencies' in plugin.manager._exempt_routes
 
+    def test_exempt_route_calls_csrf_exempt(self, dash_app):
+        plugin = DashCSRFPlugin(dash_app, mode=CSRFMode.ENABLED)
+        plugin.manager.csrf_protect = MagicMock()
+
+        # Create a fake rule so the manager can locate the view function
+        rule = MagicMock()
+        rule.rule = '/custom'
+        rule.endpoint = 'custom_endpoint'
+        dash_app.server.url_map.iter_rules = MagicMock(return_value=[rule])
+        dash_app.server.view_functions['custom_endpoint'] = lambda: 'ok'
+
+        plugin.add_exempt_route('/custom')
+        plugin.manager.csrf_protect.exempt.assert_called_once()
+
     def test_csrf_token_generation(self, dash_app):
         plugin = DashCSRFPlugin(dash_app, mode=CSRFMode.ENABLED)
         with dash_app.server.app_context():
