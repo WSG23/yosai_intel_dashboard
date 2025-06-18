@@ -49,3 +49,13 @@ monitoring:
   performance_monitoring: false
   error_reporting_enabled: false
   sentry_dsn: null
+
+  plugins:
+  json_serialization:
+    enabled: true
+    max_dataframe_rows: 1000
+    max_string_length: 10000
+    include_type_metadata: true
+    compress_large_objects: true
+    fallback_to_repr: true
+    auto_wrap_callbacks: true

@@ -16,7 +16,6 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
-from .plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -91,17 +90,11 @@ class DashAppFactory:
             app._config_manager = config_manager
             app._yosai_container = container
 
-            # Initialize and load plugins
-            plugin_manager = PluginManager(container, config_manager)
-            plugin_results = plugin_manager.load_all_plugins()
-            app._yosai_plugin_manager = plugin_manager
-
             # Initialize components
             component_registry = ComponentRegistry()
             layout_manager = LayoutManager(component_registry)
             callback_manager = CallbackManager(
-                app, component_registry, layout_manager, container
-            )
+                app, component_registry, layout_manager, container,
 
             # Set layout
             app.layout = layout_manager.create_main_layout()
@@ -118,26 +111,39 @@ class DashAppFactory:
             )
             CSRFProtect(server)
             init_auth(server)
+            # Safely wrap dash.index with login_required
             if "dash.index" in server.view_functions:
-                server.view_functions["dash.index"] = login_required(
-                    server.view_functions["dash.index"]
-                )
-            else:
-                logger.warning(
-                    "dash.index view function not found - skipping login_required wrapper"
-                )
+            # Safely wrap dash.index with login_required
+            try:
+                if "dash.index" in server.view_functions:
+                    server.view_functions["dash.index"] = login_required(
+                        server.view_functions["dash.index"]
+                    )
+                else:
+                    logger.warning("dash.index view function not found")
+            except Exception as e:
+                logger.warning(f"Could not wrap dash.index with login_required: {e}")
+                logger.warning("dash.index view function not found - skipping login_required wrapper")
+                # Safely wrap dash.index with login_required
+                if "dash.index" in server.view_functions:
+            # Safely wrap dash.index with login_required
+            try:
+                if "dash.index" in server.view_functions:
+                    server.view_functions["dash.index"] = login_required(
+                        server.view_functions["dash.index"]
+                    )
+                else:
+                    logger.warning("dash.index view function not found")
+            except Exception as e:
+                logger.warning(f"Could not wrap dash.index with login_required: {e}")
+                    logger.warning("dash.index view function not found - skipping login_required wrapper")
+            )
 
             babel = Babel(server)
 
+            @babel.localeselector
             def get_locale():
                 return session.get("lang", "en")
-
-            if hasattr(babel, "localeselector"):
-                babel.localeselector(get_locale)
-            elif hasattr(babel, "locale_selector_func"):
-                babel.locale_selector_func = get_locale
-            else:
-                logger.warning("Babel does not support locale selection")
 
             @server.route("/i18n/<lang>")
             def set_lang(lang: str):
@@ -146,7 +152,6 @@ class DashAppFactory:
 
             logger.info(
                 "Dashboard application created successfully with YAML configuration"
-            )
             return app
 
         except ImportError:
@@ -194,14 +199,12 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
 
         logger.info(
             "Dashboard application created successfully with YAML configuration"
-        )
         return app
 
     except ImportError:
         logger.error("Cannot create application - Dash dependencies not available")
         print(
             "❌ Error: Dash not installed. Run: pip install dash dash-bootstrap-components"
-        )
         return None
     except Exception as e:
         logger.error(f"Error creating application: {e}")
@@ -394,5 +397,4 @@ __all__ = [
     "DashAppFactory",
     "YosaiDash",
     "verify_yaml_system",
-    "PluginManager",
 ]
