@@ -112,9 +112,14 @@ class DashAppFactory:
             )
             CSRFProtect(server)
             init_auth(server)
-            server.view_functions["dash.index"] = login_required(
-                server.view_functions["dash.index"]
-            )
+            if "dash.index" in server.view_functions:
+                server.view_functions["dash.index"] = login_required(
+                    server.view_functions["dash.index"]
+                )
+            else:
+                logger.warning(
+                    "dash.index view function not found - skipping login_required wrapper"
+                )
 
             babel = Babel(server)
 
