@@ -6,7 +6,7 @@ UPDATED: Services now injected instead of imported directly
 
 import pandas as pd
 from dash import html, dcc, callback, Output, Input, State, no_update
-from flask_babel import _l
+from flask_babel import lazy_gettext as _l
 from core.auth import role_required
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any, Optional, Tuple, Union
