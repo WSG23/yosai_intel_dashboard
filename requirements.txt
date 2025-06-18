@@ -56,5 +56,5 @@ flask-login>=0.6.2
 python-jose>=3.3.0
 cryptography>=41.0.3
 flask-wtf>=1.2.1
-Flask-Babel==3.1.0
-babel==2.14.0
+Flask-Babel>=4.0.0
+babel>=2.14.0
