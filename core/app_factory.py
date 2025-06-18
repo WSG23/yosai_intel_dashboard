@@ -8,7 +8,7 @@ import dash
 from flask_login import login_required
 from flask_wtf import CSRFProtect
 from flask import session, redirect, request
-from flask_babel import Babel
+from flask_babel import Babel, lazy_gettext
 from .auth import init_auth
 from config.yaml_config import ConfigurationManager, get_configuration_manager
 from .component_registry import ComponentRegistry
@@ -212,7 +212,17 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
 def create_application_for_testing() -> Optional[YosaiDash]:
     """Create application instance configured for unit tests."""
     try:
-        return create_application(None)
+        app = create_application(None)
+        if app is None:
+            return None
+
+        server = app.server
+
+        @server.route("/api/ping")
+        def ping() -> Any:
+            return server.json.response({"msg": lazy_gettext("pong")})
+
+        return app
     except Exception as e:
         logger.error(f"Error creating test application: {e}")
         return None
