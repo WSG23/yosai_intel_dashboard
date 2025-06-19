@@ -8,7 +8,25 @@ import dash
 from flask_login import login_required
 from flask_wtf import CSRFProtect
 from flask import session, redirect, request
-from flask_babel import Babel, lazy_gettext
+# Safely import Babel with fallback for environments without Flask-Babel
+try:
+    from flask_babel import Babel, lazy_gettext
+    BABEL_AVAILABLE = True
+except ImportError:  # pragma: no cover - Flask-Babel optional
+    BABEL_AVAILABLE = False
+
+    def lazy_gettext(text: str) -> str:
+        """Fallback lazy_gettext when Flask-Babel is unavailable"""
+        return text
+
+    class Babel:  # type: ignore
+        """Minimal Babel mock used when Flask-Babel is missing"""
+
+        def __init__(self, app=None):
+            pass
+
+        def init_app(self, app):
+            pass
 
 from .auth import init_auth
 from config.yaml_config import ConfigurationManager, get_configuration_manager
