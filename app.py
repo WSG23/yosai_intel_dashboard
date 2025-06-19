@@ -8,9 +8,6 @@ example file. CSRF protection via ``flask_wtf`` is disabled to avoid the
 "CSRF session token is missing" error.
 """
 
-# CRITICAL: Apply LazyString patch FIRST, before any other imports
-import utils.lazystring_patch  # This automatically applies the patch
-
 import os
 import sys
 import logging
@@ -21,6 +18,33 @@ from typing import Optional, Any
 # Disable CSRF checks before any Dash/Flask modules are imported
 os.environ["WTF_CSRF_ENABLED"] = "False"
 
+# ---- LazyString fix -----------------------------------------------------
+# Patch json module to handle LazyString objects before any imports
+import json
+_original_dumps = json.dumps
+
+def lazystring_safe_dumps(obj, **kwargs):
+    def safe_default(o):
+        if hasattr(o, '__class__') and 'LazyString' in str(o.__class__):
+            return str(o)
+        if hasattr(o, '_func') and hasattr(o, '_args'):
+            try:
+                return str(o)
+            except Exception:
+                return f"LazyString: {repr(o)}"
+        if callable(o):
+            return f"<function {getattr(o, '__name__', 'anonymous')}>"
+        return str(o)
+
+    if 'default' not in kwargs:
+        kwargs['default'] = safe_default
+
+    try:
+        return _original_dumps(obj, **kwargs)
+    except Exception:
+        return _original_dumps({'error': 'Serialization failed', 'safe_repr': str(obj)[:200]})
+
+json.dumps = lazystring_safe_dumps
 # -------------------------------------------------------------------------
 # Load environment variables early
 try:

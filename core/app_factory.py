@@ -116,9 +116,13 @@ class DashAppFactory:
             app.title = config_manager.app_config.title
             server = app.server
 
-            # CRITICAL: Set custom JSON provider to handle LazyString objects
-            server.json = YosaiJSONProvider(server)
-            logger.info("✅ Custom JSON provider set up for LazyString handling")
+            # Register custom JSON provider to handle LazyString objects
+            try:
+                from utils.json_encoder import YosaiJSONProvider
+                app.server.json = YosaiJSONProvider(app.server)
+                logger.info("✅ Custom JSON provider set for LazyString handling")
+            except Exception as e:
+                logger.warning(f"Failed to set custom JSON provider: {e}")
 
             app._config_manager = config_manager
             app._yosai_container = container

@@ -34,21 +34,14 @@ def sanitize_lazystring_recursive(obj: Any) -> Any:
         except Exception:
             return f"LazyString: {repr(obj)}"
 
-    # Handle Babel lazy objects with other patterns
-    if hasattr(obj, '__call__') and hasattr(obj, '__getstate__'):
-        try:
-            return str(obj)
-        except Exception:
-            return f"LazyObject: {repr(obj)}"
-    
     # Handle lists and tuples
     if isinstance(obj, (list, tuple)):
         return type(obj)(sanitize_lazystring_recursive(item) for item in obj)
-    
+
     # Handle dictionaries
     if isinstance(obj, dict):
         return {key: sanitize_lazystring_recursive(value) for key, value in obj.items()}
-    
+
     # Handle Dash components with LazyString properties
     if hasattr(obj, 'children') and hasattr(obj, 'to_plotly_json'):
         try:
@@ -58,10 +51,8 @@ def sanitize_lazystring_recursive(obj: Any) -> Any:
         except (TypeError, ValueError):
             # Component has LazyString properties, sanitize them
             component_dict = obj.to_plotly_json()
-            sanitized_dict = sanitize_lazystring_recursive(component_dict)
-            # Return the sanitized dictionary instead of trying to reconstruct the component
-            return sanitized_dict
-    
+            return sanitize_lazystring_recursive(component_dict)
+
     # Handle objects with LazyString attributes
     if hasattr(obj, '__dict__'):
         try:
@@ -70,11 +61,14 @@ def sanitize_lazystring_recursive(obj: Any) -> Any:
             return obj
         except Exception:
             # Create safe representation
+            safe_dict = {}
+            for key, value in obj.__dict__.items():
+                safe_dict[key] = sanitize_lazystring_recursive(value)
             return {
                 'type': obj.__class__.__name__,
-                'str_repr': str(obj)
+                'attributes': safe_dict
             }
-    
+
     # For primitive types, return as-is
     return obj
 
