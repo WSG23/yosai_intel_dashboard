@@ -1,91 +1,24 @@
-# core/json_serialization_plugin.py - FIXED: Removed non-existent imports
 """
-JSON Serialization Plugin - FIXED: Comprehensive LazyString handling
+Self-Contained JSON Serialization Plugin
+Handles all JSON serialization issues internally with minimal external dependencies
 """
 
+import os
 import json
-import pandas as pd
-import numpy as np
-from typing import Any, Dict, List, Optional, Callable
-from datetime import datetime, date
-from dataclasses import dataclass, asdict, is_dataclass
 import logging
-import functools
-from enum import Enum
+import pandas as pd
+from datetime import datetime, date
+from dataclasses import is_dataclass, asdict
+from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
 
+# Optional Babel support
 try:
     from flask_babel import LazyString
     BABEL_AVAILABLE = True
 except ImportError:
     LazyString = None
     BABEL_AVAILABLE = False
-
-from core.plugins.protocols import (
-    PluginProtocol, PluginMetadata, PluginPriority,
-    ServicePluginProtocol, CallbackPluginProtocol
-)
-
-# Import error handling safely
-try:
-    from core.error_handling import (
-        with_error_handling,
-        ErrorCategory,
-        ErrorSeverity,
-    )
-except ImportError:  # pragma: no cover - fallback for missing module
-    from enum import Enum
-    from typing import Any, Callable, TypeVar
-
-    F = TypeVar("F", bound=Callable[..., Any])
-
-    class ErrorCategory(str, Enum):
-        DATABASE = "database"
-        FILE_PROCESSING = "file_processing"
-        AUTHENTICATION = "authentication"
-        ANALYTICS = "analytics"
-        CONFIGURATION = "configuration"
-        EXTERNAL_API = "external_api"
-        USER_INPUT = "user_input"
-
-    class ErrorSeverity(str, Enum):
-        LOW = "low"
-        MEDIUM = "medium"
-        HIGH = "high"
-        CRITICAL = "critical"
-
-    def with_error_handling(
-        category: ErrorCategory = ErrorCategory.ANALYTICS,
-        severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        reraise: bool = False,
-    ) -> Callable[[F], F]:
-        def decorator(func: F) -> F:
-            return func
-
-        return decorator
-
-# Import performance monitoring safely  
-try:
-    from core.performance import measure_performance, MetricType
-except ImportError:  # pragma: no cover - fallback for missing module
-    from typing import Callable, TypeVar
-
-    F = TypeVar("F", bound=Callable[..., Any])
-
-    def measure_performance(
-        name: str | None = None,
-        metric_type: "MetricType" = MetricType.EXECUTION_TIME,
-        threshold: float | None = None,
-        tags: dict[str, str] | None = None,
-    ) -> Callable[[F], F]:
-        def decorator(func: F) -> F:
-            return func
-
-        return decorator
-
-    class MetricType(str, Enum):
-        EXECUTION_TIME = "execution_time"
-        SERIALIZATION = "serialization"
-        CALLBACK = "callback"
 
 logger = logging.getLogger(__name__)
 
@@ -101,394 +34,138 @@ class JsonSerializationConfig:
     auto_wrap_callbacks: bool = True
 
 class YosaiJSONEncoder(json.JSONEncoder):
-    """Yōsai-specific JSON encoder with comprehensive LazyString support"""
+    """Self-contained JSON encoder that handles all problematic types"""
     
-    def __init__(self, config: JsonSerializationConfig, *args, **kwargs):
+    def __init__(self, config: Optional[JsonSerializationConfig] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config = config
+        self.config = config or JsonSerializationConfig()
     
     def default(self, o: Any) -> Any:
-        """Handle all Yōsai-specific types with comprehensive error boundaries"""
-
-        # COMPREHENSIVE LAZYSTRING HANDLING
+        """Handle all problematic types for JSON serialization"""
+        
+        # Handle LazyString objects
         if self._is_lazystring(o):
-            return self._handle_lazystring(o)
-
+            return str(o)
+        
         # Handle pandas DataFrames
         if isinstance(o, pd.DataFrame):
-            return self._encode_dataframe(o)
-
+            return {
+                '__type__': 'DataFrame',
+                'data': o.head(self.config.max_dataframe_rows).to_dict('records'),
+                'shape': o.shape,
+                'columns': list(o.columns)
+            }
+        
         # Handle pandas Series
         if isinstance(o, pd.Series):
-            return self._encode_series(o)
-
+            return {
+                '__type__': 'Series',
+                'data': o.head(self.config.max_dataframe_rows).tolist(),
+                'name': o.name
+            }
+        
+        # Handle datetime objects
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
+        
         # Handle numpy types
         if hasattr(o, 'dtype') and hasattr(o, 'tolist'):
             try:
                 return o.tolist()
             except Exception:
                 return str(o)
-
-        # Handle datetime objects
-        if isinstance(o, (datetime, date)):
-            return o.isoformat()
-
+        
         # Handle dataclasses
         if is_dataclass(o):
-            return self._encode_dataclass(o)
-
-        # Handle callable objects
-        if callable(o):
-            return self._encode_callable(o)
-
-        # Handle complex objects
-        if hasattr(o, '__dict__'):
-            return self._encode_complex_object(o)
-
-        # Handle numpy scalars
-        if hasattr(o, 'item'):
             try:
-                return o.item()
+                return asdict(o)
             except Exception:
                 return str(o)
-
+        
+        # Handle callable objects
+        if callable(o):
+            return f"<function {getattr(o, '__name__', 'anonymous')}>"
+        
+        # Handle complex objects with __dict__
+        if hasattr(o, '__dict__'):
+            try:
+                return {
+                    '__type__': o.__class__.__name__,
+                    '__module__': getattr(o.__class__, '__module__', None),
+                    '__dict__': {k: self._safe_serialize(v) for k, v in o.__dict__.items()}
+                }
+            except Exception:
+                return str(o)
+        
         # Fallback to string representation
-        if self.config.fallback_to_repr:
-            return str(o)
-
-        # Let the parent handle it (may raise TypeError)
-        return super().default(o)
+        return str(o)
     
     def _is_lazystring(self, obj: Any) -> bool:
-        """Comprehensive LazyString detection"""
-        # Direct instance check
-        if BABEL_AVAILABLE and LazyString is not None and isinstance(obj, LazyString):
+        """Check if object is a LazyString"""
+        if BABEL_AVAILABLE and LazyString and isinstance(obj, LazyString):
             return True
-        
-        # Class name check (works across Babel versions)
-        class_name = str(obj.__class__)
-        if 'LazyString' in class_name or 'lazy_string' in class_name.lower():
-            return True
-        
-        # Duck typing check for lazy evaluation pattern
-        if hasattr(obj, '_func') and hasattr(obj, '_args'):
-            return True
-        
-        return False
+        # Additional check for LazyString-like objects
+        return hasattr(obj, '__class__') and 'LazyString' in str(obj.__class__)
     
-    def _handle_lazystring(self, obj: Any) -> str:
-        """Safely convert LazyString to regular string"""
+    def _safe_serialize(self, obj: Any) -> Any:
+        """Safely serialize any object"""
         try:
-            return str(obj)
-        except Exception as e:
-            logger.warning(f"LazyString conversion failed: {e}")
-            return f"<LazyString conversion failed: {repr(obj)[:50]}>"
-    
-    def _encode_dataframe(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Safely encode DataFrame with size limits"""
-        try:
-            rows_to_include = min(len(df), self.config.max_dataframe_rows)
-            
-            return {
-                '__type__': 'dataframe',
-                '__shape__': df.shape,
-                '__columns__': list(df.columns),
-                '__data__': df.head(rows_to_include).to_dict('records'),
-                '__truncated__': len(df) > self.config.max_dataframe_rows,
-                '__dtypes__': {col: str(dtype) for col, dtype in df.dtypes.items()}
-            }
-        except Exception as e:
-            return {
-                '__type__': 'dataframe',
-                '__error__': f'DataFrame encoding failed: {str(e)}',
-                '__shape__': getattr(df, 'shape', 'unknown')
-            }
-    
-    def _encode_series(self, series: pd.Series) -> Dict[str, Any]:
-        """Safely encode pandas Series"""
-        try:
-            return {
-                '__type__': 'series',
-                '__name__': series.name,
-                '__length__': len(series),
-                '__data__': series.head(100).to_dict(),
-                '__dtype__': str(series.dtype)
-            }
-        except Exception as e:
-            return {
-                '__type__': 'series',
-                '__error__': f'Series encoding failed: {str(e)}'
-            }
-    
-    def _encode_callable(self, obj: Any) -> Dict[str, Any]:
-        """Safely encode callable objects"""
-        return {
-            '__type__': 'callable',
-            '__name__': getattr(obj, '__name__', 'anonymous'),
-            '__module__': getattr(obj, '__module__', None),
-            '__qualname__': getattr(obj, '__qualname__', None),
-            '__doc__': getattr(obj, '__doc__', None)
-        }
-    
-    def _encode_dataclass(self, obj: Any) -> Dict[str, Any]:
-        """Safely encode dataclass objects"""
-        try:
-            return {
-                '__type__': 'dataclass',
-                '__class__': obj.__class__.__name__,
-                '__module__': obj.__class__.__module__,
-                '__data__': asdict(obj)
-            }
-        except Exception:
-            return {
-                '__type__': 'dataclass',
-                '__class__': obj.__class__.__name__,
-                '__repr__': repr(obj)
-            }
-    
-    def _encode_complex_object(self, obj: Any) -> Dict[str, Any]:
-        """Safely encode complex objects"""
-        safe_dict = {}
-        
-        try:
-            for key, value in obj.__dict__.items():
-                try:
-                    # Test if value is JSON serializable
-                    json.dumps(value, cls=YosaiJSONEncoder, config=self.config)
-                    safe_dict[key] = value
-                except (TypeError, ValueError):
-                    # Replace with safe representation
-                    if self._is_lazystring(value):
-                        safe_dict[key] = self._handle_lazystring(value)
-                    else:
-                        safe_dict[f"{key}__type"] = type(value).__name__
-            
-            return {
-                '__type__': 'object',
-                '__class__': obj.__class__.__name__,
-                '__module__': obj.__class__.__module__,
-                '__dict__': safe_dict
-            }
-        except Exception as e:
-            return {
-                '__type__': 'object',
-                '__class__': obj.__class__.__name__,
-                '__error__': f'Object encoding failed: {str(e)}'
-            }
+            # Test if object is already JSON serializable
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            return self.default(obj)
 
 class JsonSerializationService:
-    """JSON serialization service implementation with comprehensive LazyString support"""
+    """Self-contained JSON serialization service"""
     
-    def __init__(self, config: JsonSerializationConfig):
-        self.config = config
-        self.encoder = YosaiJSONEncoder(config)
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, config: Optional[JsonSerializationConfig] = None):
+        self.config = config or JsonSerializationConfig()
+        self.encoder = YosaiJSONEncoder(self.config)
     
-    @measure_performance("serialization.serialize", MetricType.SERIALIZATION)
-    @with_error_handling(ErrorCategory.CONFIGURATION, ErrorSeverity.MEDIUM)
-    def serialize(self, data: Any) -> str:
-        """Serialize data to JSON string with comprehensive error handling"""
+    def serialize(self, obj: Any) -> str:
+        """Serialize object to JSON string"""
         try:
-            return json.dumps(data, cls=YosaiJSONEncoder, config=self.config, ensure_ascii=False)
+            return json.dumps(obj, cls=YosaiJSONEncoder, config=self.config, ensure_ascii=False)
         except Exception as e:
-            self.logger.error(f"Serialization failed: {e}")
-            # Return safe fallback JSON
-            return json.dumps({
-                'error': True,
-                'message': str(e),
-                'type': type(data).__name__,
-                'fallback_repr': str(data)[:200]
-            })
+            logger.warning(f"Serialization failed, using fallback: {e}")
+            return json.dumps({"error": "Serialization failed", "repr": str(obj)})
     
-    @measure_performance("serialization.sanitize", MetricType.SERIALIZATION)
-    def sanitize_for_transport(self, data: Any) -> Any:
-        """Sanitize data specifically for Dash callback transport"""
+    def sanitize_for_transport(self, obj: Any) -> Any:
+        """Sanitize object for JSON transport"""
+        return self.encoder._safe_serialize(obj)
 
-        if data is None:
-            return None
-
-        # Handle LazyString objects FIRST
-        if self.encoder._is_lazystring(data):
-            return self.encoder._handle_lazystring(data)
-
-        # Handle DataFrames - convert to transport-safe format
-        if isinstance(data, pd.DataFrame):
-            return self._sanitize_dataframe(data)
-
-        # Handle functions - return metadata only
-        if callable(data):
-            return self._sanitize_callable(data)
-
-        # Handle lists recursively
-        if isinstance(data, list):
-            return [self.sanitize_for_transport(item) for item in data]
-
-        # Handle tuples recursively
-        if isinstance(data, tuple):
-            return tuple(self.sanitize_for_transport(item) for item in data)
-
-        # Handle dictionaries recursively
-        if isinstance(data, dict):
-            sanitized_dict = {}
-            for key, value in data.items():
-                # Ensure keys are strings
-                safe_key = str(key) if not isinstance(key, str) else key
-                sanitized_dict[safe_key] = self.sanitize_for_transport(value)
-            return sanitized_dict
-
-        # Handle objects with attributes
-        if hasattr(data, '__dict__') and not isinstance(data, (str, int, float, bool)):
-            return self._sanitize_complex_object(data)
-
-        return data
-    
-    def is_serializable(self, data: Any) -> bool:
-        """Check if data can be safely serialized to JSON"""
-        try:
-            json.dumps(data, cls=YosaiJSONEncoder, config=self.config)
-            return True
-        except (TypeError, ValueError):
-            return False
-    
-    def _sanitize_dataframe(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Convert DataFrame to transport-safe format"""
-        try:
-            rows_to_include = min(len(df), self.config.max_dataframe_rows)
-            
-            return {
-                'type': 'dataframe',
-                'shape': df.shape,
-                'columns': list(df.columns),
-                'data': df.head(rows_to_include).to_dict('records'),
-                'dtypes': {col: str(dtype) for col, dtype in df.dtypes.items()},
-                'truncated': len(df) > self.config.max_dataframe_rows
-            }
-        except Exception as e:
-            return {
-                'type': 'dataframe',
-                'error': f'DataFrame sanitization failed: {str(e)}'
-            }
-    
-    def _sanitize_callable(self, obj: Any) -> Dict[str, Any]:
-        """Convert callable to transport-safe format"""
-        return {
-            'type': 'callable',
-            'name': getattr(obj, '__name__', 'anonymous'),
-            'module': getattr(obj, '__module__', None)
-        }
-    
-    def _sanitize_complex_object(self, obj: Any) -> Dict[str, Any]:
-        """Convert complex object to transport-safe format"""
-        return {
-            'type': 'object',
-            'class': obj.__class__.__name__,
-            'module': obj.__class__.__module__,
-            'repr': str(obj)[:200]  # Limit representation length
-        }
-
-class JsonCallbackService:
-    """Service for wrapping and managing Dash callbacks safely"""
-    
-    def __init__(self, serialization_service: JsonSerializationService):
-        self.serialization = serialization_service
-        self.logger = logging.getLogger(__name__)
-    
-    @measure_performance("callback.wrap", MetricType.CALLBACK)
-    def wrap_callback(self, callback_func: Callable) -> Callable:
-        """Wrap a callback function for safe execution and JSON serialization"""
-        
-        @functools.wraps(callback_func)
-        def safe_wrapper(*args, **kwargs):
-            try:
-                # Execute the original callback
-                result = callback_func(*args, **kwargs)
-                
-                # Validate and sanitize the result
-                sanitized_result = self.validate_callback_output(result)
-                
-                return sanitized_result
-                
-            except Exception as e:
-                self.logger.error(f"Callback {callback_func.__name__} failed: {e}")
-                
-                # Return safe error representation
-                return self._create_error_response(callback_func.__name__, str(e))
-        
-        return safe_wrapper
-    
-    def validate_callback_output(self, output: Any) -> Any:
-        """Validate and sanitize callback output for JSON transport"""
-        
-        # Handle single outputs
-        if not isinstance(output, (list, tuple)):
-            return self.serialization.sanitize_for_transport(output)
-        
-        # Handle multiple outputs (tuple/list)
-        if isinstance(output, (list, tuple)):
-            sanitized_outputs = []
-            for item in output:
-                sanitized_item = self.serialization.sanitize_for_transport(item)
-                sanitized_outputs.append(sanitized_item)
-            
-            # Preserve the original type (tuple vs list)
-            return type(output)(sanitized_outputs)
-        
-        return output
-    
-    def _create_error_response(self, callback_name: str, error_message: str) -> Dict[str, Any]:
-        """Create a safe error response for failed callbacks"""
-        return {
-            'error': True,
-            'callback': callback_name,
-            'message': error_message,
-            'timestamp': datetime.now().isoformat()
-        }
-
-class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
-    """JSON Serialization Plugin - FIXED: Comprehensive LazyString solution"""
+class JsonSerializationPlugin:
+    """Self-contained JSON Serialization Plugin"""
     
     def __init__(self):
         self.config: Optional[JsonSerializationConfig] = None
         self.serialization_service: Optional[JsonSerializationService] = None
-        self.callback_service: Optional[JsonCallbackService] = None
         self.logger = logging.getLogger(__name__)
         self._started = False
+        self._original_dumps = None
     
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Plugin metadata"""
-        return PluginMetadata(
-            name="json_serialization",
-            version="1.1.0",  # Updated version
-            description="Comprehensive JSON serialization solution with LazyString support",
-            author="Yōsai Intelligence Team",
-            priority=PluginPriority.CRITICAL,
-            config_section="json_serialization",
-            enabled_by_default=True,
-            min_yosai_version="1.0.0"
-        )
-    
-    def load(self, container: Any, config: Dict[str, Any]) -> bool:
-        """Load and register plugin services with the DI container"""
+    def load(self, container: Any = None, config: Dict[str, Any] = None) -> bool:
+        """Load the plugin with optional container and config"""
         try:
             self.logger.info("Loading JSON Serialization Plugin...")
             
             # Create configuration
+            config = config or {}
             self.config = JsonSerializationConfig(**config)
             
             # Create services
             self.serialization_service = JsonSerializationService(self.config)
-            self.callback_service = JsonCallbackService(self.serialization_service)
             
-            # Register services with container
-            service_definitions = self.get_service_definitions()
-            for service_name, service_factory in service_definitions.items():
+            # Register with container if provided
+            if container and hasattr(container, 'register'):
                 try:
-                    container.register(service_name, service_factory, singleton=True)
-                    self.logger.debug(f"Registered service: {service_name}")
+                    container.register('json_serialization_service', self.serialization_service)
+                    container.register('serialization_service', self.serialization_service)
                 except Exception as e:
-                    self.logger.warning(f"Failed to register service {service_name}: {e}")
+                    self.logger.warning(f"Could not register with container: {e}")
             
+            self.logger.info("JSON Serialization Plugin loaded successfully")
             return True
             
         except Exception as e:
@@ -496,15 +173,14 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
             return False
     
     def configure(self, config: Dict[str, Any]) -> bool:
-        """Configure the plugin with provided settings"""
+        """Configure the plugin"""
         try:
-            # Update configuration if provided
-            if config:
+            if config and self.config:
                 for key, value in config.items():
                     if hasattr(self.config, key):
                         setattr(self.config, key, value)
             
-            self.logger.info(f"Configured JSON Serialization Plugin with config: {self.config}")
+            self.logger.info("JSON Serialization Plugin configured")
             return True
             
         except Exception as e:
@@ -514,11 +190,20 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
     def start(self) -> bool:
         """Start the plugin and apply global JSON patches"""
         try:
-            # Apply global JSON patch for comprehensive coverage
+            if self._started:
+                return True
+                
+            # Apply global JSON patch
             self._apply_global_json_patch()
             
+            # Patch Flask JSON if available
+            self._patch_flask_json()
+            
+            # Patch Dash serialization if available
+            self._patch_dash_serialization()
+            
             self._started = True
-            self.logger.info("Started JSON Serialization Plugin with global patches")
+            self.logger.info("✅ JSON Serialization Plugin started with global patches")
             return True
             
         except Exception as e:
@@ -526,48 +211,99 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
             return False
     
     def _apply_global_json_patch(self):
-        """Apply global JSON patch for ultimate LazyString protection"""
-        import json
-        
-        # Store original dumps
+        """Apply global JSON.dumps patch"""
         if not hasattr(json, '_yosai_original_dumps'):
-            setattr(json, '_yosai_original_dumps', json.dumps)
-        
-        # Create safe dumps function
-        def safe_dumps(obj, **kwargs):
-            # Use our plugin's encoder if available
-            if self.serialization_service:
+            # Store original dumps
+            json._yosai_original_dumps = json.dumps
+            
+            # Create patched dumps function
+            def safe_dumps(obj, **kwargs):
                 try:
-                    return self.serialization_service.serialize(obj)
+                    # Use our encoder
+                    if 'cls' not in kwargs:
+                        kwargs['cls'] = YosaiJSONEncoder
+                        kwargs['config'] = self.config
+                    return json._yosai_original_dumps(obj, **kwargs)
                 except Exception:
-                    # Fallback to original with safe default
-                    pass
+                    # Ultimate fallback
+                    return json._yosai_original_dumps(
+                        {"error": "Serialization failed", "repr": str(obj)}
+                    )
             
-            # Fallback: use safe default encoder
-            def safe_default(o):
-                if hasattr(o, '__class__') and 'LazyString' in str(o.__class__):
-                    return str(o)
-                if hasattr(o, '_func') and hasattr(o, '_args'):
-                    return str(o)
-                if callable(o):
-                    return f"<function {getattr(o, '__name__', 'anonymous')}>"
-                return str(o)
+            # Apply patch
+            json.dumps = safe_dumps
+            self.logger.info("Applied global JSON.dumps patch")
+    
+    def _patch_flask_json(self):
+        """Patch Flask JSON provider if available"""
+        try:
+            from flask import Flask
             
-            if 'default' not in kwargs:
-                kwargs['default'] = safe_default
+            # Create custom JSON provider class
+            class YosaiJSONProvider:
+                def __init__(self, app):
+                    self.app = app
+                    self.service = self.serialization_service
+                
+                def dumps(self, obj, **kwargs):
+                    return self.service.serialize(obj)
+                
+                def loads(self, s, **kwargs):
+                    return json.loads(s)
+                
+                def response(self, obj):
+                    return self.app.response_class(
+                        self.dumps(obj),
+                        mimetype='application/json'
+                    )
             
-            original = getattr(json, '_yosai_original_dumps')
-            return original(obj, **kwargs)
-        
-        # Apply the patch
-        json.dumps = safe_dumps
-        self.logger.info("Applied global JSON.dumps patch")
+            # Store for later use
+            self._yosai_json_provider_class = YosaiJSONProvider
+            self.logger.info("Flask JSON provider patch ready")
+            
+        except ImportError:
+            pass
+    
+    def _patch_dash_serialization(self):
+        """Patch Dash serialization if available"""
+        try:
+            import dash
+            
+            # Store reference for Dash apps to use
+            if not hasattr(dash, '_yosai_json_service'):
+                dash._yosai_json_service = self.serialization_service
+                self.logger.info("Dash serialization service registered")
+                
+        except ImportError:
+            pass
+    
+    def apply_to_app(self, app):
+        """Apply JSON serialization to a specific Flask/Dash app"""
+        try:
+            if hasattr(app, 'server') and hasattr(self, '_yosai_json_provider_class'):
+                # This is a Dash app
+                app.server.json_provider_class = self._yosai_json_provider_class
+                app.server.json = self._yosai_json_provider_class(app.server)
+                app._yosai_json_plugin = self
+                self.logger.info("Applied JSON serialization to Dash app")
+            elif hasattr(app, 'json_provider_class') and hasattr(self, '_yosai_json_provider_class'):
+                # This is a Flask app
+                app.json_provider_class = self._yosai_json_provider_class
+                app.json = self._yosai_json_provider_class(app)
+                self.logger.info("Applied JSON serialization to Flask app")
+        except Exception as e:
+            self.logger.warning(f"Could not apply to app: {e}")
     
     def stop(self) -> bool:
-        """Stop the plugin gracefully"""
+        """Stop the plugin and restore original JSON functions"""
         try:
+            # Restore original JSON.dumps if we patched it
+            if hasattr(json, '_yosai_original_dumps'):
+                json.dumps = json._yosai_original_dumps
+                delattr(json, '_yosai_original_dumps')
+            
             self._started = False
-            self.logger.info("Stopped JSON Serialization Plugin")
+            self.logger.info("JSON Serialization Plugin stopped")
             return True
             
         except Exception as e:
@@ -578,32 +314,14 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
         """Return plugin health status"""
         try:
             # Test basic serialization
-            assert self.serialization_service is not None
             test_data = {'test': 'data', 'number': 42}
             serialized = self.serialization_service.serialize(test_data)
-            
-            # Test LazyString handling if available
-            lazystring_test = True
-            if BABEL_AVAILABLE:
-                try:
-                    from flask_babel import lazy_gettext as _l
-                    lazy_test = _l("test")
-                    sanitized = self.serialization_service.sanitize_for_transport(lazy_test)
-                    assert isinstance(sanitized, str)
-                except Exception:
-                    lazystring_test = False
             
             return {
                 'healthy': True,
                 'started': self._started,
-                'services_available': {
-                    'serialization_service': self.serialization_service is not None,
-                    'callback_service': self.callback_service is not None
-                },
-                'tests': {
-                    'basic_serialization': serialized is not None,
-                    'lazystring_handling': lazystring_test
-                },
+                'service_available': self.serialization_service is not None,
+                'test_passed': serialized is not None,
                 'babel_available': BABEL_AVAILABLE
             }
             
@@ -613,39 +331,46 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
                 'error': str(e),
                 'started': self._started
             }
-    
-    def get_service_definitions(self) -> Dict[str, Any]:
-        """Return service definitions for DI container registration"""
-        return {
-            'json_serialization_service': lambda: self.serialization_service,
-            'json_callback_service': lambda: self.callback_service,
-            # Backwards compatibility aliases
-            'serialization_service': lambda: self.serialization_service,
-            'callback_service': lambda: self.callback_service,
-        }
-    
-    def register_callbacks(self, app: Any, container: Any) -> bool:
-        """Register Dash callbacks with automatic wrapping"""
-        try:
-            assert self.config is not None
-            if not self.config.auto_wrap_callbacks:
-                self.logger.info("Auto callback wrapping is disabled")
-                return True
-            
-            # Store plugin reference in app for decorators to use
-            app._yosai_json_plugin = self
-            
-            self.logger.info("JSON Serialization Plugin callback registration complete")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Failed to register callbacks for JSON Serialization Plugin: {e}")
-            return False
 
-# Factory function for plugin discovery
+# Simple container for when none is provided
+class SimpleContainer:
+    """Minimal container implementation"""
+    def __init__(self):
+        self._services = {}
+    
+    def register(self, name: str, service: Any):
+        self._services[name] = service
+    
+    def get(self, name: str):
+        return self._services.get(name)
+    
+    def has(self, name: str):
+        return name in self._services
+
+# Factory functions
 def create_plugin() -> JsonSerializationPlugin:
     """Factory function for plugin discovery"""
     return JsonSerializationPlugin()
 
-# Plugin instance for direct import
-plugin = JsonSerializationPlugin()
+def quick_start() -> JsonSerializationPlugin:
+    """Quick start the plugin with default settings"""
+    plugin = JsonSerializationPlugin()
+    container = SimpleContainer()
+    
+    plugin.load(container, {
+        'enabled': True,
+        'max_dataframe_rows': 1000,
+        'auto_wrap_callbacks': True
+    })
+    plugin.configure({})
+    plugin.start()
+    
+    return plugin
+
+# Auto-start when imported (can be disabled by setting environment variable)
+if os.getenv('YOSAI_JSON_AUTO_START', 'true').lower() in ('true', '1', 'yes'):
+    try:
+        _global_plugin = quick_start()
+        logger.info("🔥 JSON Serialization Plugin auto-started globally")
+    except Exception as e:
+        logger.warning(f"Failed to auto-start JSON plugin: {e}")
