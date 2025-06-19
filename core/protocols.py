@@ -3,7 +3,7 @@
 Protocol-oriented architecture inspired by Swift's approach
 Defines clear contracts for all major system components
 """
-from typing import Protocol, Dict, Any, Optional, List
+from typing import Protocol, Dict, Any, Optional, List, Callable
 from abc import abstractmethod
 import pandas as pd
 from datetime import datetime
@@ -73,6 +73,39 @@ class ConfigurationProtocol(Protocol):
     @abstractmethod
     def reload_configuration(self) -> None:
         """Reload configuration from source"""
+        ...
+
+
+class SerializationProtocol(Protocol):
+    """Protocol for JSON serialization services"""
+
+    @abstractmethod
+    def serialize(self, data: Any) -> str:
+        """Serialize data to a JSON string"""
+        ...
+
+    @abstractmethod
+    def sanitize_for_transport(self, data: Any) -> Any:
+        """Prepare data for network transport"""
+        ...
+
+    @abstractmethod
+    def is_serializable(self, data: Any) -> bool:
+        """Check if the given data can be serialized"""
+        ...
+
+
+class CallbackProtocol(Protocol):
+    """Protocol for services that wrap and validate callbacks"""
+
+    @abstractmethod
+    def wrap_callback(self, callback_func: Callable) -> Callable:
+        """Return a wrapped, safe callback function"""
+        ...
+
+    @abstractmethod
+    def validate_callback_output(self, output: Any) -> Any:
+        """Validate and sanitize callback output"""
         ...
 
 # core/dependency_container.py
