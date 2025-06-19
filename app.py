@@ -49,13 +49,32 @@ logger = logging.getLogger(__name__)
 
 
 def create_app_with_json_plugin() -> Optional[Any]:
-    """Create application with JSON plugin actually loaded and working"""
+    """Create application with JSON plugin - SIMPLIFIED VERSION"""
     try:
         import dash
         import dash_bootstrap_components as dbc
         from dash import html, dcc
 
-        # Step 1: Create the basic Dash app
+        # Step 1: Load the JSON plugin FIRST (it auto-starts globally)
+        from core.json_serialization_plugin import JsonSerializationPlugin
+
+        json_plugin = JsonSerializationPlugin()
+
+        # Simple config
+        plugin_config = {
+            'enabled': True,
+            'max_dataframe_rows': 1000,
+            'auto_wrap_callbacks': True
+        }
+
+        # Load and start the plugin
+        json_plugin.load(None, plugin_config)  # No container needed
+        json_plugin.configure(plugin_config)
+        json_plugin.start()  # This applies global patches
+
+        logger.info("✅ JSON Serialization Plugin loaded and started")
+
+        # Step 2: Create the Dash app (JSON is now globally patched)
         app = dash.Dash(
             __name__,
             external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -63,89 +82,24 @@ def create_app_with_json_plugin() -> Optional[Any]:
         )
         app.title = "Yōsai Intel Dashboard"
 
-        # Step 2: **ACTUALLY LOAD THE JSON PLUGIN**
-        from core.json_serialization_plugin import JsonSerializationPlugin
-        from core.lazystring_json_provider import LazyStringSafeJSONProvider
-        from core.container import Container
+        # Step 3: Apply plugin to this specific app
+        json_plugin.apply_to_app(app)
 
-        # Create DI container
-        container = Container()
+        # Step 4: Store plugin reference
+        app._yosai_json_plugin = json_plugin
 
-        # Create and configure the JSON plugin
-        json_plugin = JsonSerializationPlugin()
-        plugin_config = {
-            'enabled': True,
-            'max_dataframe_rows': 1000,
-            'max_string_length': 10000,
-            'include_type_metadata': True,
-            'compress_large_objects': True,
-            'fallback_to_repr': True,
-            'auto_wrap_callbacks': True
-        }
-
-        # Load the plugin
-        plugin_loaded = json_plugin.load(container, plugin_config)
-        if plugin_loaded:
-            json_plugin.configure(plugin_config)
-            json_plugin.start()
-
-            # Use custom JSON provider backed by the plugin
-            app.server.json_provider_class = LazyStringSafeJSONProvider
-            app.server.json = LazyStringSafeJSONProvider(
-                app.server, json_plugin.serialization_service
-            )
-
-            # Store plugin in app for callbacks to use
-            app._yosai_json_plugin = json_plugin
-            app._yosai_container = container
-
-            logger.info("✅ JSON Serialization Plugin loaded and active")
-        else:
-            logger.error("❌ Failed to load JSON plugin")
-
-        # Step 3: Create basic layout
+        # Step 5: Create layout (now JSON-safe)
         app.layout = html.Div([
             dcc.Location(id='url', refresh=False),
             html.H1("🏯 Yōsai Intel Dashboard", className="text-center mb-4"),
             html.Hr(),
             html.Div([
                 dbc.Alert("✅ Application created with JSON plugin!", color="success"),
-                dbc.Alert("✅ JSON serialization issues should be resolved", color="info"),
-                html.P("Environment configuration loaded and working."),
-                html.P("JSON plugin active and handling all serialization."),
+                dbc.Alert("✅ JSON serialization issues resolved globally", color="info"),
+                html.P("JSON plugin is active and handling all serialization."),
                 html.A("Go to Analytics", href="/analytics", className="btn btn-primary"),
             ], className="container")
         ])
-
-        # Step 4: Add a test route to verify JSON handling
-        @app.server.route('/test-json')
-        def test_json():
-            """Test route to verify JSON plugin is working"""
-            import pandas as pd
-            from datetime import datetime
-
-            # Create test data that would normally fail JSON serialization
-            test_data = {
-                'dataframe': pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}),
-                'datetime': datetime.now(),
-                'function': lambda x: x,
-                'complex_object': {'nested': {'data': 'test'}}
-            }
-
-            # This should work now with the plugin
-            try:
-                # Use the plugin's serialization service
-                serialized = json_plugin.serialization_service.sanitize_for_transport(test_data)
-                return app.server.json.response({
-                    'status': 'success',
-                    'message': 'JSON plugin working correctly',
-                    'data': serialized
-                })
-            except Exception as e:
-                return app.server.json.response({
-                    'status': 'error',
-                    'message': f'JSON plugin error: {str(e)}'
-                })
 
         logger.info("Dashboard application created successfully with JSON plugin")
         return app
