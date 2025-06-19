@@ -27,31 +27,48 @@ from core.plugins.protocols import (
 
 # Import error handling safely
 try:
-    from core.error_handling import with_error_handling, ErrorCategory, ErrorSeverity
+    from core.error_handling import (
+        with_error_handling,
+        ErrorCategory,
+        ErrorSeverity,
+    )
 except ImportError:
     # Create minimal fallbacks if error handling not available
-    def with_error_handling(category, severity):
-        def decorator(func):
-            return func
-        return decorator
-    
-    class ErrorCategory:
+    from enum import Enum
+    from typing import Any, Callable, TypeVar
+
+    F = TypeVar("F", bound=Callable[..., Any])
+
+    class ErrorCategory(str, Enum):
         CONFIGURATION = "configuration"
-    
-    class ErrorSeverity:
+
+    class ErrorSeverity(str, Enum):
         MEDIUM = "medium"
+
+    def with_error_handling(
+        category: ErrorCategory, severity: ErrorSeverity
+    ) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            return func
+
+        return decorator
 
 # Import performance monitoring safely  
 try:
     from core.performance import measure_performance, MetricType
 except ImportError:
     # Create minimal fallbacks if performance monitoring not available
-    def measure_performance(name, metric_type):
-        def decorator(func):
+    from typing import Callable, TypeVar
+
+    F = TypeVar("F", bound=Callable[..., Any])
+
+    def measure_performance(name: str, metric_type: "MetricType") -> Callable[[F], F]:
+        def decorator(func: F) -> F:
             return func
+
         return decorator
-    
-    class MetricType:
+
+    class MetricType(str, Enum):
         SERIALIZATION = "serialization"
         CALLBACK = "callback"
 
@@ -75,62 +92,62 @@ class YosaiJSONEncoder(json.JSONEncoder):
         super().__init__(*args, **kwargs)
         self.config = config
     
-    def default(self, obj: Any) -> Any:
+    def default(self, o: Any) -> Any:
         """Handle all Yōsai-specific types with comprehensive error boundaries"""
 
         # COMPREHENSIVE LAZYSTRING HANDLING
-        if self._is_lazystring(obj):
-            return self._handle_lazystring(obj)
+        if self._is_lazystring(o):
+            return self._handle_lazystring(o)
 
         # Handle pandas DataFrames
-        if isinstance(obj, pd.DataFrame):
-            return self._encode_dataframe(obj)
+        if isinstance(o, pd.DataFrame):
+            return self._encode_dataframe(o)
 
         # Handle pandas Series
-        if isinstance(obj, pd.Series):
-            return self._encode_series(obj)
+        if isinstance(o, pd.Series):
+            return self._encode_series(o)
 
         # Handle numpy types
-        if hasattr(obj, 'dtype') and hasattr(obj, 'tolist'):
+        if hasattr(o, 'dtype') and hasattr(o, 'tolist'):
             try:
-                return obj.tolist()
+                return o.tolist()
             except Exception:
-                return str(obj)
+                return str(o)
 
         # Handle datetime objects
-        if isinstance(obj, (datetime, date)):
-            return obj.isoformat()
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
 
         # Handle dataclasses
-        if is_dataclass(obj):
-            return self._encode_dataclass(obj)
+        if is_dataclass(o):
+            return self._encode_dataclass(o)
 
         # Handle callable objects
-        if callable(obj):
-            return self._encode_callable(obj)
+        if callable(o):
+            return self._encode_callable(o)
 
         # Handle complex objects
-        if hasattr(obj, '__dict__'):
-            return self._encode_complex_object(obj)
+        if hasattr(o, '__dict__'):
+            return self._encode_complex_object(o)
 
         # Handle numpy scalars
-        if hasattr(obj, 'item'):
+        if hasattr(o, 'item'):
             try:
-                return obj.item()
+                return o.item()
             except Exception:
-                return str(obj)
+                return str(o)
 
         # Fallback to string representation
         if self.config.fallback_to_repr:
-            return str(obj)
+            return str(o)
 
         # Let the parent handle it (may raise TypeError)
-        return super().default(obj)
+        return super().default(o)
     
     def _is_lazystring(self, obj: Any) -> bool:
         """Comprehensive LazyString detection"""
         # Direct instance check
-        if BABEL_AVAILABLE and isinstance(obj, LazyString):
+        if BABEL_AVAILABLE and LazyString is not None and isinstance(obj, LazyString):
             return True
         
         # Class name check (works across Babel versions)
@@ -499,7 +516,7 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
         
         # Store original dumps
         if not hasattr(json, '_yosai_original_dumps'):
-            json._yosai_original_dumps = json.dumps
+            setattr(json, '_yosai_original_dumps', json.dumps)
         
         # Create safe dumps function
         def safe_dumps(obj, **kwargs):
@@ -524,7 +541,8 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
             if 'default' not in kwargs:
                 kwargs['default'] = safe_default
             
-            return json._yosai_original_dumps(obj, **kwargs)
+            original = getattr(json, '_yosai_original_dumps')
+            return original(obj, **kwargs)
         
         # Apply the patch
         json.dumps = safe_dumps
@@ -545,6 +563,7 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
         """Return plugin health status"""
         try:
             # Test basic serialization
+            assert self.serialization_service is not None
             test_data = {'test': 'data', 'number': 42}
             serialized = self.serialization_service.serialize(test_data)
             
@@ -593,6 +612,7 @@ class JsonSerializationPlugin(ServicePluginProtocol, CallbackPluginProtocol):
     def register_callbacks(self, app: Any, container: Any) -> bool:
         """Register Dash callbacks with automatic wrapping"""
         try:
+            assert self.config is not None
             if not self.config.auto_wrap_callbacks:
                 self.logger.info("Auto callback wrapping is disabled")
                 return True
