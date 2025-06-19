@@ -23,10 +23,17 @@ def create_safe_app():
 
         app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-        # Set up basic layout
+        # Build page layout safely
+        page_layout_fn = get_page_layout("deep_analytics")
+        if page_layout_fn is not None:
+            page_content = page_layout_fn()
+        else:
+            page_content = html.Div("Deep analytics page not available")
+
+        # Set up basic layout including page content
         app.layout = html.Div([
             dcc.Location(id="url", refresh=False),
-            html.Div(id="page-content")
+            html.Div(page_content, id="page-content")
         ])
 
         # Register page callbacks safely
