@@ -19,7 +19,7 @@ class YosaiJSONEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles all Yōsai-specific types"""
 
     def default(self, obj: Any) -> Any:
-        # Handle Flask-Babel LazyString objects FIRST
+        # Handle Flask-Babel LazyString objects FIRST - CRITICAL FIX
         try:
             from flask_babel import LazyString
             if isinstance(obj, LazyString):
@@ -46,7 +46,7 @@ class YosaiJSONEncoder(json.JSONEncoder):
                 '__module__': getattr(obj, '__module__', None),
                 '__repr__': repr(obj)
             }
-        
+
         # Handle pandas DataFrames
         if isinstance(obj, pd.DataFrame):
             return {
@@ -56,7 +56,7 @@ class YosaiJSONEncoder(json.JSONEncoder):
                 '__data__': obj.to_dict('records')[:100],  # Limit to first 100 rows
                 '__truncated__': len(obj) > 100
             }
-        
+
         # Handle pandas Series
         if isinstance(obj, pd.Series):
             return {
@@ -64,50 +64,40 @@ class YosaiJSONEncoder(json.JSONEncoder):
                 '__name__': obj.name,
                 '__data__': obj.to_dict()
             }
-        
+
         # Handle numpy arrays
         if isinstance(obj, np.ndarray):
             return {
                 '__type__': 'numpy_array',
                 '__shape__': obj.shape,
-                '__data__': obj.tolist()
+                '__data__': obj.tolist()[:100] if obj.size > 0 else []
             }
-        
-        # Handle numpy types
-        if isinstance(obj, (np.integer, np.floating)):
-            return obj.item()
-        
+
         # Handle datetime objects
         if isinstance(obj, datetime):
-            return {
-                '__type__': 'datetime',
-                '__value__': obj.isoformat()
-            }
-        
+            return obj.isoformat()
+
         # Handle dataclasses
         if is_dataclass(obj):
-            return {
-                '__type__': 'dataclass',
-                '__class__': obj.__class__.__name__,
-                '__data__': asdict(obj)
-            }
-        
-        # Handle objects with __dict__
-        if hasattr(obj, '__dict__'):
+            try:
+                return asdict(obj)
+            except Exception:
+                return {
+                    '__type__': 'dataclass',
+                    '__class__': obj.__class__.__name__,
+                    '__repr__': repr(obj)
+                }
+
+        # Handle complex objects
+        if hasattr(obj, '__dict__') and not isinstance(obj, (str, int, float, bool)):
             return {
                 '__type__': 'object',
                 '__class__': obj.__class__.__name__,
-                '__dict__': self._safe_dict(obj.__dict__)
+                '__repr__': str(obj)[:200]
             }
-        
-        # Handle sets
-        if isinstance(obj, set):
-            return {
-                '__type__': 'set',
-                '__data__': list(obj)
-            }
-        
-        return super().default(obj)
+
+        # Fallback to string representation
+        return str(obj)
     
     def _safe_dict(self, d: Dict[str, Any]) -> Dict[str, Any]:
         """Safely convert dict, filtering out non-serializable items"""
