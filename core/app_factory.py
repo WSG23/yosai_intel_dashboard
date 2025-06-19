@@ -8,9 +8,11 @@ import dash
 from flask_login import login_required
 from flask_wtf import CSRFProtect
 from flask import session, redirect, request
+
 # Safely import Babel with fallback for environments without Flask-Babel
 try:
     from flask_babel import Babel, lazy_gettext as _lazy_gettext
+
     BABEL_AVAILABLE = True
 
     # Convert LazyString objects to regular strings for Dash compatibility
@@ -19,6 +21,7 @@ try:
         result = _lazy_gettext(text)
         # Force conversion to string to prevent JSON serialization issues
         return str(result)
+
 except ImportError:  # pragma: no cover - Flask-Babel optional
     BABEL_AVAILABLE = False
 
@@ -35,6 +38,7 @@ except ImportError:  # pragma: no cover - Flask-Babel optional
         def init_app(self, app) -> None:
             pass
 
+
 from .auth import init_auth
 from config.yaml_config import ConfigurationManager, get_configuration_manager
 from .component_registry import ComponentRegistry
@@ -42,6 +46,7 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
+from core.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +109,11 @@ class DashAppFactory:
             # Get configured container with YAML config
             container = get_configured_container_with_yaml()
 
+            # Initialize plugin manager and load plugins
+            plugin_manager = PluginManager(container, config_manager)
+            plugin_results = plugin_manager.load_all_plugins()
+            logger.info(f"Loaded plugins: {plugin_results}")
+
             # Create Dash app with configuration
             app = YosaiDash(
                 __name__,
@@ -118,12 +128,13 @@ class DashAppFactory:
             try:
                 # Load JSON serialization plugin
                 from core.json_serialization_plugin import JsonSerializationPlugin
+
                 plugin = JsonSerializationPlugin()
                 plugin_config = {
-                    'enabled': True,
-                    'max_dataframe_rows': 1000,
-                    'fallback_to_repr': True,
-                    'auto_wrap_callbacks': True
+                    "enabled": True,
+                    "max_dataframe_rows": 1000,
+                    "fallback_to_repr": True,
+                    "auto_wrap_callbacks": True,
                 }
                 plugin.load(container, plugin_config)
                 plugin.start()
@@ -137,6 +148,7 @@ class DashAppFactory:
 
             app._config_manager = config_manager
             app._yosai_container = container
+            app._yosai_plugin_manager = plugin_manager
 
             # Initialize components
             component_registry = ComponentRegistry()
@@ -150,6 +162,8 @@ class DashAppFactory:
 
             # Register callbacks
             callback_manager.register_all_callbacks()
+            plugin_callback_results = plugin_manager.register_plugin_callbacks(app)
+            logger.info(f"Registered plugin callbacks: {plugin_callback_results}")
 
             server = app.server
             server.config.update(
@@ -183,6 +197,7 @@ class DashAppFactory:
                 @babel.localeselector
                 def get_locale() -> str:  # pragma: no cover - wrapper for older API
                     return _select_locale()
+
             else:
                 # Flask-Babel >= 4.x expects locale_selector_func attribute
                 babel.locale_selector_func = _select_locale

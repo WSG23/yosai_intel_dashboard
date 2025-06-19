@@ -28,3 +28,13 @@ monitoring:
 cache:
   type: "memory"
   ttl: 300
+
+plugins:
+  json_serialization:
+    enabled: true
+    max_dataframe_rows: 1000
+    max_string_length: 10000
+    include_type_metadata: true
+    compress_large_objects: true
+    fallback_to_repr: true
+    auto_wrap_callbacks: true
