@@ -147,7 +147,11 @@ def role_required(role: str):
         def wrapper(*args, **kwargs):
             roles = session.get("roles", [])
             if role not in roles:
-                return "Forbidden", 403
+                try:
+                    from dash.exceptions import PreventUpdate
+                    raise PreventUpdate
+                except Exception:
+                    return "Forbidden", 403
             return func(*args, **kwargs)
 
         return wrapper
