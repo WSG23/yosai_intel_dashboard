@@ -51,9 +51,20 @@ class YosaiJSONEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         """Handle all Yōsai-specific types with proper error boundaries"""
         
-        # Handle Flask-Babel LazyString objects
-        if (LazyString is not None and isinstance(obj, LazyString)) or 'LazyString' in obj.__class__.__name__:
+        # Handle Flask-Babel LazyString objects - CRITICAL FIX
+        if LazyString is not None and isinstance(obj, LazyString):
             return str(obj)
+
+        # Fallback LazyString detection for any Babel lazy objects
+        if hasattr(obj, '__class__') and 'LazyString' in str(obj.__class__):
+            return str(obj)
+
+        # Handle Babel lazy evaluation objects
+        if hasattr(obj, '_func') and hasattr(obj, '_args'):
+            try:
+                return str(obj)
+            except Exception:
+                return f"LazyString: {repr(obj)}"
 
         # Handle pandas DataFrames
         if isinstance(obj, pd.DataFrame):

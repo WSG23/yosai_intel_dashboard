@@ -15,8 +15,10 @@ try:
 
     # Convert LazyString objects to regular strings for Dash compatibility
     def lazy_gettext(text: str) -> str:
+        """Get translated text as regular string (not LazyString)"""
         result = _lazy_gettext(text)
-        return str(result) if hasattr(result, "__str__") else text
+        # Force conversion to string to prevent JSON serialization issues
+        return str(result)
 except ImportError:  # pragma: no cover - Flask-Babel optional
     BABEL_AVAILABLE = False
 

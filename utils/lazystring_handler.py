@@ -14,18 +14,32 @@ logger = logging.getLogger(__name__)
 
 def sanitize_lazystring_recursive(obj: Any) -> Any:
     """Recursively sanitize LazyString objects"""
-    
-    # Handle LazyString objects (from Flask-Babel)
+
+    # Handle Flask-Babel LazyString objects directly
+    try:
+        from flask_babel import LazyString
+        if isinstance(obj, LazyString):
+            return str(obj)
+    except ImportError:
+        pass
+
+    # Handle LazyString objects by class name (fallback detection)
     if hasattr(obj, '__class__') and 'LazyString' in str(obj.__class__):
         return str(obj)
-    
-    # Handle Babel lazy objects
+
+    # Handle Babel lazy objects with _func and _args
     if hasattr(obj, '_func') and hasattr(obj, '_args'):
-        # This looks like a lazy evaluation object
         try:
             return str(obj)
-        except:
+        except Exception:
             return f"LazyString: {repr(obj)}"
+
+    # Handle Babel lazy objects with other patterns
+    if hasattr(obj, '__call__') and hasattr(obj, '__getstate__'):
+        try:
+            return str(obj)
+        except Exception:
+            return f"LazyObject: {repr(obj)}"
     
     # Handle lists and tuples
     if isinstance(obj, (list, tuple)):
@@ -37,7 +51,6 @@ def sanitize_lazystring_recursive(obj: Any) -> Any:
     
     # Handle Dash components with LazyString properties
     if hasattr(obj, 'children') and hasattr(obj, 'to_plotly_json'):
-        # This is likely a Dash component
         try:
             # Try to serialize as-is first
             json.dumps(obj.to_plotly_json())
@@ -45,15 +58,17 @@ def sanitize_lazystring_recursive(obj: Any) -> Any:
         except (TypeError, ValueError):
             # Component has LazyString properties, sanitize them
             component_dict = obj.to_plotly_json()
-            return sanitize_lazystring_recursive(component_dict)
+            sanitized_dict = sanitize_lazystring_recursive(component_dict)
+            # Return the sanitized dictionary instead of trying to reconstruct the component
+            return sanitized_dict
     
     # Handle objects with LazyString attributes
     if hasattr(obj, '__dict__'):
         try:
             # Test if already serializable
-            json.dumps(obj, default=str)
+            json.dumps(obj.__dict__, default=str)
             return obj
-        except:
+        except Exception:
             # Create safe representation
             return {
                 'type': obj.__class__.__name__,
