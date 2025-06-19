@@ -1,5 +1,4 @@
-# core/component_registry.py
-"""Component registry with safe imports - extracted from app.py"""
+"""Component registry with safe imports and fallbacks"""
 from typing import Any, Optional, Dict
 import logging
 from utils.safe_components import get_safe_component
@@ -8,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class ComponentRegistry:
-    """Manages component loading with fallbacks - replaces safe_import_* functions from app.py"""
+    """Manages component loading with fallbacks"""
 
     def __init__(self):
         self._components: Dict[str, Any] = {}
@@ -16,7 +15,7 @@ class ComponentRegistry:
 
     def _load_all_components(self) -> None:
         """Load all components with error handling"""
-        # Extract all your current safe_import_* calls from app.py
+        # Load your actual components with fallbacks
         self._components["navbar"] = self._safe_import_component(
             "dashboard.layout.navbar", "create_navbar_layout"
         )
@@ -47,10 +46,15 @@ class ComponentRegistry:
         )
 
     def _safe_import_component(self, module_path: str, component_name: str) -> Any:
-        """Safe component import - extracted from your safe_import_component()"""
+        """Safe component import with fallback"""
         try:
             module = __import__(module_path, fromlist=[component_name])
-            return getattr(module, component_name, None)
+            component = getattr(module, component_name, None)
+            if callable(component):
+                return component
+            else:
+                logger.warning(f"Component {component_name} is not callable")
+                return None
         except ImportError as e:
             logger.warning(f"Could not import {component_name} from {module_path}: {e}")
             return None
@@ -59,7 +63,7 @@ class ComponentRegistry:
             return None
 
     def _safe_import_module(self, module_path: str) -> Any:
-        """Safe module import - extracted from your safe_import_module()"""
+        """Safe module import"""
         try:
             return __import__(module_path, fromlist=[""])
         except ImportError as e:
@@ -69,33 +73,32 @@ class ComponentRegistry:
             logger.error(f"Error importing module {module_path}: {e}")
             return None
 
-    def get_component(self, name: str) -> Any:
-        """Get a component safely"""
+    def get_component(self, name: str) -> Optional[Any]:
+        """Get component by name"""
         return self._components.get(name)
 
-    def get_component_or_fallback(self, name: str, fallback_text: str) -> Any:
-        """Get component or return fallback - FIXED: Returns actual components, not functions"""
+    def get_component_or_fallback(self, name: str, fallback_text: str = None) -> Any:
+        """Get component or return safe fallback"""
         component = self.get_component(name)
         
-        # If component is a function, call it to get the actual component
-        if callable(component):
+        if component and callable(component):
             try:
-                component = component()
+                return component()
             except Exception as e:
-                print(f"⚠️  Error calling component function {name}: {e}")
-                component = None
+                logger.error(f"Error calling component {name}: {e}")
         
-        if component is not None:
-            return component
+        # Use safe component fallback
+        safe_component = get_safe_component(name)
+        if safe_component:
+            return safe_component
+        
+        # Ultimate fallback
+        from dash import html
+        return html.Div(
+            fallback_text or f"Component '{name}' not available",
+            className="alert alert-warning"
+        )
 
-        # Import html for fallback
-        try:
-            from dash import html
-            return html.Div(
-                fallback_text,
-                className="alert alert-warning text-center",
-                style={"margin": "1rem", "padding": "1rem"},
-            )
-        except ImportError:
-            # Ultimate fallback
-            return fallback_text
+    def has_component(self, name: str) -> bool:
+        """Check if component exists"""
+        return name in self._components and self._components[name] is not None
