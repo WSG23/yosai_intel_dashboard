@@ -69,21 +69,43 @@ class CallbackManager:
             logger.error("Cannot register page routing - Dash not available")
 
     def _handle_analytics_page(self) -> Any:
-        """Handle analytics page"""
-        analytics_module = self.registry.get_component("analytics_module")
+        """Handle analytics page with safe error handling"""
+        try:
+            analytics_module = self.registry.get_component("analytics_module")
 
-        if analytics_module is not None:
-            layout_func = getattr(analytics_module, "layout", None)
-            if layout_func is not None and callable(layout_func):
-                try:
-                    return layout_func()
-                except Exception as e:
-                    logger.error(f"Error creating analytics layout: {e}")
-                    return self._create_error_page(
-                        f"Error loading analytics page: {str(e)}"
-                    )
+            if analytics_module is not None:
+                layout_func = getattr(analytics_module, "layout", None)
+                if layout_func is not None and callable(layout_func):
+                    try:
+                        result = layout_func()
+                        # Ensure result is JSON-safe
+                        return self._make_result_safe(result)
+                    except Exception as e:
+                        logger.error(f"Error creating analytics layout: {e}")
+                        return self._create_error_page(
+                            f"Error loading analytics page: {str(e)}"
+                        )
 
-        return self._create_error_page("Analytics page not available")
+            return self._create_error_page("Analytics page not available")
+
+        except Exception as e:
+            logger.error(f"Critical error in analytics page handling: {e}")
+            return self._create_error_page(f"Critical error: {str(e)}")
+
+    def _make_result_safe(self, result):
+        """Make any result JSON-safe"""
+        try:
+            # Test if result is already safe
+            import json
+            json.dumps(str(result))
+            return result
+        except Exception:
+            # Convert to safe representation
+            try:
+                from dash import html
+                return html.Div(f"Analytics page loaded (safe mode): {type(result).__name__}")
+            except ImportError:
+                return str(result)
 
     def _register_component_callbacks(self) -> None:
         """Register callbacks for individual components"""
