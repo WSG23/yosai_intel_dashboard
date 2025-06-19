@@ -125,97 +125,103 @@ def register_analytics_callbacks(app, container=None):
     ) -> Tuple[List[html.Div], Dict[str, Any], List[html.Div]]:
         """Process uploaded files with Dependency Injection"""
 
-        # Early return with proper types if no content
-        if not contents_list or not filename_list:
-            return [], {}, []
+        try:
+            # Early return with proper types if no content
+            if not contents_list or not filename_list:
+                return [], {}, []
 
-        # Ensure inputs are lists
-        if isinstance(contents_list, str):
-            contents_list = [contents_list]
-        if isinstance(filename_list, str):
-            filename_list = [filename_list]
+            # Ensure inputs are lists
+            if isinstance(contents_list, str):
+                contents_list = [contents_list]
+            if isinstance(filename_list, str):
+                filename_list = [filename_list]
 
-        # Get services from DI container
-        analytics_service = None
-        file_processor = None
+            # Get services from DI container
+            analytics_service = None
+            file_processor = None
 
-        if container is not None:
-            try:
-                analytics_service = container.get("analytics_service")
-                file_processor = container.get("file_processor")
-            except Exception as e:
-                print(f"Warning: Could not get services from container: {e}")
+            if container is not None:
+                try:
+                    analytics_service = container.get("analytics_service")
+                    file_processor = container.get("file_processor")
+                except Exception as e:
+                    print(f"Warning: Could not get services from container: {e}")
 
-        # Fallback to static classes if DI not available
-        if file_processor is None:
-            file_processor = FileProcessor
+            # Fallback to static classes if DI not available
+            if file_processor is None:
+                file_processor = FileProcessor
 
-        status_messages: List[html.Div] = []
-        all_data: List[Dict[str, Any]] = []
+            status_messages: List[html.Div] = []
+            all_data: List[Dict[str, Any]] = []
 
-        # Process each uploaded file
-        for contents, filename in zip(contents_list, filename_list):
-            try:
-                # Use the injected or fallback FileProcessor
-                if hasattr(file_processor, "process_file_content"):
-                    df = file_processor.process_file_content(contents, filename)
-                else:
-                    df = FileProcessor.process_file_content(contents, filename)
+            # Process each uploaded file
+            for contents, filename in zip(contents_list, filename_list):
+                try:
+                    # Use the injected or fallback FileProcessor
+                    if hasattr(file_processor, "process_file_content"):
+                        df = file_processor.process_file_content(contents, filename)
+                    else:
+                        df = FileProcessor.process_file_content(contents, filename)
 
-                if df is None:
-                    status_messages.append(
-                        _create_error_alert(f"Unsupported file type: {filename}")
-                    )
-                    continue
-
-                valid, alerts, suggestions = _validate_file(
-                    file_processor, df, filename
-                )
-                status_messages.extend(alerts)
-                if not valid:
-                    continue
-
-                # Store processed data
-                all_data.append(
-                    {
-                        "filename": filename,
-                        "data": df.to_dict("records"),
-                        "columns": list(df.columns),
-                        "rows": len(df),
-                        "suggestions": suggestions,
-                    }
-                )
-
-            except Exception as e:
-                status_messages.append(
-                    _create_error_alert(f"Error processing {filename}: {str(e)}")
-                )
-
-        # Generate analytics components
-        analytics_components: List[html.Div] = []
-
-        if all_data:
-            combined_df = _combine_uploaded_data(all_data)
-
-            if not combined_df.empty:
-                analytics_data = _generate_analytics_data(
-                    analytics_service, combined_df, len(all_data)
-                )
-
-                analytics_components = [
-                    html.Div(html.Hr()),
-                    html.Div([html.H3("📊 Analytics Results", className="mb-4")]),
-                    html.Div(create_summary_cards(analytics_data)),
-                    html.Div(
-                        create_data_preview(
-                            combined_df, f"Combined Data ({len(all_data)} files)"
+                    if df is None:
+                        status_messages.append(
+                            _create_error_alert(f"Unsupported file type: {filename}")
                         )
-                    ),
-                    html.Div([html.H4("📈 Visualizations", className="mb-3")]),
-                    html.Div(create_analytics_charts(analytics_data)),
-                ]
+                        continue
 
-        return status_messages, {"files": all_data}, analytics_components
+                    valid, alerts, suggestions = _validate_file(
+                        file_processor, df, filename
+                    )
+                    status_messages.extend(alerts)
+                    if not valid:
+                        continue
+
+                    # Store processed data
+                    all_data.append(
+                        {
+                            "filename": filename,
+                            "data": df.to_dict("records"),
+                            "columns": list(df.columns),
+                            "rows": len(df),
+                            "suggestions": suggestions,
+                        }
+                    )
+
+                except Exception as e:
+                    status_messages.append(
+                        _create_error_alert(f"Error processing {filename}: {str(e)}")
+                    )
+
+            # Generate analytics components
+            analytics_components: List[html.Div] = []
+
+            if all_data:
+                combined_df = _combine_uploaded_data(all_data)
+
+                if not combined_df.empty:
+                    analytics_data = _generate_analytics_data(
+                        analytics_service, combined_df, len(all_data)
+                    )
+
+                    analytics_components = [
+                        html.Div(html.Hr()),
+                        html.Div([html.H3("📊 Analytics Results", className="mb-4")]),
+                        html.Div(create_summary_cards(analytics_data)),
+                        html.Div(
+                            create_data_preview(
+                                combined_df, f"Combined Data ({len(all_data)} files)"
+                            )
+                        ),
+                        html.Div([html.H4("📈 Visualizations", className="mb-3")]),
+                        html.Div(create_analytics_charts(analytics_data)),
+                    ]
+
+            return status_messages, {"files": all_data}, analytics_components
+
+        except Exception as e:
+            print(f"Error processing uploaded files: {e}")
+            error_alert = _create_error_alert(f"Error processing files: {e}")
+            return [error_alert], {}, []
 
 
 # Helper functions (same as before)
