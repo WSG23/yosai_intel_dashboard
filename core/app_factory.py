@@ -10,22 +10,27 @@ from flask_wtf import CSRFProtect
 from flask import session, redirect, request
 # Safely import Babel with fallback for environments without Flask-Babel
 try:
-    from flask_babel import Babel, lazy_gettext
+    from flask_babel import Babel, lazy_gettext as _lazy_gettext
     BABEL_AVAILABLE = True
+
+    # Convert LazyString objects to regular strings for Dash compatibility
+    def lazy_gettext(text: str) -> str:
+        result = _lazy_gettext(text)
+        return str(result) if hasattr(result, "__str__") else text
 except ImportError:  # pragma: no cover - Flask-Babel optional
     BABEL_AVAILABLE = False
 
+    # Mock function that simply returns a regular string
     def lazy_gettext(text: str) -> str:
-        """Fallback lazy_gettext when Flask-Babel is unavailable"""
-        return text
+        return str(text)
 
     class Babel:  # type: ignore
         """Minimal Babel mock used when Flask-Babel is missing"""
 
-        def __init__(self, app=None):
+        def __init__(self, app=None) -> None:
             pass
 
-        def init_app(self, app):
+        def init_app(self, app) -> None:
             pass
 
 from .auth import init_auth
