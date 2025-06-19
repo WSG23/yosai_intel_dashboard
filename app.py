@@ -2,11 +2,10 @@
 Yōsai Intel Dashboard - Safe modular version
 """
 import logging
-from pathlib import Path
 from core.service_registry_safe import get_safe_container
-from pages import get_page_layout, register_page_callbacks
-from components import create_navbar
-from dashboard.layout.navbar import register_navbar_callbacks
+from core.component_registry import ComponentRegistry
+from core.layout_manager import LayoutManager
+from core.callback_manager import CallbackManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,28 +19,22 @@ def create_safe_app():
         container = get_safe_container()
 
         # Import Dash safely
-        from dash import Dash, html, dcc
+        from dash import Dash
         import dash_bootstrap_components as dbc
 
         app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-        # Build page layout safely
-        page_layout_fn = get_page_layout("deep_analytics")
-        if page_layout_fn is not None:
-            page_content = page_layout_fn()
-        else:
-            page_content = html.Div("Deep analytics page not available")
+        component_registry = ComponentRegistry()
+        layout_manager = LayoutManager(component_registry)
+        callback_manager = CallbackManager(
+            app, component_registry, layout_manager, container
+        )
 
-        # Set up basic layout including page content
-        app.layout = html.Div([
-            dcc.Location(id="url", refresh=False),
-            create_navbar(),
-            html.Div(page_content, id="page-content")
-        ])
+        # Use the old dashboard layout
+        app.layout = layout_manager.create_main_layout()
 
-        # Register page callbacks safely
-        register_page_callbacks('deep_analytics', app, container)
-        register_navbar_callbacks(app)
+        # Register all callbacks including page routing
+        callback_manager.register_all_callbacks()
 
         return app
 
