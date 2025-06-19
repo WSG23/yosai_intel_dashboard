@@ -173,11 +173,17 @@ def register_analytics_callbacks(app, container=None):
                     if not valid:
                         continue
 
-                    # Store processed data
+                    # Store processed data using JSON plugin if available
+                    if hasattr(app, "_yosai_json_plugin"):
+                        serializer = app._yosai_json_plugin.serialization_service
+                        sanitized_df = serializer.sanitize_for_transport(df)
+                    else:
+                        sanitized_df = df.to_dict("records")
+
                     all_data.append(
                         {
                             "filename": filename,
-                            "data": df.to_dict("records"),
+                            "data": sanitized_df,
                             "columns": list(df.columns),
                             "rows": len(df),
                             "suggestions": suggestions,
