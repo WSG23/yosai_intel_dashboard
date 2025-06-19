@@ -40,10 +40,18 @@ class ComponentRegistry:
             "dashboard.layout.navbar", "register_navbar_callbacks"
         )
 
-        # Load pages
-        self._components["analytics_module"] = self._safe_import_module(
-            "pages.deep_analytics"
-        )
+        # Load pages with safe handling
+        try:
+            self._components["analytics_module"] = self._safe_import_module(
+                "pages.deep_analytics"
+            )
+            if self._components["analytics_module"]:
+                logger.info("✅ Analytics module loaded successfully")
+            else:
+                logger.warning("⚠️ Analytics module not available")
+        except Exception as e:
+            logger.error(f"Error loading analytics module: {e}")
+            self._components["analytics_module"] = None
 
     def _safe_import_component(self, module_path: str, component_name: str) -> Any:
         """Safe component import with fallback"""
