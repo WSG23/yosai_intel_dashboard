@@ -15,10 +15,29 @@ logger = logging.getLogger(__name__)
 
 def sanitize_dash_output(data: Any) -> Any:
     """Sanitize data for Dash callback output"""
-    
+
     if data is None:
         return None
-    
+
+    # Handle LazyString objects FIRST
+    try:
+        from flask_babel import LazyString
+        if isinstance(data, LazyString):
+            return str(data)
+    except ImportError:
+        pass
+
+    # Handle any object with LazyString in class name
+    if hasattr(data, '__class__') and 'LazyString' in str(data.__class__):
+        return str(data)
+
+    # Handle Babel lazy objects
+    if hasattr(data, '_func') and hasattr(data, '_args'):
+        try:
+            return str(data)
+        except Exception:
+            return f"LazyString: {repr(data)}"
+
     # Handle functions - return safe representation
     if callable(data):
         return html.Div(f"Function: {getattr(data, '__name__', 'anonymous')}")

@@ -17,8 +17,27 @@ logger = logging.getLogger(__name__)
 
 class YosaiJSONEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles all Yōsai-specific types"""
-    
+
     def default(self, obj: Any) -> Any:
+        # Handle Flask-Babel LazyString objects FIRST
+        try:
+            from flask_babel import LazyString
+            if isinstance(obj, LazyString):
+                return str(obj)
+        except ImportError:
+            pass
+
+        # Handle any object with LazyString in class name (fallback)
+        if hasattr(obj, '__class__') and 'LazyString' in str(obj.__class__):
+            return str(obj)
+
+        # Handle Babel lazy evaluation objects
+        if hasattr(obj, '_func') and hasattr(obj, '_args'):
+            try:
+                return str(obj)
+            except Exception:
+                return f"LazyString: {repr(obj)}"
+
         # Handle functions
         if callable(obj):
             return {

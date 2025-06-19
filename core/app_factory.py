@@ -42,7 +42,7 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
-from utils import YosaiJSONProvider
+from utils.json_encoder import YosaiJSONProvider
 
 logger = logging.getLogger(__name__)
 
@@ -113,22 +113,13 @@ class DashAppFactory:
                 meta_tags=DashAppFactory._get_meta_tags(config_manager),
             )
 
-            # Register custom JSON provider before using jsonify anywhere
-            try:
-                import flask
-                version_parts = flask.__version__.split(".")
-                major = int(version_parts[0])
-                minor = int(version_parts[1]) if len(version_parts) > 1 else 0
-            except Exception:
-                major, minor = 2, 3
-
-            if major > 2 or (major == 2 and minor >= 3):
-                app.server.json = YosaiJSONProvider(app.server)
-            else:
-                app.server.json_encoder = YosaiJSONProvider
-
-            # Configure app
             app.title = config_manager.app_config.title
+            server = app.server
+
+            # CRITICAL: Set custom JSON provider to handle LazyString objects
+            server.json = YosaiJSONProvider(server)
+            logger.info("✅ Custom JSON provider set up for LazyString handling")
+
             app._config_manager = config_manager
             app._yosai_container = container
 
