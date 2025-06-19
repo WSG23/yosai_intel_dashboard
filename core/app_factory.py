@@ -1,7 +1,7 @@
-# core/app_factory.py - UPDATED: Full YAML configuration integration
 """
-App factory with complete YAML configuration system integration
+App factory with proper JSON plugin integration
 """
+
 from typing import Any, Optional
 import logging
 import dash
@@ -9,29 +9,24 @@ from flask_login import login_required
 from flask_wtf import CSRFProtect
 from flask import session, redirect, request
 
-# Safely import Babel with fallback for environments without Flask-Babel
+# Import Babel safely
 try:
     from flask_babel import Babel, lazy_gettext as _lazy_gettext
 
     BABEL_AVAILABLE = True
 
-    # Convert LazyString objects to regular strings for Dash compatibility
     def lazy_gettext(text: str) -> str:
         """Get translated text as regular string (not LazyString)"""
         result = _lazy_gettext(text)
-        # Force conversion to string to prevent JSON serialization issues
-        return str(result)
+        return str(result)  # Force conversion to prevent JSON issues
 
-except ImportError:  # pragma: no cover - Flask-Babel optional
+except ImportError:
     BABEL_AVAILABLE = False
 
-    # Mock function that simply returns a regular string
     def lazy_gettext(text: str) -> str:
         return str(text)
 
-    class Babel:  # type: ignore
-        """Minimal Babel mock used when Flask-Babel is missing"""
-
+    class Babel:
         def __init__(self, app=None) -> None:
             pass
 
@@ -46,7 +41,6 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
-from core.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -58,61 +52,48 @@ class YosaiDash(dash.Dash):
         super().__init__(*args, **kwargs)
         self._yosai_container: Optional[Container] = None
         self._config_manager: Optional[ConfigurationManager] = None
-
-    @property
-    def config_manager(self) -> ConfigurationManager:
-        """Get configuration manager"""
-        if self._config_manager is None:
-            self._config_manager = get_configuration_manager()
-        return self._config_manager
-
-    @property
-    def container(self) -> Container:
-        """Get DI container"""
-        if self._yosai_container is None:
-            self._yosai_container = get_configured_container_with_yaml()
-        return self._yosai_container
-
-    def get_service(self, name: str) -> Any:
-        """Get service from DI container"""
-        return self.container.get(name)
-
-    def get_service_optional(self, name: str) -> Optional[Any]:
-        """Get service from DI container, return None if not found"""
-        return self.container.get_optional(name)
-
-    def container_health(self) -> dict:
-        """Get container health status"""
-        return self.container.health_check()
-
-    def config_health(self) -> dict:
-        """Get configuration health status"""
-        return {
-            "source": self.config_manager._config_source,
-            "warnings": self.config_manager.validate_configuration(),
-            "environment": __import__("os").getenv("YOSAI_ENV", "development"),
-        }
+        self._yosai_plugin_manager: Optional[Any] = None
 
 
 class DashAppFactory:
-    """Enhanced factory for creating Dash applications with YAML configuration"""
+    """Factory for creating Dash applications with YAML configuration and JSON plugin"""
 
     @staticmethod
-    def create_app(config_path: Optional[str] = None) -> Optional[YosaiDash]:
-        """Create and configure Dash app with YAML configuration and DI"""
+    def create_app(
+        config_manager: Optional[ConfigurationManager] = None,
+    ) -> Optional[YosaiDash]:
+        """Create and configure a Dash app with proper JSON plugin integration"""
 
         try:
-            # Load configuration first
-            config_manager = ConfigurationManager()
-            config_manager.load_configuration(config_path)
+            # Create or get configuration manager
+            if config_manager is None:
+                config_manager = get_configuration_manager()
 
-            # Get configured container with YAML config
-            container = get_configured_container_with_yaml()
+            # Create DI container with YAML configuration
+            container = get_configured_container_with_yaml(config_manager)
 
-            # Initialize plugin manager and load plugins
-            plugin_manager = PluginManager(container, config_manager)
-            plugin_results = plugin_manager.load_all_plugins()
-            logger.info(f"Loaded plugins: {plugin_results}")
+            # CRITICAL: Load and start JSON plugin EARLY
+            from core.json_serialization_plugin import JsonSerializationPlugin
+
+            json_plugin = JsonSerializationPlugin()
+            plugin_config = {
+                "enabled": True,
+                "max_dataframe_rows": 1000,
+                "max_string_length": 10000,
+                "include_type_metadata": True,
+                "compress_large_objects": True,
+                "fallback_to_repr": True,
+                "auto_wrap_callbacks": True,
+            }
+
+            # Load, configure, and start the plugin
+            plugin_loaded = json_plugin.load(container, plugin_config)
+            if plugin_loaded:
+                json_plugin.configure(plugin_config)
+                json_plugin.start()  # This applies global JSON patches
+                logger.info("✅ JSON Serialization Plugin loaded and started")
+            else:
+                logger.error("❌ Failed to load JSON plugin")
 
             # Create Dash app with configuration
             app = YosaiDash(
@@ -125,30 +106,21 @@ class DashAppFactory:
             app.title = config_manager.app_config.title
             server = app.server
 
-            try:
-                # Load JSON serialization plugin
-                from core.json_serialization_plugin import JsonSerializationPlugin
-
-                plugin = JsonSerializationPlugin()
-                plugin_config = {
-                    "enabled": True,
-                    "max_dataframe_rows": 1000,
-                    "fallback_to_repr": True,
-                    "auto_wrap_callbacks": True,
-                }
-                plugin.load(container, plugin_config)
-                plugin.start()
-
-                # Set the plugin's encoder as Flask's JSON provider
-                app.server.json_encoder = plugin.serialization_service.encoder
-                logger.info("✅ JSON Serialization Plugin loaded and configured")
-
-            except Exception as e:
-                logger.error(f"Failed to load JSON Serialization Plugin: {e}")
-
+            # Store plugin and container references in app
             app._config_manager = config_manager
             app._yosai_container = container
-            app._yosai_plugin_manager = plugin_manager
+            app._yosai_json_plugin = json_plugin
+
+            # Create plugin manager and load other plugins
+            try:
+                from core.plugins.manager import PluginManager
+
+                plugin_manager = PluginManager(container, config_manager)
+                plugin_results = plugin_manager.load_all_plugins()
+                app._yosai_plugin_manager = plugin_manager
+                logger.info(f"Loaded additional plugins: {plugin_results}")
+            except Exception as e:
+                logger.warning(f"Plugin manager initialization failed: {e}")
 
             # Initialize components
             component_registry = ComponentRegistry()
@@ -162,18 +134,33 @@ class DashAppFactory:
 
             # Register callbacks
             callback_manager.register_all_callbacks()
-            plugin_callback_results = plugin_manager.register_plugin_callbacks(app)
-            logger.info(f"Registered plugin callbacks: {plugin_callback_results}")
 
-            server = app.server
+            # Register plugin callbacks if plugin manager is available
+            if hasattr(app, "_yosai_plugin_manager"):
+                try:
+                    plugin_callback_results = (
+                        app._yosai_plugin_manager.register_plugin_callbacks(app)
+                    )
+                    logger.info(
+                        f"Registered plugin callbacks: {plugin_callback_results}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Plugin callback registration failed: {e}")
+
+            # Configure Flask server
             server.config.update(
                 SECRET_KEY=config_manager.security_config.secret_key,
                 SESSION_COOKIE_SECURE=True,
                 SESSION_COOKIE_HTTPONLY=True,
                 SESSION_COOKIE_SAMESITE="Strict",
             )
-            CSRFProtect(server)
-            init_auth(server)
+
+            # Initialize auth and other Flask extensions
+            try:
+                CSRFProtect(server)
+                init_auth(server)
+            except Exception as e:
+                logger.warning(f"Auth initialization failed: {e}")
 
             # Safely wrap dash.index with login_required
             try:
@@ -181,39 +168,54 @@ class DashAppFactory:
                     server.view_functions["dash.index"] = login_required(
                         server.view_functions["dash.index"]
                     )
-                else:
-                    logger.warning("dash.index view function not found")
             except Exception as e:
                 logger.warning(f"Could not wrap dash.index with login_required: {e}")
 
-            babel = Babel(server)
+            # Initialize Babel for internationalization
+            if BABEL_AVAILABLE:
+                babel = Babel(server)
 
-            def _select_locale() -> str:
-                """Return preferred locale stored in the session"""
-                return session.get("lang", "en")
+                def _select_locale() -> str:
+                    return session.get("lang", "en")
 
-            if hasattr(babel, "localeselector"):
-                # Flask-Babel < 4.x uses decorator based registration
-                @babel.localeselector
-                def get_locale() -> str:  # pragma: no cover - wrapper for older API
-                    return _select_locale()
+                if hasattr(babel, "localeselector"):
 
-            else:
-                # Flask-Babel >= 4.x expects locale_selector_func attribute
-                babel.locale_selector_func = _select_locale
+                    @babel.localeselector
+                    def get_locale() -> str:
+                        return _select_locale()
 
-            @server.route("/i18n/<lang>")
-            def set_lang(lang: str):
-                session["lang"] = lang
-                return redirect(request.referrer or "/")
+                else:
+                    babel.locale_selector_func = _select_locale
+
+                @server.route("/i18n/<lang>")
+                def set_lang(lang: str):
+                    session["lang"] = lang
+                    return redirect(request.referrer or "/")
+
+            # Add JSON plugin health check endpoint
+            @server.route("/health/json-plugin")
+            def json_plugin_health():
+                """Health check endpoint for JSON plugin"""
+                if hasattr(app, "_yosai_json_plugin"):
+                    health = app._yosai_json_plugin.health_check()
+                    # Use our safe JSON serialization
+                    from flask import Response
+                    import json
+
+                    return Response(json.dumps(health), mimetype="application/json")
+                else:
+                    return Response(
+                        '{"error": "JSON plugin not available"}',
+                        mimetype="application/json",
+                    )
 
             logger.info(
-                "Dashboard application created successfully with YAML configuration"
+                "✅ Dashboard application created successfully with JSON plugin"
             )
             return app
 
-        except ImportError:
-            logger.error("Cannot create app - Dash not available")
+        except ImportError as e:
+            logger.error(f"Cannot create app - missing dependencies: {e}")
             return None
         except Exception as e:
             logger.error(f"Failed to create Dash application: {e}")
@@ -224,7 +226,6 @@ class DashAppFactory:
         """Get CSS stylesheets based on configuration"""
         stylesheets = ["/assets/css/main.css"]
 
-        # Add Bootstrap if available
         try:
             import dash_bootstrap_components as dbc
 
@@ -247,17 +248,20 @@ class DashAppFactory:
 
 
 def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]:
-    """Create application with YAML configuration and dependency injection"""
+    """Create application with YAML configuration and JSON plugin"""
     try:
-        app = DashAppFactory.create_app(config_path)
+        # Load configuration
+        config_manager = get_configuration_manager()
+        if config_path:
+            config_manager.load_configuration(config_path)
+
+        app = DashAppFactory.create_app(config_manager)
 
         if app is None:
             logger.error("Failed to create Dash app instance")
             return None
 
-        logger.info(
-            "Dashboard application created successfully with YAML configuration"
-        )
+        logger.info("Dashboard application created successfully with JSON plugin")
         return app
 
     except ImportError:
@@ -282,7 +286,13 @@ def create_application_for_testing() -> Optional[YosaiDash]:
 
         @server.route("/api/ping")
         def ping() -> Any:
-            return server.json.response({"msg": lazy_gettext("pong")})
+            from flask import Response
+            import json
+
+            # This will use our patched JSON handling
+            return Response(
+                json.dumps({"msg": lazy_gettext("pong")}), mimetype="application/json"
+            )
 
         return app
     except Exception as e:
@@ -290,181 +300,10 @@ def create_application_for_testing() -> Optional[YosaiDash]:
         return None
 
 
-# ============================================================================
-# COMPLETE YAML CONFIGURATION SYSTEM SUMMARY
-"""
-🎯 COMPLETE YAML CONFIGURATION SYSTEM - IMPLEMENTATION SUMMARY
-
-✅ WHAT'S NOW COMPLETE:
-
-1. **YAML Configuration Loading** ⭐⭐⭐
-   ✓ Environment variable substitution: ${VAR} and ${VAR:default}
-   ✓ Environment-specific configs: development, staging, production, test
-   ✓ Automatic config file detection via YOSAI_ENV
-   ✓ Custom config file support via YOSAI_CONFIG_FILE
-   ✓ Fallback to defaults when config files missing
-
-2. **Configuration Validation** ⭐⭐⭐
-   ✓ Typed dataclasses with __post_init__ validation
-   ✓ Production environment warnings
-   ✓ Required field validation
-   ✓ Security configuration warnings
-   ✓ Performance setting validation
-
-3. **DI Container Integration** ⭐⭐⭐
-   ✓ Configuration injected into all services
-   ✓ Database configuration from YAML
-   ✓ Cache configuration from YAML
-   ✓ Analytics service configuration
-   ✓ Security settings for file processor
-
-4. **Health Monitoring** ⭐⭐⭐
-   ✓ Configuration health checks
-   ✓ Environment validation
-   ✓ Service health with config context
-   ✓ Comprehensive system monitoring
-
-5. **Development Tools** ⭐⭐⭐
-   ✓ Standalone validation script: validate_config.py
-   ✓ Comprehensive test suite
-   ✓ Effective configuration export
-   ✓ Configuration debugging tools
-
-📁 **FILE STRUCTURE:**
-```
-config/
-├── config.yaml          # Development configuration
-├── production.yaml       # Production with env vars
-├── staging.yaml          # Staging environment
-├── test.yaml             # Test configuration
-└── yaml_config.py        # Configuration manager
-
-core/
-├── service_registry.py   # DI integration
-└── app_factory.py        # YAML-integrated app factory
-
-validate_config.py        # Standalone validation tool
-```
-
-🚀 **USAGE EXAMPLES:**
-
-1. **Development (default):**
-   ```bash
-   python app.py
-   # Uses config/config.yaml
-   ```
-
-2. **Production:**
-   ```bash
-   export YOSAI_ENV=production
-   export SECRET_KEY=your-production-secret
-   export DB_HOST=prod-db.example.com
-   export DB_PASSWORD=secure-password
-   python app.py
-   # Uses config/production.yaml with env substitution
-   ```
-
-3. **Custom config:**
-   ```bash
-   export YOSAI_CONFIG_FILE=/path/to/custom.yaml
-   python app.py
-   ```
-
-4. **Validation:**
-   ```bash
-   python validate_config.py config/production.yaml
-   ```
-
-🔧 **ENVIRONMENT VARIABLES:**
-
-Core Variables:
-- `YOSAI_ENV`: development, staging, production, test
-- `YOSAI_CONFIG_FILE`: Custom config file path
-
-Production Variables (examples):
-- `SECRET_KEY`: Application secret key
-- `DB_HOST`, `DB_PASSWORD`: Database connection
-- `REDIS_HOST`: Cache server
-- `SENTRY_DSN`: Error reporting
-
-🎯 **INTEGRATION WITH YOUR EXISTING CODE:**
-
-Your existing services now automatically receive configuration:
-- `analytics_service` gets `analytics_config`
-- `database` gets `database_config`
-- `file_processor` gets `security_config`
-- All services can access `config_manager`
-
-Example service usage:
-```python
-@app.callback(...)
-def some_callback():
-    analytics_service = app.get_service('analytics_service')
-    config = app.get_service('analytics_config')
-    max_records = config.max_records_per_query
-```
-
-🚀 **READY FOR PRODUCTION:**
-
-Your YAML configuration system is now:
-✅ Production-ready with environment variable substitution
-✅ Fully integrated with your DI container
-✅ Validated and type-safe
-✅ Monitorable with health checks
-✅ Testable with comprehensive test suite
-✅ Debuggable with validation tools
-
-This is a complete, production-grade configuration system! 🎉
-"""
-
-
-def verify_yaml_system():
-    """Quick verification that YAML system is working"""
-    try:
-        # Test configuration loading
-        config_manager = ConfigurationManager()
-        config_manager.load_configuration()
-
-        # Test DI integration
-        container = get_configured_container_with_yaml()
-        test_config = container.get("app_config")
-        # Test app creation
-        app = create_application()
-
-        return {
-            "status": "success",
-            "config_loaded": config_manager._config_source is not None,
-            "di_integration": test_config is not None,
-            "app_created": app is not None,
-            "message": "🎉 YAML Configuration System is fully operational!",
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "❌ YAML system needs attention",
-        }
-
-
-if __name__ == "__main__":
-    result = verify_yaml_system()
-    print(f"YAML System Status: {result['message']}")
-
-    if result["status"] == "success":
-        print(
-            "✅ Configuration loading:",
-            "OK" if result["config_loaded"] else "Using defaults",
-        )
-        print("✅ DI integration:", "OK" if result["di_integration"] else "Failed")
-        print("✅ App creation:", "OK" if result["app_created"] else "Failed")
-    else:
-        print(f"❌ Error: {result['error']}")
-
 # Export main functions
 __all__ = [
     "create_application",
     "create_application_for_testing",
     "DashAppFactory",
     "YosaiDash",
-    "verify_yaml_system",
 ]
