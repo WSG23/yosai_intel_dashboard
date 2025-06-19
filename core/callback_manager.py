@@ -1,5 +1,4 @@
-# core/callback_manager.py
-"""Callback management extracted from DashboardApp.register_all_callbacks()"""
+"""Callback management for the dashboard"""
 from typing import Any, Optional
 import logging
 from .component_registry import ComponentRegistry
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class CallbackManager:
-    """Manages callback registration with Dependency Injection"""
+    """Manages callback registration"""
 
     def __init__(
         self,
@@ -21,10 +20,10 @@ class CallbackManager:
         self.app = app
         self.registry = component_registry
         self.layout_manager = layout_manager
-        self.container = container  # NEW: DI container
+        self.container = container
 
     def register_all_callbacks(self) -> None:
-        """Register all callbacks - extracted from your register_all_callbacks()"""
+        """Register all callbacks"""
         try:
             # Register page routing callback
             self._register_page_routing_callback()
@@ -44,7 +43,7 @@ class CallbackManager:
             logger.error(f"Error registering callbacks: {e}")
 
     def _register_page_routing_callback(self) -> None:
-        """Page routing - extracted from your register_page_routing_callback()"""
+        """Page routing callback"""
         try:
             from dash import Output, Input
 
@@ -70,7 +69,7 @@ class CallbackManager:
             logger.error("Cannot register page routing - Dash not available")
 
     def _handle_analytics_page(self) -> Any:
-        """Handle analytics page - extracted from your display_page logic"""
+        """Handle analytics page"""
         analytics_module = self.registry.get_component("analytics_module")
 
         if analytics_module is not None:
@@ -86,82 +85,63 @@ class CallbackManager:
 
         return self._create_error_page("Analytics page not available")
 
-    def _create_error_page(self, message: str) -> Any:
+    def _register_component_callbacks(self) -> None:
+        """Register callbacks for individual components"""
+        try:
+            # Map panel callbacks
+            map_callbacks = self.registry.get_component("map_panel_callbacks")
+            if map_callbacks and callable(map_callbacks):
+                try:
+                    map_callbacks(self.app)
+                    logger.info("Map panel callbacks registered")
+                except Exception as e:
+                    logger.error(f"Error registering map callbacks: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in component callback registration: {e}")
+
+    def _register_analytics_callbacks(self) -> None:
+        """Register analytics callbacks"""
+        try:
+            analytics_module = self.registry.get_component("analytics_module")
+            if analytics_module:
+                register_func = getattr(analytics_module, "register_callbacks", None)
+                if register_func and callable(register_func):
+                    try:
+                        register_func(self.app)
+                        logger.info("Analytics callbacks registered")
+                    except Exception as e:
+                        logger.error(f"Error registering analytics callbacks: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in analytics callback registration: {e}")
+
+    def _register_navbar_callback(self) -> None:
+        """Register navbar callbacks"""
+        try:
+            navbar_callbacks = self.registry.get_component("navbar_callbacks")
+            if navbar_callbacks and callable(navbar_callbacks):
+                try:
+                    navbar_callbacks(self.app)
+                    logger.info("Navbar callbacks registered")
+                except Exception as e:
+                    logger.error(f"Error registering navbar callbacks: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in navbar callback registration: {e}")
+
+    def _create_error_page(self, error_message: str) -> Any:
         """Create error page"""
         try:
             from dash import html
             import dash_bootstrap_components as dbc
-
-            return html.Div([dbc.Alert(message, color="warning", className="m-3")])
+            
+            return dbc.Container([
+                dbc.Alert([
+                    html.H4("⚠️ Error", className="alert-heading"),
+                    html.P(error_message),
+                ], color="danger"),
+                dbc.Button("← Back to Dashboard", href="/", color="primary")
+            ])
         except ImportError:
-            return None
-
-    def _register_component_callbacks(self) -> None:
-        """Register component callbacks - extracted from your logic"""
-        # Map panel callbacks
-        map_panel_register = self.registry.get_component("map_panel_callbacks")
-        if map_panel_register is not None:
-            try:
-                map_panel_register(self.app)
-                logger.info("Map panel callbacks registered")
-            except Exception as e:
-                logger.error(f"Error registering map panel callbacks: {e}")
-
-    def _register_analytics_callbacks(self) -> None:
-        """Register analytics callbacks with DI container"""
-        analytics_module = self.registry.get_component("analytics_module")
-        if analytics_module is not None:
-            register_func = getattr(
-                analytics_module, "register_analytics_callbacks", None
-            )
-            if register_func is not None:
-                try:
-                    # Pass container to analytics callbacks for DI
-                    register_func(self.app, self.container)
-                    logger.info("Analytics callbacks registered with DI")
-                except Exception as e:
-                    logger.error(f"Error registering analytics callbacks: {e}")
-                    # Fallback: try without container for backward compatibility
-                    try:
-                        register_func(self.app)
-                        logger.info("Analytics callbacks registered (fallback)")
-                    except Exception as e2:
-                        logger.error(f"Fallback registration also failed: {e2}")
-
-    def _register_navbar_callback(self) -> None:
-        """Register navbar callback - extracted from your register_navbar_callback()"""
-        try:
-            from dash import Output, Input, callback_context, no_update
-            from datetime import datetime
-
-            @self.app.callback(
-                Output("live-time", "children"),
-                Input("live-time", "id"),
-                prevent_initial_call=False,
-            )
-            def update_time(_: Any) -> str:
-                """Update live time display"""
-                try:
-                    return f"Live Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                except Exception as e:
-                    logger.error(f"Error updating time: {e}")
-                    return "Time unavailable"
-
-            @self.app.callback(
-                Output("url-i18n", "pathname"),
-                [Input("set-en", "n_clicks"), Input("set-ja", "n_clicks")],
-                prevent_initial_call=True,
-            )
-            def toggle_language(en_clicks, ja_clicks):
-                ctx = callback_context
-                if not ctx.triggered:
-                    return no_update
-                lang = (
-                    "ja"
-                    if ctx.triggered[0]["prop_id"].split(".")[0] == "set-ja"
-                    else "en"
-                )
-                return f"/i18n/{lang}"
-
-        except Exception as e:
-            logger.error(f"Error registering navbar callback: {e}")
+            return f"Error: {error_message}"
