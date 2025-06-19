@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from core.service_registry_safe import get_safe_container
 from pages import get_page_layout, register_page_callbacks
+from components import create_navbar
+from dashboard.layout.navbar import register_navbar_callbacks
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,11 +35,13 @@ def create_safe_app():
         # Set up basic layout including page content
         app.layout = html.Div([
             dcc.Location(id="url", refresh=False),
+            create_navbar(),
             html.Div(page_content, id="page-content")
         ])
 
         # Register page callbacks safely
         register_page_callbacks('deep_analytics', app, container)
+        register_navbar_callbacks(app)
 
         return app
 
