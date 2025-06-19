@@ -80,24 +80,41 @@ class ComponentRegistry:
     def get_component_or_fallback(self, name: str, fallback_text: str = None) -> Any:
         """Get component or return safe fallback"""
         component = self.get_component(name)
-        
+
         if component and callable(component):
             try:
-                return component()
+                result = component()
+                # Ensure result is JSON-safe
+                if hasattr(result, '__dict__'):
+                    # Component returned an object, convert to safe representation
+                    return self._make_component_safe(result)
+                return result
             except Exception as e:
                 logger.error(f"Error calling component {name}: {e}")
-        
-        # Use safe component fallback
+
+        # Use safe component fallback from existing safe_components.py
+        from utils.safe_components import get_safe_component
         safe_component = get_safe_component(name)
         if safe_component:
             return safe_component
-        
+
         # Ultimate fallback
         from dash import html
         return html.Div(
             fallback_text or f"Component '{name}' not available",
             className="alert alert-warning"
         )
+
+    def _make_component_safe(self, component):
+        """Make any component JSON-safe"""
+        try:
+            # Test if component is already safe
+            import json
+            json.dumps(str(component))
+            return component
+        except Exception:
+            # Convert to safe string representation
+            return str(component)
 
     def has_component(self, name: str) -> bool:
         """Check if component exists"""
