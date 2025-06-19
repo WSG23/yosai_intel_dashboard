@@ -1,80 +1,69 @@
 #!/usr/bin/env python3
 """
-Simple App Launcher - Bypasses complex auth setup for development
+Simplified app.py with LazyString Fix Plugin
+Copy this template and modify as needed
 """
 
-# Load environment first
 import os
-from pathlib import Path
+import logging
 
-try:
-    from dotenv import load_dotenv
-    if Path(".env").exists():
-        load_dotenv(override=True)
-        print("✅ Loaded .env file")
-except ImportError:
-    print("⚠️  python-dotenv not available")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Set required environment variables
-required_vars = {
-    "DB_HOST": "localhost",
-    "SECRET_KEY": "dev-secret-12345",
-    "AUTH0_CLIENT_ID": "dev-client-id",
-    "AUTH0_CLIENT_SECRET": "dev-client-secret",
-    "AUTH0_DOMAIN": "dev.auth0.com",
-    "AUTH0_AUDIENCE": "dev-audience",
-    "YOSAI_ENV": "development"
-}
+# Import your app factory
+from core.app_factory import core.app_factory_json_safe
 
-for var, default in required_vars.items():
-    if not os.getenv(var):
-        os.environ[var] = default
+# Import LazyString fix plugin
+from plugins.builtin.lazystring_fix_plugin import (
+    initialize_lazystring_fix, 
+    LazyStringFixConfig
+)
 
-def create_simple_app():
-    """Create app without problematic auth integration"""
-    try:
-        import dash
-        from dash import html, dcc
-        
-        # Create simple Dash app
-        app = dash.Dash(__name__, suppress_callback_exceptions=True)
-        app.title = "Yōsai Intel Dashboard"
-        
-        # Simple layout
-        app.layout = html.Div([
-            dcc.Location(id='url', refresh=False),
-            html.H1("🏯 Yōsai Intel Dashboard", className="text-center"),
-            html.Hr(),
-            html.Div([
-                html.P("✅ Environment configuration loaded successfully"),
-                html.P("✅ Dash application created"),
-                html.P("⚠️  Running in simplified mode (auth disabled)"),
-                html.Br(),
-                html.H3("Available Features:"),
-                html.Ul([
-                    html.Li("Dashboard viewing"),
-                    html.Li("Configuration management"), 
-                    html.Li("Component loading"),
-                ]),
-                html.Br(),
-                html.P("🚀 Dashboard is running successfully!", className="alert alert-success")
-            ], className="container", style={"margin": "2rem"})
-        ])
-        
-        return app
-        
-    except Exception as e:
-        print(f"❌ Failed to create simple app: {e}")
-        return None
 
-if __name__ == "__main__":
-    print("🚀 Starting Simple Yosai Intel Dashboard...")
+# Create the app
+logger.info("Creating Yosai Intel Dashboard...")
+app = YosaiApplicationFactory.create_application()
+
+if app is not None:
+    # Apply LazyString fix with full configuration
+    config = LazyStringFixConfig(
+        enabled=True,                    # Enable the plugin
+        auto_wrap_callbacks=True,        # Automatically wrap all callbacks
+        deep_sanitize=True,              # Handle nested objects
+        log_conversions=True,            # Set False for production
+        fallback_locale="en"             # Default locale
+    )
     
-    app = create_simple_app()
-    if app:
-        print("✅ App created successfully")
-        print("🌐 Starting server...")
-        print("📍 URL: http://127.0.0.1:8050")
-        app.run_server(debug=True, host="127.0.0.1", port=8050)
-    else:
-        print("❌ Failed to create app")
+    # Initialize the plugin - THIS IS THE KEY LINE
+    plugin = initialize_lazystring_fix(app, config)
+    logger.info("✅ LazyString fix applied")
+    
+    # Optional: Print statistics
+    stats = plugin.get_stats()
+    logger.info(f"Plugin stats: {stats}")
+else:
+    logger.error("Failed to create app")
+    exit(1)
+
+
+# Run the app
+if __name__ == "__main__":
+    debug = os.getenv("FLASK_DEBUG", "true").lower() == "true"
+    port = int(os.getenv("PORT", "8050"))
+    host = os.getenv("HOST", "127.0.0.1")
+    
+    logger.info(f"Starting server on {host}:{port}")
+    
+    app.run_server(
+        debug=debug,
+        host=host,
+        port=port,
+        dev_tools_hot_reload=debug
+    )
+
+# For production deployment
+server = app.server

@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""
+LazyString Test Suite
+Comprehensive testing for LazyString serialization issues
+
+This test suite:
+1. Tests LazyString serialization before and after fixes
+2. Validates plugin functionality
+3. Provides debugging information
+4. Creates reproducible test cases
+"""
+
+import json
+import sys
+import logging
+import traceback
+from typing import Dict, List, Any, Tuple
+from pathlib import Path
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
+
+
+class LazyStringTestSuite:
+    """Comprehensive test suite for LazyString issues"""
+    
+    def __init__(self):
+        self.test_results: Dict[str, bool] = {}
+        self.error_details: Dict[str, str] = {}
+        
+    def run_all_tests(self) -> Tuple[int, int]:
+        """
+        Run all tests and return (passed, total) counts
+        
+        Returns:
+            Tuple of (passed_count, total_count)
+        """
+        print("🧪 LazyString Serialization Test Suite")
+        print("=" * 50)
+        
+        # Test 1: Basic LazyString detection
+        self._test_lazystring_detection()
+        
+        # Test 2: JSON serialization without fixes
+        self._test_json_serialization_broken()
+        
+        # Test 3: Import and activate plugin
+        plugin_available = self._test_plugin_import()
+        
+        if plugin_available:
+            # Test 4: Plugin activation
+            self._test_plugin_activation()
+            
+            # Test 5: JSON serialization with fixes
+            self._test_json_serialization_fixed()
+            
+            # Test 6: Callback decorator
+            self._test_callback_decorator()
+            
+            # Test 7: Data sanitization
+            self._test_data_sanitization()
+            
+            # Test 8: Flask-Babel patching
+            self._test_flask_babel_patching()
+        
+        # Report results
+        self._report_results()
+        
+        passed = sum(1 for result in self.test_results.values() if result)
+        total = len(self.test_results)
+        
+        return passed, total
+    
+    def _test_lazystring_detection(self) -> None:
+        """Test LazyString object detection"""
+        test_name = "LazyString Detection"
+        try:
+            from flask_babel import lazy_gettext as _l
+            
+            # Create a LazyString
+            lazy_str = _l("Test string")
+            
+            # Check if it's a LazyString
+            is_lazystring = 'LazyString' in str(type(lazy_str))
+            
+            if is_lazystring:
+                logger.info(f"✅ {test_name}: LazyString detected - {type(lazy_str)}")
+                self.test_results[test_name] = True
+            else:
+                logger.warning(f"⚠️ {test_name}: LazyString not detected - {type(lazy_str)}")
+                self.test_results[test_name] = False
+                
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_json_serialization_broken(self) -> None:
+        """Test that LazyString breaks JSON serialization (before fixes)"""
+        test_name = "JSON Serialization Broken"
+        try:
+            from flask_babel import lazy_gettext as _l
+            
+            # Create a LazyString
+            lazy_str = _l("Test string")
+            
+            # Try to serialize - this should fail
+            try:
+                json.dumps({"test": lazy_str})
+                logger.warning(f"⚠️ {test_name}: LazyString serialized unexpectedly")
+                self.test_results[test_name] = False
+            except TypeError as e:
+                if "not JSON serializable" in str(e):
+                    logger.info(f"✅ {test_name}: LazyString correctly fails serialization")
+                    self.test_results[test_name] = True
+                else:
+                    logger.error(f"❌ {test_name}: Unexpected error - {e}")
+                    self.test_results[test_name] = False
+                    
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_plugin_import(self) -> bool:
+        """Test plugin import"""
+        test_name = "Plugin Import"
+        try:
+            # Try to import the plugin
+            from lazystring_plugin import LazyStringSerializationPlugin, apply_lazystring_fixes
+            
+            logger.info(f"✅ {test_name}: Plugin imported successfully")
+            self.test_results[test_name] = True
+            return True
+            
+        except ImportError as e:
+            logger.error(f"❌ {test_name}: Cannot import plugin - {e}")
+            logger.info("💡 Make sure lazystring_plugin.py is in the current directory")
+            self.test_results[test_name] = False
+            return False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            return False
+    
+    def _test_plugin_activation(self) -> None:
+        """Test plugin activation"""
+        test_name = "Plugin Activation"
+        try:
+            from lazystring_plugin import apply_lazystring_fixes, remove_lazystring_fixes
+            
+            # Apply fixes
+            success = apply_lazystring_fixes(debug_mode=True)
+            
+            if success:
+                logger.info(f"✅ {test_name}: Plugin activated successfully")
+                self.test_results[test_name] = True
+            else:
+                logger.error(f"❌ {test_name}: Plugin activation failed")
+                self.test_results[test_name] = False
+                
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_json_serialization_fixed(self) -> None:
+        """Test that LazyString serializes correctly after fixes"""
+        test_name = "JSON Serialization Fixed"
+        try:
+            from flask_babel import lazy_gettext as _l
+            
+            # Create a LazyString
+            lazy_str = _l("Test string")
+            
+            # Try to serialize - this should work now
+            result = json.dumps({"test": lazy_str})
+            
+            # Parse back to verify
+            parsed = json.loads(result)
+            
+            if "test" in parsed and isinstance(parsed["test"], str):
+                logger.info(f"✅ {test_name}: LazyString serialized as string - {result}")
+                self.test_results[test_name] = True
+            else:
+                logger.error(f"❌ {test_name}: Unexpected result - {result}")
+                self.test_results[test_name] = False
+                
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_callback_decorator(self) -> None:
+        """Test callback decorator functionality"""
+        test_name = "Callback Decorator"
+        try:
+            from lazystring_plugin import lazystring_safe
+            from flask_babel import lazy_gettext as _l
+            
+            # Create a callback that returns LazyString
+            @lazystring_safe
+            def test_callback():
+                return {"message": _l("Test message"), "data": [1, 2, 3]}
+            
+            # Execute callback
+            result = test_callback()
+            
+            # Try to serialize result
+            json_result = json.dumps(result)
+            
+            logger.info(f"✅ {test_name}: Decorated callback works - {json_result}")
+            self.test_results[test_name] = True
+            
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_data_sanitization(self) -> None:
+        """Test data sanitization functionality"""
+        test_name = "Data Sanitization"
+        try:
+            from lazystring_plugin import sanitize_for_json
+            from flask_babel import lazy_gettext as _l
+            
+            # Create complex data with LazyString
+            complex_data = {
+                "normal_string": "test",
+                "lazy_string": _l("Lazy test"),
+                "nested": {
+                    "lazy_nested": _l("Nested lazy"),
+                    "list_with_lazy": [_l("Item 1"), "normal item", _l("Item 2")]
+                },
+                "function": lambda x: x,
+                "number": 42
+            }
+            
+            # Sanitize data
+            sanitized = sanitize_for_json(complex_data)
+            
+            # Try to serialize
+            json_result = json.dumps(sanitized)
+            
+            logger.info(f"✅ {test_name}: Complex data sanitized successfully")
+            self.test_results[test_name] = True
+            
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _test_flask_babel_patching(self) -> None:
+        """Test Flask-Babel patching specifically"""
+        test_name = "Flask-Babel Patching"
+        try:
+            from flask_babel import lazy_gettext as _l, gettext as _
+            
+            # Test lazy_gettext
+            lazy_result = _l("Test string")
+            gettext_result = _("Test string")
+            
+            # Both should now return strings
+            lazy_is_string = isinstance(lazy_result, str)
+            gettext_is_string = isinstance(gettext_result, str)
+            
+            if lazy_is_string and gettext_is_string:
+                logger.info(f"✅ {test_name}: Both functions return strings")
+                self.test_results[test_name] = True
+            else:
+                logger.warning(f"⚠️ {test_name}: lazy_gettext string: {lazy_is_string}, gettext string: {gettext_is_string}")
+                self.test_results[test_name] = False
+                
+        except ImportError:
+            logger.warning(f"⚠️ {test_name}: Flask-Babel not available")
+            self.test_results[test_name] = False
+        except Exception as e:
+            logger.error(f"❌ {test_name}: {e}")
+            self.test_results[test_name] = False
+            self.error_details[test_name] = str(e)
+    
+    def _report_results(self) -> None:
+        """Report test results"""
+        print("\n📊 Test Results")
+        print("-" * 30)
+        
+        for test_name, passed in self.test_results.items():
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"{status}: {test_name}")
+            
+            if not passed and test_name in self.error_details:
+                print(f"    Error: {self.error_details[test_name]}")
+        
+        passed = sum(1 for result in self.test_results.values() if result)
+        total = len(self.test_results)
+        
+        print(f"\nSummary: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+        
+        if passed == total:
+            print("🎉 All tests passed! LazyString plugin is working correctly.")
+        elif passed == 0:
+            print("🚨 All tests failed! Check your setup and dependencies.")
+        else:
+            print("⚠️ Some tests failed. Check the errors above.")
+
+
+def create_debug_script() -> None:
+    """Create a standalone debug script"""
+    debug_script = '''#!/usr/bin/env python3
+"""
+Quick LazyString Debug Script
+Run this to quickly test if you have LazyString issues
+"""
+
+import json
+
+def test_lazystring_issue():
+    print("🔍 Testing for LazyString issues...")
+    
+    try:
+        from flask_babel import lazy_gettext as _l
+        
+        # Create LazyString
+        lazy_str = _l("Test")
+        print(f"LazyString type: {type(lazy_str)}")
+        
+        # Try to serialize
+        try:
+            result = json.dumps({"test": lazy_str})
+            print(f"✅ Serialization worked: {result}")
+        except TypeError as e:
+            print(f"❌ Serialization failed: {e}")
+            print("🔧 You need to apply LazyString fixes!")
+            
+    except ImportError:
+        print("⚠️ Flask-Babel not available")
+
+if __name__ == "__main__":
+    test_lazystring_issue()
+'''
+    
+    with open("debug_lazystring.py", "w") as f:
+        f.write(debug_script)
+    
+    print("✅ Created debug_lazystring.py")
+
+
+def main():
+    """Run the test suite"""
+    print("Starting LazyString Test Suite...")
+    
+    # Create debug script
+    create_debug_script()
+    
+    # Run tests
+    test_suite = LazyStringTestSuite()
+    passed, total = test_suite.run_all_tests()
+    
+    # Provide recommendations
+    print(f"\n💡 Recommendations:")
+    
+    if passed == total:
+        print("1. Your LazyString setup is working correctly!")
+        print("2. You can safely use the protected launcher")
+        print("3. Run: python3 app_launcher.py --mode protected")
+    elif passed < total // 2:
+        print("1. Install missing dependencies: pip install flask-babel")
+        print("2. Ensure lazystring_plugin.py is in your project directory")
+        print("3. Run: python3 debug_lazystring.py to test basic functionality")
+    else:
+        print("1. Some features are working, check specific failures above")
+        print("2. Try running with debug mode: --debug")
+        print("3. Use the protected launcher: python3 app_launcher.py")
+    
+    return 0 if passed == total else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
