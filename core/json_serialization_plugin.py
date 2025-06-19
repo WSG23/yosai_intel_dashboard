@@ -50,12 +50,12 @@ class YosaiJSONEncoder(json.JSONEncoder):
     
     def default(self, obj: Any) -> Any:
         """Handle all Yōsai-specific types with proper error boundaries"""
-        
+
         # Handle Flask-Babel LazyString objects - CRITICAL FIX
         if LazyString is not None and isinstance(obj, LazyString):
             return str(obj)
 
-        # Fallback LazyString detection for any Babel lazy objects
+        # Handle any object with LazyString in class name (fallback)
         if hasattr(obj, '__class__') and 'LazyString' in str(obj.__class__):
             return str(obj)
 
@@ -69,46 +69,36 @@ class YosaiJSONEncoder(json.JSONEncoder):
         # Handle pandas DataFrames
         if isinstance(obj, pd.DataFrame):
             return self._encode_dataframe(obj)
-        
+
         # Handle pandas Series
         if isinstance(obj, pd.Series):
             return self._encode_series(obj)
-        
+
         # Handle numpy types
-        if isinstance(obj, (np.integer, np.floating, np.bool_)):
-            return obj.item()
-        
-        if isinstance(obj, np.ndarray):
-            return self._encode_numpy_array(obj)
-        
+        if hasattr(obj, 'dtype') and hasattr(obj, 'tolist'):
+            return obj.tolist() if hasattr(obj, 'tolist') else str(obj)
+
         # Handle datetime objects
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
-        
-        # Handle callable objects (functions, methods)
-        if callable(obj):
-            return self._encode_callable(obj)
-        
+
         # Handle dataclasses
         if is_dataclass(obj):
             return self._encode_dataclass(obj)
-        
-        # Handle enums
-        if isinstance(obj, Enum):
-            return obj.value
-        
-        # Handle sets
-        if isinstance(obj, set):
-            return list(obj)
-        
-        # Handle complex objects with __dict__
+
+        # Handle callable objects
+        if callable(obj):
+            return self._encode_callable(obj)
+
+        # Handle complex objects
         if hasattr(obj, '__dict__'):
             return self._encode_complex_object(obj)
-        
+
         # Fallback to string representation
         if self.config.fallback_to_repr:
-            return f"<{type(obj).__name__}: {str(obj)[:100]}>"
-        
+            return str(obj)
+
+        # Let the parent handle it (may raise TypeError)
         return super().default(obj)
     
     def _encode_dataframe(self, df: pd.DataFrame) -> Dict[str, Any]:
@@ -214,37 +204,46 @@ class JsonSerializationService:
     @measure_performance("serialization.sanitize", MetricType.SERIALIZATION)
     def sanitize_for_transport(self, data: Any) -> Any:
         """Sanitize data specifically for Dash callback transport"""
-        
+
         if data is None:
             return None
 
-        # Handle Flask-Babel LazyString objects
-        if (LazyString is not None and isinstance(data, LazyString)) or (
-            hasattr(data, '__class__') and 'LazyString' in data.__class__.__name__
-        ):
+        # Handle Flask-Babel LazyString objects FIRST
+        if LazyString is not None and isinstance(data, LazyString):
             return str(data)
+
+        # Handle any object with LazyString in class name
+        if hasattr(data, '__class__') and 'LazyString' in str(data.__class__):
+            return str(data)
+
+        # Handle Babel lazy evaluation objects
+        if hasattr(data, '_func') and hasattr(data, '_args'):
+            try:
+                return str(data)
+            except Exception:
+                return f"LazyString: {repr(data)}"
 
         # Handle DataFrames - convert to transport-safe format
         if isinstance(data, pd.DataFrame):
             return self._sanitize_dataframe(data)
-        
+
         # Handle functions - return metadata only
         if callable(data):
             return self._sanitize_callable(data)
-        
+
         # Handle lists recursively
         if isinstance(data, list):
             return [self.sanitize_for_transport(item) for item in data]
-        
+
         # Handle dictionaries recursively
         if isinstance(data, dict):
-            return {key: self.sanitize_for_transport(value) 
-                   for key, value in data.items()}
-        
+            return {key: self.sanitize_for_transport(value)
+                    for key, value in data.items()}
+
         # Handle complex objects
         if hasattr(data, '__dict__') and not isinstance(data, (str, int, float, bool)):
             return self._sanitize_complex_object(data)
-        
+
         return data
     
     def is_serializable(self, data: Any) -> bool:

@@ -42,7 +42,6 @@ from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
 from .service_registry import get_configured_container_with_yaml
 from .container import Container
-from utils.json_encoder import YosaiJSONProvider
 
 logger = logging.getLogger(__name__)
 
@@ -116,13 +115,25 @@ class DashAppFactory:
             app.title = config_manager.app_config.title
             server = app.server
 
-            # Register custom JSON provider to handle LazyString objects
             try:
-                from utils.json_encoder import YosaiJSONProvider
-                app.server.json = YosaiJSONProvider(app.server)
-                logger.info("✅ Custom JSON provider set for LazyString handling")
+                # Load JSON serialization plugin
+                from core.json_serialization_plugin import JsonSerializationPlugin
+                plugin = JsonSerializationPlugin()
+                plugin_config = {
+                    'enabled': True,
+                    'max_dataframe_rows': 1000,
+                    'fallback_to_repr': True,
+                    'auto_wrap_callbacks': True
+                }
+                plugin.load(container, plugin_config)
+                plugin.start()
+
+                # Set the plugin's encoder as Flask's JSON provider
+                app.server.json_encoder = plugin.serialization_service.encoder
+                logger.info("✅ JSON Serialization Plugin loaded and configured")
+
             except Exception as e:
-                logger.warning(f"Failed to set custom JSON provider: {e}")
+                logger.error(f"Failed to load JSON Serialization Plugin: {e}")
 
             app._config_manager = config_manager
             app._yosai_container = container
