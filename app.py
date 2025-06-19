@@ -8,6 +8,9 @@ example file. CSRF protection via ``flask_wtf`` is disabled to avoid the
 "CSRF session token is missing" error.
 """
 
+# CRITICAL: Apply LazyString patch FIRST, before any other imports
+import utils.lazystring_patch  # This automatically applies the patch
+
 import os
 import sys
 import logging
