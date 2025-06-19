@@ -3,7 +3,7 @@ Safe service registry without circular dependencies
 """
 from typing import Optional, Any, Dict
 import logging
-from .di_container import Container
+from .di_container import DIContainer
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +12,13 @@ class SafeServiceRegistry:
     """Thread-safe service registry with timeout handling"""
 
     def __init__(self):
-        self._container: Optional[Container] = None
+        self._container: Optional[DIContainer] = None
         self._services: Dict[str, Any] = {}
 
-    def configure_container(self, config_manager: Optional[Any] = None) -> Container:
+    def configure_container(self, config_manager: Optional[Any] = None) -> DIContainer:
         """Configure container without problematic services"""
         if self._container is None:
-            self._container = Container()
+            self._container = DIContainer()
 
             # Register only safe services initially
             self._register_safe_services(config_manager)
@@ -43,7 +43,7 @@ class SafeServiceRegistry:
         """Get service safely with fallback"""
         try:
             if self._container:
-                return self._container.resolve(name)
+                return self._container.get(name)
         except Exception as e:
             logger.warning(f"Could not resolve service {name}: {e}")
         return None
@@ -53,7 +53,7 @@ class SafeServiceRegistry:
 safe_registry = SafeServiceRegistry()
 
 
-def get_safe_container(config_manager: Optional[Any] = None) -> Container:
+def get_safe_container(config_manager: Optional[Any] = None) -> DIContainer:
     """Get safely configured container"""
     return safe_registry.configure_container(config_manager)
 
