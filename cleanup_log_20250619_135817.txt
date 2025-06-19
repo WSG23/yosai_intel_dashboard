@@ -1,0 +1,42 @@
+# Project Cleanup Log
+# Cleanup performed on: 2025-06-19 13:58:17.304569
+# Project directory: /Users/tombrayman/Projects/GitHub/yosai_intel_dashboard
+
+## Files Removed:
+- lazystring_plugin.py (11146 bytes)
+- analytics_generator_fix.py (16852 bytes)
+- chart_generation_fix.py (26166 bytes)
+- simple_file_type_fix.py (11800 bytes)
+- date_parsing_warning_fix.py (17999 bytes)
+- role_required_fix.py (10778 bytes)
+- comprehensive_lazystring_fix.py (12361 bytes)
+- emergency_lazystring_fix.py (7958 bytes)
+- targeted_ticket_categories_fix.py (11714 bytes)
+- targeted_csrf_fix.py (6900 bytes)
+- simple_launcher.py (4032 bytes)
+- app_launcher.py (12300 bytes)
+- quick_fix.py (6232 bytes)
+- simple_upload_fix.py (13267 bytes)
+- app_diagnostic.py (15024 bytes)
+- file_upload_diagnostic.py (12948 bytes)
+- lazystring_diagnostic.py (8041 bytes)
+- lazystring_test_suite.py (16632 bytes)
+- test_file_upload.py (1049 bytes)
+- setup_requirements.py (5976 bytes)
+- final_setup.py (15830 bytes)
+- fix_env.sh (1454 bytes)
+- fix_and_run.sh (1218 bytes)
+- immediate_csrf_fix.py (1001 bytes)
+- complete_example.py (20759 bytes)
+- dash_callback_fix.py (10890 bytes)
+- app_backup_20250618_211158.py (4467 bytes)
+- app.py.backup (3527 bytes)
+- .env.backup (336 bytes)
+
+## Directories Removed:
+- test_uploads/
+- test_files_all_formats/
+- quick_test_files/
+- __pycache__/
+
+## Protected Items (Preserved):
