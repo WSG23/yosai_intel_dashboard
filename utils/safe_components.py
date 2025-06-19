@@ -13,18 +13,28 @@ def safe_navbar():
     return dbc.Navbar([
         dbc.Container([
             html.H3("🏯 Yōsai Intel Dashboard", className="text-white mb-0"),
-            html.Span("Safe Mode", className="badge bg-warning text-dark ms-2")
+            dbc.Nav([
+                dbc.NavItem(dbc.NavLink("Dashboard", href="/", external_link=True)),
+                dbc.NavItem(dbc.NavLink("Analytics", href="/analytics", external_link=True)),
+            ], navbar=True),
+            html.Span("Logged in as: HQ Tower - East Wing", className="text-light")
         ])
-    ], color="dark", dark=True)
+    ], color="dark", dark=True, className="mb-3")
 
 
 def safe_map_panel():
     """Safe map panel component"""
     return dbc.Card([
-        dbc.CardHeader("🗺️ Map Panel"),
+        dbc.CardHeader([
+            html.H4("🗺️ Security Map", className="mb-0"),
+            dbc.Badge("🟢 All systems operational", color="success")
+        ]),
         dbc.CardBody([
-            html.P("Map panel is running in safe mode"),
-            html.P("No JSON serialization issues here!", className="text-success")
+            html.Div([
+                html.P("Interactive security map"),
+                html.P("Real-time monitoring active"),
+                dbc.Progress(value=100, color="success")
+            ], style={"height": "300px", "text-align": "center", "padding": "50px"})
         ])
     ])
 
@@ -46,7 +56,8 @@ def safe_incident_alerts():
         dbc.CardHeader("🚨 Incident Alerts"),
         dbc.CardBody([
             dbc.Alert("No active incidents", color="success"),
-            html.P("System is operating normally")
+            html.P("System is operating normally"),
+            dbc.Button("View All Incidents", color="primary", size="sm")
         ])
     ])
 

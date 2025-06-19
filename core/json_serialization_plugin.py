@@ -137,13 +137,39 @@ class JsonSerializationService:
 
 class JsonSerializationPlugin:
     """Self-contained JSON Serialization Plugin"""
-    
+
     def __init__(self):
         self.config: Optional[JsonSerializationConfig] = None
         self.serialization_service: Optional[JsonSerializationService] = None
         self.logger = logging.getLogger(__name__)
         self._started = False
         self._original_dumps = None
+        self._babel_available = False
+
+    def _handle_babel_safely(self):
+        """Handle babel imports and LazyString conversion within the plugin"""
+        try:
+            from flask_babel import LazyString
+            self._babel_available = True
+
+            # Patch any babel lazy_gettext to return strings immediately
+            try:
+                import flask_babel
+                if hasattr(flask_babel, 'lazy_gettext'):
+                    original_lazy_gettext = flask_babel.lazy_gettext
+
+                    def safe_lazy_gettext(text):
+                        result = original_lazy_gettext(text)
+                        return str(result)  # Convert to string immediately
+
+                    flask_babel.lazy_gettext = safe_lazy_gettext
+                    self.logger.info("✅ Patched flask_babel.lazy_gettext to return strings")
+            except Exception as e:
+                self.logger.warning(f"Could not patch flask_babel: {e}")
+
+        except ImportError:
+            self._babel_available = False
+            self.logger.info("Flask-Babel not available, using safe fallbacks")
     
     def load(self, container: Any = None, config: Dict[str, Any] = None) -> bool:
         """Load the plugin with optional container and config"""
@@ -192,7 +218,10 @@ class JsonSerializationPlugin:
         try:
             if self._started:
                 return True
-                
+
+            # Handle babel safely
+            self._handle_babel_safely()
+
             # Apply global JSON patch
             self._apply_global_json_patch()
             
@@ -203,7 +232,7 @@ class JsonSerializationPlugin:
             self._patch_dash_serialization()
             
             self._started = True
-            self.logger.info("✅ JSON Serialization Plugin started with global patches")
+            self.logger.info("✅ JSON Serialization Plugin started with babel handling")
             return True
             
         except Exception as e:
@@ -322,7 +351,7 @@ class JsonSerializationPlugin:
                 'started': self._started,
                 'service_available': self.serialization_service is not None,
                 'test_passed': serialized is not None,
-                'babel_available': BABEL_AVAILABLE
+                'babel_available': self._babel_available
             }
             
         except Exception as e:
