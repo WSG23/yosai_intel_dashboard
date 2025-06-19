@@ -32,21 +32,31 @@ try:
         ErrorCategory,
         ErrorSeverity,
     )
-except ImportError:
-    # Create minimal fallbacks if error handling not available
+except ImportError:  # pragma: no cover - fallback for missing module
     from enum import Enum
     from typing import Any, Callable, TypeVar
 
     F = TypeVar("F", bound=Callable[..., Any])
 
     class ErrorCategory(str, Enum):
+        DATABASE = "database"
+        FILE_PROCESSING = "file_processing"
+        AUTHENTICATION = "authentication"
+        ANALYTICS = "analytics"
         CONFIGURATION = "configuration"
+        EXTERNAL_API = "external_api"
+        USER_INPUT = "user_input"
 
     class ErrorSeverity(str, Enum):
+        LOW = "low"
         MEDIUM = "medium"
+        HIGH = "high"
+        CRITICAL = "critical"
 
     def with_error_handling(
-        category: ErrorCategory, severity: ErrorSeverity
+        category: ErrorCategory = ErrorCategory.ANALYTICS,
+        severity: ErrorSeverity = ErrorSeverity.MEDIUM,
+        reraise: bool = False,
     ) -> Callable[[F], F]:
         def decorator(func: F) -> F:
             return func
@@ -56,19 +66,24 @@ except ImportError:
 # Import performance monitoring safely  
 try:
     from core.performance import measure_performance, MetricType
-except ImportError:
-    # Create minimal fallbacks if performance monitoring not available
+except ImportError:  # pragma: no cover - fallback for missing module
     from typing import Callable, TypeVar
 
     F = TypeVar("F", bound=Callable[..., Any])
 
-    def measure_performance(name: str, metric_type: "MetricType") -> Callable[[F], F]:
+    def measure_performance(
+        name: str | None = None,
+        metric_type: "MetricType" = MetricType.EXECUTION_TIME,
+        threshold: float | None = None,
+        tags: dict[str, str] | None = None,
+    ) -> Callable[[F], F]:
         def decorator(func: F) -> F:
             return func
 
         return decorator
 
     class MetricType(str, Enum):
+        EXECUTION_TIME = "execution_time"
         SERIALIZATION = "serialization"
         CALLBACK = "callback"
 

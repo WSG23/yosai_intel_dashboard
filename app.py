@@ -65,6 +65,7 @@ def create_app_with_json_plugin() -> Optional[Any]:
 
         # Step 2: **ACTUALLY LOAD THE JSON PLUGIN**
         from core.json_serialization_plugin import JsonSerializationPlugin
+        from core.lazystring_json_provider import LazyStringSafeJSONProvider
         from core.container import Container
 
         # Create DI container
@@ -88,9 +89,11 @@ def create_app_with_json_plugin() -> Optional[Any]:
             json_plugin.configure(plugin_config)
             json_plugin.start()
 
-            # **CRITICAL: Set the plugin's encoder as Flask's JSON provider**
-            app.server.json_encoder = json_plugin.serialization_service.encoder.__class__
-            app.server.json = json_plugin.serialization_service
+            # Use custom JSON provider backed by the plugin
+            app.server.json_provider_class = LazyStringSafeJSONProvider
+            app.server.json = LazyStringSafeJSONProvider(
+                app.server, json_plugin.serialization_service
+            )
 
             # Store plugin in app for callbacks to use
             app._yosai_json_plugin = json_plugin
