@@ -1,49 +1,149 @@
+# app.py - Main Application Entry Point with CSRF Fix
 """
-Yōsai Intel Dashboard - Safe modular version
-"""
-import logging
-from core.service_registry_safe import get_safe_container
-from core.component_registry import ComponentRegistry
-from core.layout_manager import LayoutManager
-from core.callback_manager import CallbackManager
+Yōsai Intel Dashboard
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+This version restores the full application from ``app_backup_20250618_211158.py``
+while applying the simplified CSRF workaround that proved successful in the
+example file. CSRF protection via ``flask_wtf`` is disabled to avoid the
+"CSRF session token is missing" error.
+"""
+
+import os
+import sys
+import logging
+from pathlib import Path
+from typing import Optional, Any
+
+# ---- CSRF workaround -----------------------------------------------------
+# Disable CSRF checks before any Dash/Flask modules are imported
+os.environ["WTF_CSRF_ENABLED"] = "False"
+
+# -------------------------------------------------------------------------
+# Load environment variables early
+try:
+    from dotenv import load_dotenv
+    env_file = Path(".env")
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+        print("✅ Loaded .env file")
+    else:
+        print("⚠️  .env file not found")
+except ImportError:
+    print("⚠️  python-dotenv not installed")
+
+# Ensure required variables are set for development
+required_vars = {
+    "DB_HOST": "localhost",
+    "SECRET_KEY": "dev-secret-change-in-production-12345",
+    "AUTH0_CLIENT_ID": "your-client-id",
+    "AUTH0_CLIENT_SECRET": "your-client-secret",
+    "AUTH0_DOMAIN": "your-domain.auth0.com",
+    "AUTH0_AUDIENCE": "your-api-audience",
+    "YOSAI_ENV": "development",
+}
+for var, default in required_vars.items():
+    if not os.getenv(var):
+        os.environ[var] = default
+
+# -------------------------------------------------------------------------
+# Main application logic
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
-def create_safe_app():
-    """Create application with safe component loading"""
+def main() -> None:
+    """Run the dashboard using the YAML configuration system."""
     try:
-        # Get safe container
-        container = get_safe_container()
+        from core.app_factory import create_application
+        from config.yaml_config import ConfigurationManager
 
-        # Import Dash safely
-        from dash import Dash
-        import dash_bootstrap_components as dbc
+        # Determine which configuration file to load
+        config_path = get_config_path()
 
-        app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+        # Load configuration
+        config_manager = ConfigurationManager()
+        config_manager.load_configuration(config_path)
+        config_manager.print_startup_info()
 
-        component_registry = ComponentRegistry()
-        layout_manager = LayoutManager(component_registry)
-        callback_manager = CallbackManager(
-            app, component_registry, layout_manager, container
-        )
+        # Create the Dash application
+        app = create_application()
+        if app is None:
+            print("❌ Failed to create dashboard application")
+            sys.exit(1)
 
-        # Use the old dashboard layout
-        app.layout = layout_manager.create_main_layout()
+        # Apply CSRF workaround to the Flask server
+        app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY"))
+        app.server.config["WTF_CSRF_ENABLED"] = False
 
-        # Register all callbacks including page routing
-        callback_manager.register_all_callbacks()
+        # Configure logging level from configuration
+        app_config = config_manager.app_config
+        logging.getLogger().setLevel(getattr(logging, app_config.log_level.upper()))
 
-        return app
+        # Run the application
+        app.run(debug=app_config.debug, host=app_config.host, port=app_config.port)
 
+    except KeyboardInterrupt:
+        print("\n👋 Dashboard stopped by user")
+        sys.exit(0)
     except Exception as e:
-        logger.error(f"Error creating safe app: {e}")
-        raise
+        logger.error(f"Critical error in main: {e}")
+        print(f"❌ Critical error: {e}")
+        sys.exit(1)
 
+
+def get_config_path() -> Optional[str]:
+    """Select the configuration file based on environment variables."""
+    from core.secret_manager import SecretManager
+
+    manager = SecretManager()
+    try:
+        config_file = manager.get("YOSAI_CONFIG_FILE")
+    except KeyError:
+        config_file = None
+    if config_file and Path(config_file).exists():
+        print(f"📋 Using config file from YOSAI_CONFIG_FILE: {config_file}")
+        return config_file
+
+    env = (manager.get("YOSAI_ENV") or "development").lower()
+    env_config_map = {
+        "production": "config/production.yaml",
+        "prod": "config/production.yaml",
+        "test": "config/test.yaml",
+        "testing": "config/test.yaml",
+        "development": "config/config.yaml",
+        "dev": "config/config.yaml",
+    }
+    config_path = env_config_map.get(env, "config/config.yaml")
+    if Path(config_path).exists():
+        print(f"📋 Using environment config: {config_path} (YOSAI_ENV={env})")
+        return config_path
+    print(f"⚠️  Config file not found: {config_path}, using defaults")
+    return None
+
+
+# -------------------------------------------------------------------------
+# WSGI helpers
+
+def get_app() -> Optional[Any]:
+    """Return the Dash app instance for WSGI servers."""
+    try:
+        from core.app_factory import create_application
+        app = create_application()
+        if app:
+            app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY"))
+            app.server.config["WTF_CSRF_ENABLED"] = False
+        return app
+    except Exception as e:
+        logger.error(f"Error creating WSGI app: {e}")
+        return None
+
+
+# Expose global app/server for WSGI
+app = get_app()
+server = app.server if app is not None else None
 
 if __name__ == "__main__":
-    app = create_safe_app()
-    app.run(debug=True, host="0.0.0.0", port=8050)
-
+    main()
