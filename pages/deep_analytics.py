@@ -114,8 +114,8 @@ def register_analytics_callbacks(app, container=None):
         State("analytics-file-upload", "filename"),
         prevent_initial_call=True,
     )
+    @safe_callback(app)
     @role_required("admin")
-    @safe_callback
     def process_uploaded_files(
         contents_list: Optional[Union[str, List[str]]],
         filename_list: Optional[Union[str, List[str]]],
