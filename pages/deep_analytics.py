@@ -10,10 +10,7 @@ from flask_babel import lazy_gettext as _l
 from core.auth import role_required
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any, Optional, Tuple, Union
-from utils.lazystring_handler import (
-    sanitize_lazystring_recursive,
-    lazystring_safe_callback,
-)
+from core.plugins.decorators import safe_callback
 
 # Import the modular analytics components with safe fallbacks
 try:
@@ -97,7 +94,7 @@ def layout():
         fluid=True,
         className="p-4",
     )
-    return sanitize_lazystring_recursive(layout_container)
+    return layout_container
 
 
 def register_analytics_callbacks(app, container=None):
@@ -118,7 +115,7 @@ def register_analytics_callbacks(app, container=None):
         prevent_initial_call=True,
     )
     @role_required("admin")
-    @lazystring_safe_callback
+    @safe_callback
     def process_uploaded_files(
         contents_list: Optional[Union[str, List[str]]],
         filename_list: Optional[Union[str, List[str]]],
