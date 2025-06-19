@@ -11,6 +11,9 @@ from core.auth import role_required
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any, Optional, Tuple, Union
 from core.plugins.decorators import safe_callback
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import the modular analytics components with safe fallbacks
 try:
@@ -98,7 +101,7 @@ def layout():
 
 
 def register_analytics_callbacks(app, container=None):
-    """Register analytics page callbacks with DI container"""
+    """Register analytics page callbacks using the JSON plugin"""
 
     if not ANALYTICS_COMPONENTS_AVAILABLE:
         print("Warning: Analytics callbacks not registered - components not available")
@@ -114,117 +117,222 @@ def register_analytics_callbacks(app, container=None):
         State("analytics-file-upload", "filename"),
         prevent_initial_call=True,
     )
-    @safe_callback(app)
     @role_required("admin")
-    def process_uploaded_files(
+    def process_uploaded_files_with_plugin(
         contents_list: Optional[Union[str, List[str]]],
         filename_list: Optional[Union[str, List[str]]],
     ) -> Tuple[List[html.Div], Dict[str, Any], List[html.Div]]:
-        """Process uploaded files with Dependency Injection"""
+        """Process uploaded files using the JSON plugin for safe serialization"""
+
+        # Get the JSON plugin from the app
+        json_plugin = getattr(app, "_yosai_json_plugin", None)
+
+        if json_plugin is None:
+            logger.warning("JSON plugin not available, using basic handling")
 
         try:
-            # Early return with proper types if no content
-            if not contents_list or not filename_list:
-                return [], {}, []
+            if contents_list is None:
+                empty_status = [html.Div("No files uploaded.")]
+                return _safe_return(empty_status, {}, [], json_plugin)
 
-            # Ensure inputs are lists
+            # Ensure we have lists
             if isinstance(contents_list, str):
                 contents_list = [contents_list]
             if isinstance(filename_list, str):
                 filename_list = [filename_list]
 
-            # Get services from DI container
-            analytics_service = None
-            file_processor = None
+            upload_status = []
+            stored_data = {}
+            results_components = []
 
-            if container is not None:
+            for i, (contents, filename) in enumerate(zip(contents_list, filename_list)):
                 try:
-                    analytics_service = container.get("analytics_service")
-                    file_processor = container.get("file_processor")
-                except Exception as e:
-                    print(f"Warning: Could not get services from container: {e}")
+                    # Process the file
+                    df = FileProcessor.process_file_content(contents, filename)
 
-            # Fallback to static classes if DI not available
-            if file_processor is None:
-                file_processor = FileProcessor
-
-            status_messages: List[html.Div] = []
-            all_data: List[Dict[str, Any]] = []
-
-            # Process each uploaded file
-            for contents, filename in zip(contents_list, filename_list):
-                try:
-                    # Use the injected or fallback FileProcessor
-                    if hasattr(file_processor, "process_file_content"):
-                        df = file_processor.process_file_content(contents, filename)
-                    else:
-                        df = FileProcessor.process_file_content(contents, filename)
-
-                    if df is None:
-                        status_messages.append(
-                            _create_error_alert(f"Unsupported file type: {filename}")
+                    if df is not None:
+                        # Validate the data
+                        is_valid, message, suggestions = (
+                            FileProcessor.validate_dataframe(df)
                         )
-                        continue
 
-                    valid, alerts, suggestions = _validate_file(
-                        file_processor, df, filename
-                    )
-                    status_messages.extend(alerts)
-                    if not valid:
-                        continue
+                        if is_valid:
+                            # Use JSON plugin to safely store data
+                            if json_plugin and json_plugin.serialization_service:
+                                # Use plugin's sanitization
+                                safe_df_data = json_plugin.serialization_service.sanitize_for_transport(
+                                    df
+                                )
+                                stored_data[f"file_{i}"] = safe_df_data
 
-                    # Store processed data using JSON plugin if available
-                    if hasattr(app, "_yosai_json_plugin"):
-                        serializer = app._yosai_json_plugin.serialization_service
-                        sanitized_df = serializer.sanitize_for_transport(df)
-                    else:
-                        sanitized_df = df.to_dict("records")
+                                # Generate and sanitize analytics
+                                try:
+                                    analytics_data = (
+                                        AnalyticsGenerator.generate_analytics(df)
+                                    )
+                                    safe_analytics = json_plugin.serialization_service.sanitize_for_transport(
+                                        analytics_data
+                                    )
+                                    stored_data[f"analytics_{i}"] = safe_analytics
+                                except Exception as analytics_error:
+                                    stored_data[f"analytics_{i}"] = {
+                                        "error": f"Analytics generation failed: {str(analytics_error)}"
+                                    }
+                            else:
+                                # Fallback: basic safe storage
+                                stored_data[f"file_{i}"] = {
+                                    "filename": str(filename),
+                                    "shape": df.shape,
+                                    "columns": [str(col) for col in df.columns],
+                                    "sample_data": df.head(10).to_dict("records"),
+                                    "dtypes": {
+                                        str(col): str(dtype)
+                                        for col, dtype in df.dtypes.items()
+                                    },
+                                }
 
-                    all_data.append(
-                        {
-                            "filename": filename,
-                            "data": sanitized_df,
-                            "columns": list(df.columns),
-                            "rows": len(df),
-                            "suggestions": suggestions,
-                        }
-                    )
+                            # Create UI components
+                            try:
+                                preview_component = create_data_preview(
+                                    df, f"preview-{i}"
+                                )
+                                charts_component = create_analytics_charts(
+                                    df, f"charts-{i}"
+                                )
+                                summary_component = create_summary_cards(
+                                    df, f"summary-{i}"
+                                )
 
-                except Exception as e:
-                    status_messages.append(
-                        _create_error_alert(f"Error processing {filename}: {str(e)}")
-                    )
+                                results_components.extend(
+                                    [
+                                        html.H4(
+                                            f"📊 Analysis: {str(filename)}",
+                                            className="mt-4",
+                                        ),
+                                        summary_component,
+                                        preview_component,
+                                        charts_component,
+                                        html.Hr(),
+                                    ]
+                                )
+                            except Exception as component_error:
+                                results_components.append(
+                                    html.Div(
+                                        [
+                                            html.H4(
+                                                f"📊 Analysis: {str(filename)}",
+                                                className="mt-4",
+                                            ),
+                                            dbc.Alert(
+                                                f"Component error: {str(component_error)}",
+                                                color="warning",
+                                            ),
+                                        ]
+                                    )
+                                )
 
-            # Generate analytics components
-            analytics_components: List[html.Div] = []
-
-            if all_data:
-                combined_df = _combine_uploaded_data(all_data)
-
-                if not combined_df.empty:
-                    analytics_data = _generate_analytics_data(
-                        analytics_service, combined_df, len(all_data)
-                    )
-
-                    analytics_components = [
-                        html.Div(html.Hr()),
-                        html.Div([html.H3("📊 Analytics Results", className="mb-4")]),
-                        html.Div(create_summary_cards(analytics_data)),
-                        html.Div(
-                            create_data_preview(
-                                combined_df, f"Combined Data ({len(all_data)} files)"
+                            upload_status.append(
+                                html.Div(
+                                    [
+                                        html.I(
+                                            className="fas fa-check-circle text-success me-2"
+                                        ),
+                                        f"✅ {str(filename)} processed successfully",
+                                    ],
+                                    className="alert alert-success",
+                                )
                             )
-                        ),
-                        html.Div([html.H4("📈 Visualizations", className="mb-3")]),
-                        html.Div(create_analytics_charts(analytics_data)),
-                    ]
 
-            return status_messages, {"files": all_data}, analytics_components
+                        else:
+                            upload_status.append(
+                                html.Div(
+                                    [
+                                        html.I(
+                                            className="fas fa-exclamation-triangle text-warning me-2"
+                                        ),
+                                        f"⚠️ {str(filename)}: {str(message)}",
+                                    ],
+                                    className="alert alert-warning",
+                                )
+                            )
+                    else:
+                        upload_status.append(
+                            html.Div(
+                                [
+                                    html.I(
+                                        className="fas fa-times-circle text-danger me-2"
+                                    ),
+                                    f"❌ {str(filename)}: Could not process file",
+                                ],
+                                className="alert alert-danger",
+                            )
+                        )
+
+                except Exception as file_error:
+                    upload_status.append(
+                        html.Div(
+                            [
+                                html.I(
+                                    className="fas fa-times-circle text-danger me-2"
+                                ),
+                                f"❌ {str(filename)}: {str(file_error)}",
+                            ],
+                            className="alert alert-danger",
+                        )
+                    )
+
+            # Return safely using plugin
+            return _safe_return(
+                upload_status, stored_data, results_components, json_plugin
+            )
 
         except Exception as e:
-            print(f"Error processing uploaded files: {e}")
-            error_alert = _create_error_alert(f"Error processing files: {e}")
-            return [error_alert], {}, []
+            error_message = f"Error processing files: {str(e)}"
+            logger.error(error_message)
+
+            error_status = [
+                html.Div(
+                    [
+                        html.I(className="fas fa-times-circle text-danger me-2"),
+                        f"❌ {error_message}",
+                    ],
+                    className="alert alert-danger",
+                )
+            ]
+
+            return _safe_return(error_status, {}, [], json_plugin)
+
+
+def _safe_return(upload_status, stored_data, results_components, json_plugin):
+    """Safely return callback data using JSON plugin if available"""
+    if json_plugin and json_plugin.serialization_service:
+        # Use plugin's sanitization for all return values
+        safe_upload_status = json_plugin.serialization_service.sanitize_for_transport(
+            upload_status
+        )
+        safe_stored_data = json_plugin.serialization_service.sanitize_for_transport(
+            stored_data
+        )
+        safe_results = json_plugin.serialization_service.sanitize_for_transport(
+            results_components
+        )
+        return safe_upload_status, safe_stored_data, safe_results
+    else:
+        # Fallback: basic conversion to ensure JSON safety
+        def basic_sanitize(obj):
+            if hasattr(obj, "__class__") and "LazyString" in str(obj.__class__):
+                return str(obj)
+            if isinstance(obj, dict):
+                return {str(k): basic_sanitize(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [basic_sanitize(item) for item in obj]
+            return obj
+
+        return (
+            basic_sanitize(upload_status),
+            basic_sanitize(stored_data),
+            basic_sanitize(results_components),
+        )
 
 
 # Helper functions (same as before)
