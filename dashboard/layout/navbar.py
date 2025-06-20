@@ -64,7 +64,12 @@ def create_navbar_layout():
                                         html.Div(
                                             [
                                                 html.Div(
-                                                    "Main Panel: Tokyo HQ – East Wing",
+                                                    "Main Panel:",
+                                                    className="navbar-title text-center text-secondary",
+                                                ),
+                                                html.Div(
+                                                    id="page-context",
+                                                    children="Tokyo HQ – East Wing",
                                                     className="text-center text-secondary text-sm font-weight-bold",
                                                 ),
                                                 html.Div(
@@ -175,7 +180,7 @@ def create_navbar_layout():
                                                         html.Span(" | ", className="text-tertiary"),
                                                         html.Span("JP", className="navbar-lang-option"),
                                                     ],
-                                                    className="ml-4 text-xs text-tertiary",
+                                                    className="ml-5 text-xs text-tertiary",
                                                     style={"cursor": "pointer"},
                                                     id="language-toggle"
                                                 ),
@@ -240,6 +245,22 @@ def register_navbar_callbacks(app):
                     html.Span(" | ", className="text-tertiary"),
                     html.Span("JP", className="navbar-lang-option"),
                 ]
+
+        @app.callback(
+            Output("page-context", "children"),
+            Input("url-i18n", "pathname"),
+        )
+        def update_page_context(pathname):
+            """Update page context based on current route"""
+            page_contexts = {
+                "/": "Dashboard – Tokyo HQ",
+                "/analytics": "Analytics – Data Intelligence",
+                "/file-upload": "File Upload – Data Management",
+                "/export": "Export – Report Generation",
+                "/settings": "Settings – System Configuration",
+                "/logout": "Logout – Session Management"
+            }
+            return page_contexts.get(pathname, "Tokyo HQ – East Wing")
 
     except Exception as e:
         print(f"Error registering navbar callbacks: {e}")

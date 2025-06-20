@@ -292,8 +292,8 @@ html, body, #root, .dash-app {
 }
 
 .navbar-icon {
-  width: 24px;
-  height: 24px;
+  width: 48px;  /* Changed from 24px */
+  height: 48px; /* Changed from 24px */
   filter: brightness(0.9);
   transition: all 0.3s ease;
 }
@@ -331,7 +331,7 @@ html, body, #root, .dash-app {
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .navbar-icon {
-    width: 28px;
-    height: 28px;
+    width: 56px; /* Changed from 28px */
+    height: 56px; /* Changed from 28px */
   }
 }
