@@ -98,37 +98,25 @@ def register_settings_modal_callbacks(app):
         return
 
     try:
-        app.clientside_callback(
-            """
-            function(n_clicks_open, n_clicks_close, n_clicks_overlay) {
-                const ctx = dash_clientside.callback_context;
-                if (!ctx.triggered.length) {
-                    return dash_clientside.no_update;
-                }
-
-                const triggered_id = ctx.triggered[0].prop_id.split('.')[0];
-                const modal = document.getElementById('settings-modal-overlay');
-
-                if (!modal) return dash_clientside.no_update;
-
-                if (triggered_id === 'navbar-settings-btn') {
-                    modal.classList.remove('hidden');
-                } else if (triggered_id === 'settings-modal-close-btn') {
-                    modal.classList.add('hidden');
-                } else if (triggered_id === 'settings-modal-overlay' && n_clicks_overlay) {
-                    modal.classList.add('hidden');
-                }
-
-                return dash_clientside.no_update;
-            }
-            """,
-            Output("settings-modal-container", "style"),
+        @app.callback(
+            Output("settings-modal-overlay", "className"),
             [
                 Input("navbar-settings-btn", "n_clicks"),
                 Input("settings-modal-close-btn", "n_clicks"),
                 Input("settings-modal-overlay", "n_clicks"),
             ],
+            prevent_initial_call=True,
         )
+        def _toggle_settings_modal(open_clicks, close_clicks, overlay_clicks):
+            ctx = dash.callback_context
+            if not ctx.triggered:
+                raise dash.exceptions.PreventUpdate
+
+            triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+            if triggered_id == "navbar-settings-btn":
+                return "settings-modal-overlay"
+            return "settings-modal-overlay hidden"
 
         @app.callback(
             Output("url", "pathname"),
