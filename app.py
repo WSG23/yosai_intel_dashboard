@@ -110,13 +110,6 @@ def create_full_dashboard() -> Optional[Any]:
         callback_manager.register_all_callbacks()
         register_settings_modal_callbacks(app)
 
-        try:
-            from pages import register_page_callbacks
-            register_page_callbacks('file_upload', app, container)
-            print("✅ File upload callbacks registered")
-        except Exception as e:
-            print(f"❌ Failed to register file upload callbacks: {e}")
-
         # Store references in app
         app._yosai_json_plugin = json_plugin
         app._yosai_container = container
