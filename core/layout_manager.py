@@ -70,50 +70,53 @@ class LayoutManager:
             return html.Div(f"Layout error: {str(e)}", className="alert alert-danger")
     
     def create_dashboard_content(self) -> Any:
-        """Create dashboard content grid"""
+        """Create dashboard content with original 3-column + bottom layout"""
         if not DASH_AVAILABLE:
             logger.error("Dash components not available for dashboard content")
             return "Dashboard content not available"
-        
+
         try:
-            # Create dashboard grid layout
+            # Create the original 3-column layout
             left_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'incident_alerts',
                     "Incident Alerts Panel - Component not available"
                 )
-            ], className="dashboard__left-panel")
-            
+            ], className="left-panel")
+
             map_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'map_panel',
                     "Map Panel - Component not available"
                 )
-            ], className="dashboard__map-panel")
-            
+            ], className="map-panel")
+
             right_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'weak_signal',
-                    "Weak Signal Feed - Component not available"
+                    "Comprehensive Reports Panel - Component not available"
                 )
-            ], className="dashboard__right-panel")
-            
-            content_grid = html.Div([
+            ], className="right-panel")
+
+            # Create main content area (3-column layout)
+            main_content = html.Div([
                 left_panel,
                 map_panel,
                 right_panel,
-            ], className="dashboard__content")
-            
-            bottom_panel = self.registry.get_component_or_fallback(
-                'bottom_panel',
-                "Bottom Panel - Component not available"
-            )
-            
-            return html.Div([content_grid, bottom_panel])
-            
+            ], className="main-content")
+
+            # Create bottom panel with both sections
+            bottom_panel = html.Div([
+                self.registry.get_component_or_fallback(
+                    'bottom_panel',
+                    "Bottom Panel - Component not available"
+                )
+            ], className="bottom-panel-container")
+
+            return html.Div([main_content, bottom_panel], className="dashboard-layout")
+
         except Exception as e:
             logger.error(f"Error creating dashboard content: {e}")
-            # html is guaranteed to be available here since DASH_AVAILABLE is True
             return html.Div(f"Dashboard content error: {str(e)}", className="alert alert-danger")
     
     def create_safe_fallback_layout(self) -> str:

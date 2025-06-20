@@ -31,10 +31,17 @@ html, body, #root, .dash-app {
   z-index: 100;
 }
 
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px); /* Account for navbar */
+}
+
+/* Main 3-Column Content Area */
 .main-content {
   display: flex;
   flex-direction: row;
-  height: calc(100vh - 15vh - 60px); /* full height minus bottom + navbar */
+  flex: 1;
   overflow: hidden;
 }
 
@@ -61,6 +68,11 @@ html, body, #root, .dash-app {
 }
 
 /* Bottom Panel Layout */
+.bottom-panel-container {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Bottom Panel Layout - Two Columns */
 .bottom-panel {
   display: flex;
   justify-content: space-between;
@@ -69,6 +81,7 @@ html, body, #root, .dash-app {
   color: white;
   font-family: 'Helvetica Neue', sans-serif;
   border-top: 1px solid #2d3748;
+  min-height: 200px;
 }
 
 .bottom-column {
@@ -80,7 +93,8 @@ html, body, #root, .dash-app {
 }
 
 .bottom-column.respond {
-  align-items: center;
+  align-items: flex-start;
+  max-width: 300px;
 }
 
 .bottom-column h4 {
@@ -153,6 +167,7 @@ html, body, #root, .dash-app {
   cursor: pointer;
   font-weight: 600;
   transition: background-color 0.2s ease-in-out;
+  width: 100%;
 }
 
 .complete-button:hover {
@@ -160,15 +175,21 @@ html, body, #root, .dash-app {
 }
 
 /* Resolve Buttons */
+.resolve-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .resolve-button {
   background-color: #2d3748;
   color: white;
   border: none;
   padding: 0.5rem;
-  margin-top: 0.25rem;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
+  text-align: left;
 }
 
 .resolve-button:hover {
