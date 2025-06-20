@@ -43,8 +43,6 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
                                 html.P("✅ Excel files (.xlsx, .xls)")
                             ], className="upload-supported-types")
                         ]),
-                        className="upload-box upload-box-active",
-                        id=f"{upload_id}-box",
                         multiple=True,
                         accept='.csv,.json,.xlsx,.xls,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
                     ),
@@ -54,7 +52,10 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
                         html.Div(className="upload-spinner"),
                         html.Div("Processing file...", id=f"{upload_id}-progress-text")
                     ], className="upload-progress-overlay", id=f"{upload_id}-progress")
-                ], style={"position": "relative"}),
+                ],
+                id=f"{upload_id}-box",
+                className="upload-box upload-box-active",
+                style={"position": "relative"}),
 
                 # Right Box - Database Upload Placeholder
                 html.Div([
