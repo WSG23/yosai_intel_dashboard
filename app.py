@@ -94,6 +94,23 @@ def create_full_dashboard() -> Optional[Any]:
         
         # Create your modular managers
         component_registry = ComponentRegistry()
+
+        # Debug component loading
+        logger.info("=== COMPONENT LOADING DEBUG ===")
+        component_status = component_registry.list_components()
+        for component_name, is_loaded in component_status.items():
+            status_emoji = "✅" if is_loaded else "❌"
+            logger.info(f"{status_emoji} {component_name}: {'LOADED' if is_loaded else 'FAILED'}")
+
+        # Try to reload failed components
+        failed_components = [name for name, loaded in component_status.items() if not loaded]
+        if failed_components:
+            logger.warning(f"⚠️ Failed components detected: {failed_components}")
+            for failed_comp in failed_components:
+                if failed_comp in ["incident_alerts", "map_panel", "bottom_panel", "weak_signal"]:
+                    logger.info(f"🔄 Attempting to reload {failed_comp}")
+                    success = component_registry.reload_component(failed_comp)
+                    logger.info(f"{'✅' if success else '❌'} Reload {failed_comp}: {'SUCCESS' if success else 'FAILED'}")
         layout_manager = LayoutManager(component_registry)
         callback_manager = CallbackManager(app, component_registry, layout_manager, container)
 
