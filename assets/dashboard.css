@@ -292,8 +292,9 @@ html, body, #root, .dash-app {
 }
 
 .navbar-icon {
-  width: 48px;  /* Changed from 24px */
-  height: 48px; /* Changed from 24px */
+  width: 48px;
+  height: 48px;
+  object-fit: contain;  /* Added to prevent squishing */
   filter: brightness(0.9);
   transition: all 0.3s ease;
 }
@@ -310,7 +311,7 @@ html, body, #root, .dash-app {
 
 .navbar-nav-link:hover .navbar-icon {
   filter: brightness(1.25);
-  transform: scale(1.1);
+  transform: scale(1.05);  /* Reduced from 1.1 to prevent distortion */
 }
 
 .navbar-lang-option {
@@ -331,7 +332,8 @@ html, body, #root, .dash-app {
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .navbar-icon {
-    width: 56px; /* Changed from 28px */
-    height: 56px; /* Changed from 28px */
+    width: 56px;
+    height: 56px;
+    object-fit: contain;  /* Added to prevent squishing */
   }
 }
