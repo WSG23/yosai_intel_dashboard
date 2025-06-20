@@ -35,7 +35,10 @@ except ImportError:
     html = dcc = dbc = None
 
 try:
-    from components.analytics.file_uploader import create_file_uploader
+    from components.analytics.file_uploader import (
+        create_dual_file_uploader,
+        register_dual_upload_callbacks,
+    )
     from components.analytics.file_processing import FileProcessor
     COMPONENTS_AVAILABLE = True
 except ImportError:
@@ -68,7 +71,7 @@ def layout():
         # File upload section
         dbc.Row([
             dbc.Col([
-                create_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
+                create_dual_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
                 else html.Div("File uploader not available")
             ])
         ]),
@@ -98,6 +101,9 @@ def register_file_upload_callbacks(app, container=None):
     if not DASH_AVAILABLE or not COMPONENTS_AVAILABLE:
         logger.warning("File upload callbacks not registered - components not available")
         return
+
+    # Register dual upload box callbacks
+    register_dual_upload_callbacks(app, "file-upload-main")
 
     @app.callback(
         [
