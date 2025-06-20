@@ -19,14 +19,14 @@ class ComponentRegistry:
         self._components["navbar"] = self._safe_import_component(
             "dashboard.layout.navbar", "create_navbar_layout"
         )
+        self._components["incident_alerts"] = self._safe_import_component(
+            "components.incident_alerts_panel", "layout"
+        )
         self._components["map_panel"] = self._safe_import_component(
             "components.map_panel", "layout"
         )
         self._components["bottom_panel"] = self._safe_import_component(
             "components.bottom_panel", "layout"
-        )
-        self._components["incident_alerts"] = self._safe_import_component(
-            "components.incident_alerts_panel", "layout"
         )
         self._components["weak_signal"] = self._safe_import_component(
             "components.weak_signal_panel", "layout"

@@ -70,13 +70,13 @@ class LayoutManager:
             return html.Div(f"Layout error: {str(e)}", className="alert alert-danger")
     
     def create_dashboard_content(self) -> Any:
-        """Create dashboard content with original 3-column + bottom layout"""
+        """Create dashboard content using specific component files"""
         if not DASH_AVAILABLE:
             logger.error("Dash components not available for dashboard content")
             return "Dashboard content not available"
 
         try:
-            # Create the original 3-column layout
+            # LEFT PANEL: incident_alerts_panel.py
             left_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'incident_alerts',
@@ -84,6 +84,7 @@ class LayoutManager:
                 )
             ], className="left-panel")
 
+            # MIDDLE PANEL: map_panel.py
             map_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'map_panel',
@@ -91,29 +92,28 @@ class LayoutManager:
                 )
             ], className="map-panel")
 
+            # RIGHT PANEL: weak_signal_panel.py
             right_panel = html.Div([
                 self.registry.get_component_or_fallback(
                     'weak_signal',
-                    "Comprehensive Reports Panel - Component not available"
+                    "Weak Signal Panel - Component not available"
                 )
             ], className="right-panel")
 
-            # Create main content area (3-column layout)
+            # TOP ROW: 3-column layout (left + middle + right)
             main_content = html.Div([
                 left_panel,
                 map_panel,
                 right_panel,
             ], className="main-content")
 
-            # Create bottom panel with both sections
-            bottom_panel = html.Div([
-                self.registry.get_component_or_fallback(
-                    'bottom_panel',
-                    "Bottom Panel - Component not available"
-                )
-            ], className="bottom-panel-container")
+            # BOTTOM PANEL: bottom_panel.py
+            bottom_panel = self.registry.get_component_or_fallback(
+                'bottom_panel',
+                "Bottom Panel - Component not available"
+            )
 
-            return html.Div([main_content, bottom_panel], className="dashboard-layout")
+            return html.Div([main_content, bottom_panel])
 
         except Exception as e:
             logger.error(f"Error creating dashboard content: {e}")
