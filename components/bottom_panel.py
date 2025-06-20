@@ -1,9 +1,6 @@
-# yosai_intel_dashboard/components/bottom_panel.py
-
 from dash import html
 from flask_babel import lazy_gettext as _l
 from utils.lazystring_handler import sanitize_lazystring_recursive
-
 
 def get_layout():
     """Return the complete bottom panel layout with both sections"""

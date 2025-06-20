@@ -1,13 +1,7 @@
-# yosai_intel_dashboard/components/weak_signal_panel.py
-
 from dash import html
 import dash_bootstrap_components as dbc
+from flask_babel import lazy_gettext as _l
 from utils.lazystring_handler import sanitize_lazystring_recursive
-
-# Safe text function that works with or without babel
-def safe_text(text):
-    """Return text safely, handling any babel objects"""
-    return str(text)
 
 # Example signal card
 def signal_card(prefix, code, severity, location, description, timestamp):
@@ -15,14 +9,14 @@ def signal_card(prefix, code, severity, location, description, timestamp):
     return dbc.Card(
         [
             dbc.CardHeader(
-                safe_text(f"[{prefix}-{code}] - {severity}"),
+                f"[{prefix}-{code}] - {severity}",
                 className=f"signal-card-header {severity_class}",
             ),
             dbc.CardBody(
                 [
-                    html.P(safe_text(f"Location: {location}")),
-                    html.P(safe_text(f"Description: {description}")),
-                    html.P(safe_text(f"Timestamp: {timestamp}")),
+                    html.P(f"Location: {location}"),
+                    html.P(f"Description: {description}"),
+                    html.P(f"Timestamp: {timestamp}"),
                 ]
             ),
         ],
@@ -34,7 +28,7 @@ def category_block(title, signals, category_id):
     return html.Details(
         [
             html.Summary(
-                safe_text(f"{title} ({len(signals)})"),
+                f"{title} ({len(signals)})",
                 className="signal-summary",
             ),
             html.Div(signals, className="signal-category-content"),
@@ -45,9 +39,9 @@ def category_block(title, signals, category_id):
 
 layout = html.Div(
     [
-        html.H4(safe_text("Weak-Signal Live Feed"), className="panel-header"),
+        html.H4(_l("Weak-Signal Live Feed"), className="panel-header"),
         category_block(
-            safe_text("News Scraping"),
+            _l("News Scraping"),
             [
                 signal_card(
                     "N",
@@ -61,7 +55,7 @@ layout = html.Div(
             "weak-signal-news",
         ),
         category_block(
-            safe_text("Cross-Location"),
+            _l("Cross-Location"),
             [
                 signal_card(
                     "CO",
@@ -78,5 +72,5 @@ layout = html.Div(
     className="weak-signal-panel",
 )
 
-# Convert any LazyString objects to regular strings for safe serialization  
+# JSON SANITIZATION - Convert LazyString objects to regular strings  
 layout = sanitize_lazystring_recursive(layout)
