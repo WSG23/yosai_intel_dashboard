@@ -284,3 +284,54 @@ html, body, #root, .dash-app {
 .signal-card-header.signal-low {
   border-left: 4px solid var(--color-success);
 }
+
+/* Navbar Icon Navigation - Extends existing navbar styles */
+.navbar-main {
+  background-color: var(--color-primary) !important;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.navbar-icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0.9);
+  transition: all 0.3s ease;
+}
+
+.navbar-nav-link {
+  display: inline-block;
+  text-decoration: none !important;
+  transition: transform 0.3s ease;
+}
+
+.navbar-nav-link:hover {
+  transform: translateY(-2px);
+}
+
+.navbar-nav-link:hover .navbar-icon {
+  filter: brightness(1.25);
+  transform: scale(1.1);
+}
+
+.navbar-lang-option {
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.navbar-lang-option:hover {
+  color: var(--color-accent);
+}
+
+.navbar-lang-active {
+  color: var(--color-accent) !important;
+  font-weight: bold;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .navbar-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
