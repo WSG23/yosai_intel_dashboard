@@ -21,10 +21,19 @@ except ImportError as e:
     logger.warning(f"Analytics components not available: {e}")
     ANALYTICS_AVAILABLE = False
 
-__all__ = ['NAVBAR_AVAILABLE', 'ANALYTICS_AVAILABLE']
+try:
+    from .settings_modal import create_settings_modal, register_settings_modal_callbacks
+    SETTINGS_MODAL_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Settings modal component not available: {e}")
+    SETTINGS_MODAL_AVAILABLE = False
+
+__all__ = ['NAVBAR_AVAILABLE', 'ANALYTICS_AVAILABLE', 'SETTINGS_MODAL_AVAILABLE']
 
 if NAVBAR_AVAILABLE:
     __all__.append('create_navbar')
 if ANALYTICS_AVAILABLE:
     __all__.append('analytics')
+if SETTINGS_MODAL_AVAILABLE:
+    __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
 
