@@ -17,11 +17,21 @@ except ImportError:
 try:
     from components.analytics.file_uploader import create_file_uploader
     from components.analytics.file_processing import FileProcessor
-    from utils.safe_callbacks import safe_text
     COMPONENTS_AVAILABLE = True
 except ImportError:
     COMPONENTS_AVAILABLE = False
     FileProcessor = None
+
+# Import text utilities
+try:
+    from utils.text_utils import safe_text, format_file_size
+except ImportError:
+    # Fallback safe_text function
+    def safe_text(text):
+        return str(text) if text is not None else ""
+
+    def format_file_size(size_bytes):
+        return f"{size_bytes} bytes"
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +193,7 @@ def register_file_upload_callbacks(app, container=None):
 def _create_success_alert(message: str) -> dbc.Alert:
     """Create a success alert message"""
     return dbc.Alert(
-        [html.I(className="fas fa-check-circle me-2"), message],
+        [html.I(className="fas fa-check-circle me-2"), safe_text(message)],
         color="success",
         className="mb-2",
     )
@@ -192,7 +202,7 @@ def _create_success_alert(message: str) -> dbc.Alert:
 def _create_warning_alert(message: str) -> dbc.Alert:
     """Create a warning alert message"""
     return dbc.Alert(
-        [html.I(className="fas fa-exclamation-triangle me-2"), message],
+        [html.I(className="fas fa-exclamation-triangle me-2"), safe_text(message)],
         color="warning",
         className="mb-2",
     )
@@ -201,7 +211,7 @@ def _create_warning_alert(message: str) -> dbc.Alert:
 def _create_error_alert(message: str) -> dbc.Alert:
     """Create an error alert message"""
     return dbc.Alert(
-        [html.I(className="fas fa-times-circle me-2"), message],
+        [html.I(className="fas fa-times-circle me-2"), safe_text(message)],
         color="danger",
         className="mb-2",
     )
@@ -210,7 +220,7 @@ def _create_error_alert(message: str) -> dbc.Alert:
 def _create_info_alert(message: str) -> dbc.Alert:
     """Create an info alert message"""
     return dbc.Alert(
-        [html.I(className="fas fa-info-circle me-2"), message],
+        [html.I(className="fas fa-info-circle me-2"), safe_text(message)],
         color="info",
         className="mb-2",
     )
@@ -218,9 +228,11 @@ def _create_info_alert(message: str) -> dbc.Alert:
 
 def _create_file_info_card(df, filename: str) -> dbc.Card:
     """Create detailed file information card"""
+    memory_usage = df.memory_usage(deep=True).sum()
+
     return dbc.Card([
         dbc.CardHeader([
-            html.H5(f"\U0001F4CA {filename}", className="mb-0"),
+            html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
         ]),
         dbc.CardBody([
             dbc.Row([
@@ -229,14 +241,14 @@ def _create_file_info_card(df, filename: str) -> dbc.Card:
                     html.P(f"Columns: {len(df.columns)}", className="mb-1"),
                 ], width=6),
                 dbc.Col([
-                    html.P(f"Memory: {df.memory_usage(deep=True).sum() / 1024:.1f} KB", className="mb-1"),
+                    html.P(f"Memory: {format_file_size(memory_usage)}", className="mb-1"),
                     html.P(f"Null values: {df.isnull().sum().sum()}", className="mb-1"),
                 ], width=6),
             ]),
             html.Hr(),
             html.H6("Column Types:", className="mt-2"),
             html.Div([
-                dbc.Badge(f"{col}: {dtype}", color="secondary", className="me-1 mb-1")
+                dbc.Badge(f"{safe_text(col)}: {safe_text(dtype)}", color="secondary", className="me-1 mb-1")
                 for col, dtype in df.dtypes.items()
             ]),
         ])
@@ -247,7 +259,7 @@ def _create_file_management_card(file_id: str, filename: str, df) -> dbc.Card:
     """Create file management card with actions"""
     return dbc.Card([
         dbc.CardHeader([
-            html.H6(f"\U0001F527 Manage {filename}", className="mb-0"),
+            html.H6(f"\U0001F527 Manage {safe_text(filename)}", className="mb-0"),
         ]),
         dbc.CardBody([
             dbc.ButtonGroup([
