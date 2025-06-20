@@ -76,13 +76,8 @@ def layout():
             ])
         ]),
 
-        # Upload status and file info
-        dbc.Row([
-            dbc.Col([
-                html.Div(id="file-upload-status", className="mt-3"),
-                html.Div(id="file-upload-info", className="mt-3"),
-            ])
-        ]),
+
+        # The dual upload component already includes status and info areas
 
         # Data storage for uploaded files
         dcc.Store(id="file-upload-data-store", data={}),
@@ -107,9 +102,9 @@ def register_file_upload_callbacks(app, container=None):
 
     @app.callback(
         [
-            Output("file-upload-status", "children"),
+            Output("file-upload-main-status", "children"),
             Output("file-upload-data-store", "data"),
-            Output("file-upload-info", "children"),
+            Output("file-upload-main-info", "children"),
             Output("file-management-section", "children"),
         ],
         Input("file-upload-main", "contents"),
