@@ -47,7 +47,7 @@ def create_navbar_layout():
                                         html.A(
                                             html.Img(
                                                 src="/assets/yosai_logo_name_white.png",
-                                                height="45px",
+                                                height="46px",  # Increased from 45px (2% larger)
                                                 className="navbar__logo",
                                             ),
                                             href="/",
@@ -58,36 +58,38 @@ def create_navbar_layout():
                                     className="d-flex align-items-center pl-4",
                                 ),
 
-                                # Center Column: Main Panel Label & Context
+                                # Center Column: Header & Context
                                 dbc.Col(
                                     [
                                         html.Div(
                                             [
                                                 html.Div(
-                                                    "Main Panel:",
-                                                    className="navbar-title text-center text-secondary",
+                                                    id="facility-header",
+                                                    children="HQ Tower – East Wing",
+                                                    className="navbar-title text-center text-primary",
+                                                    style={"color": "var(--color-text-primary)"}
                                                 ),
                                                 html.Div(
                                                     id="page-context",
-                                                    children="Tokyo HQ – East Wing",
-                                                    className="text-center text-secondary text-sm font-weight-bold",
+                                                    children="Dashboard – Main Operations",
+                                                    className="text-center text-sm font-weight-bold",
+                                                    style={"color": "var(--color-text-primary)"}
                                                 ),
                                                 html.Div(
                                                     [
                                                         html.Span(
-                                                            "Logged in as: HQ Tower – East Wing",
+                                                            "Logged in as: Toshi Iwaki",
                                                             className="text-xs text-tertiary"
                                                         ),
                                                         html.Span(
-                                                            [
-                                                                html.Span("🟢", className="ml-2"),
-                                                                html.Span(
-                                                                    id="live-time",
-                                                                    children="Live: 2025-06-20 09:55:54",
-                                                                    className="ml-1"
-                                                                )
-                                                            ],
-                                                            className="text-xs text-tertiary"
+                                                            "🟢",
+                                                            className="ml-4",
+                                                            style={"fontSize": "0.75rem"}
+                                                        ),
+                                                        html.Span(
+                                                            id="live-time",
+                                                            children="Live: 2025-06-20 09:55:54",
+                                                            className="ml-3 text-xs text-tertiary"
                                                         )
                                                     ],
                                                     className="d-flex align-items-center justify-content-center mt-1",
@@ -150,7 +152,7 @@ def create_navbar_layout():
                                                         ),
                                                         html.A(
                                                             html.Img(
-                                                                src="/assets/navbar_icons/setting.png",
+                                                                src="/assets/navbar_icons/settings.png",  # Changed from setting.png to settings.png
                                                                 className="navbar-icon",
                                                                 alt="Settings"
                                                             ),
@@ -164,13 +166,13 @@ def create_navbar_layout():
                                                                 className="navbar-icon",
                                                                 alt="Logout"
                                                             ),
-                                                            href="/logout",
+                                                            href="/login",  # Changed from /logout to /login
                                                             className="navbar-nav-link",
                                                             title="Logout"
                                                         ),
                                                     ],
                                                     className="d-flex align-items-center",
-                                                    style={"gap": "0.75rem"}
+                                                    style={"gap": "1rem"}  # Increased from 0.75rem
                                                 ),
 
                                                 # Language Toggle
@@ -180,8 +182,8 @@ def create_navbar_layout():
                                                         html.Span(" | ", className="text-tertiary"),
                                                         html.Span("JP", className="navbar-lang-option"),
                                                     ],
-                                                    className="ml-5 text-xs text-tertiary",
-                                                    style={"cursor": "pointer"},
+                                                    className="text-xs text-tertiary",
+                                                    style={"cursor": "pointer", "marginLeft": "2rem"},  # Increased spacing
                                                     id="language-toggle"
                                                 ),
                                             ],
@@ -253,14 +255,14 @@ def register_navbar_callbacks(app):
         def update_page_context(pathname):
             """Update page context based on current route"""
             page_contexts = {
-                "/": "Dashboard – Tokyo HQ",
+                "/": "Dashboard – Main Operations",
                 "/analytics": "Analytics – Data Intelligence",
                 "/file-upload": "File Upload – Data Management",
                 "/export": "Export – Report Generation",
                 "/settings": "Settings – System Configuration",
-                "/logout": "Logout – Session Management"
+                "/login": "Login – Authentication"
             }
-            return page_contexts.get(pathname, "Tokyo HQ – East Wing")
+            return page_contexts.get(pathname, "Dashboard – Main Operations")
 
     except Exception as e:
         print(f"Error registering navbar callbacks: {e}")

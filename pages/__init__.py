@@ -23,6 +23,13 @@ except ImportError as e:
     logger.warning(f"File upload page not available: {e}")
     _pages['file_upload'] = None
 
+try:
+    from . import login
+    _pages['login'] = login
+except ImportError as e:
+    logger.warning(f"Login page not available: {e}")
+    _pages['login'] = None
+
 
 def get_page_layout(page_name: str) -> Optional[Callable]:
     """Get page layout function safely"""
@@ -49,7 +56,14 @@ def register_page_callbacks(page_name: str, app: Any, container: Any = None) -> 
             return True
         except Exception as e:
             logger.error(f"Failed to register file upload callbacks: {e}")
-    
+
+    elif page_name == 'login' and page_module and hasattr(page_module, 'register_login_callbacks'):
+        try:
+            page_module.register_login_callbacks(app)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to register login callbacks: {e}")
+
     return False
 
 
