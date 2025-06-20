@@ -1,5 +1,6 @@
 """Settings Modal Component"""
 from dash import html, clientside_callback, Input, Output
+import dash
 from typing import Any
 import logging
 
