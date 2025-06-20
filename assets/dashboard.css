@@ -284,3 +284,222 @@ html, body, #root, .dash-app {
 .signal-card-header.signal-low {
   border-left: 4px solid var(--color-success);
 }
+
+/* ========================================
+   NAVBAR PLUGIN STYLES - Grid Layout with Icons
+   ======================================== */
+.navbar__main {
+  background-color: var(--color-primary) !important;
+  border-bottom: 2px solid var(--color-accent);
+  min-height: 70px;
+}
+
+.navbar__container {
+  padding: 0;
+}
+
+.navbar__grid-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  gap: 1rem;
+}
+
+/* Left Column - Logo */
+.navbar__left-column {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 1rem;
+}
+
+.navbar__logo {
+  height: 45px;
+  filter: brightness(1.1);
+  transition: all 0.3s ease;
+}
+
+.navbar__logo-link:hover .navbar__logo {
+  filter: brightness(1.3);
+  transform: translateY(-1px);
+}
+
+/* Center Column - Main Panel Info */
+.navbar__center-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.navbar__main-label {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.025em;
+}
+
+.navbar__status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.navbar__user-info {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.navbar__live-time {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-indicator {
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Right Column - Navigation Icons */
+.navbar__right-column {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1rem;
+}
+
+.navbar__icons-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-right: 1rem;
+}
+
+.navbar__nav-link {
+  display: inline-block;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.navbar__icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0.9);
+  transition: all 0.3s ease;
+}
+
+.navbar__nav-link:hover {
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.navbar__nav-link:hover .navbar__icon {
+  filter: brightness(1.25) saturate(1.2);
+  transform: scale(1.1);
+}
+
+/* Language Toggle */
+.navbar__language-toggle {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.3s ease;
+}
+
+.navbar__language-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.navbar__lang-option {
+  transition: color 0.3s ease;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.navbar__lang-option:hover {
+  color: var(--color-accent);
+}
+
+.navbar__lang-active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.navbar__lang-separator {
+  color: #4A5568;
+  margin: 0 0.25rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .navbar__grid-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .navbar__left-column,
+  .navbar__center-column,
+  .navbar__right-column {
+    justify-content: center;
+    padding: 0.5rem;
+  }
+  
+  .navbar__icons-container {
+    gap: 1rem;
+    margin-right: 0;
+  }
+  
+  .navbar__icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .navbar__main-label {
+    font-size: 0.8rem;
+  }
+  
+  .navbar__user-info,
+  .navbar__live-time {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar__icons-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .navbar__language-toggle {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Fallback styles */
+.navbar__fallback {
+  background-color: var(--color-critical);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  font-weight: bold;
+}
