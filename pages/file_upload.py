@@ -124,7 +124,6 @@ def register_file_upload_callbacks(app, container=None):
                 html.Div(),
             )
 
-        # Ensure inputs are lists
         if isinstance(contents_list, str):
             contents_list = [contents_list]
         if isinstance(filename_list, str):
@@ -135,14 +134,11 @@ def register_file_upload_callbacks(app, container=None):
         all_data = []
         management_components = []
 
-        # Process each uploaded file
         for i, (contents, filename) in enumerate(zip(contents_list, filename_list)):
             try:
-                # Process file content
                 processed_data = FileProcessor.process_file_content(contents, filename)
 
                 if processed_data is not None:
-                    # Validate the dataframe
                     is_valid, message, suggestions = FileProcessor.validate_dataframe(
                         processed_data
                     )
@@ -150,53 +146,85 @@ def register_file_upload_callbacks(app, container=None):
                     if is_valid:
                         file_id = f"file_{i}_{filename}"
 
-                        # Success status
-                        upload_status.append(_create_success_alert(
-                            f"\u2705 {filename} uploaded successfully ({len(processed_data)} rows, {len(processed_data.columns)} columns)"
-                        ))
+                        upload_status.append(
+                            _create_success_alert(
+                                f"✅ {filename} uploaded successfully ({len(processed_data)} rows, {len(processed_data.columns)} columns)"
+                            )
+                        )
 
-                        # Detailed file info
                         file_info.append(_create_file_info_card(processed_data, filename))
 
-                        # Store data
-                        all_data.append({
-                            "id": file_id,
-                            "filename": filename,
-                            "data": processed_data.to_dict("records"),
-                            "shape": processed_data.shape,
-                            "columns": list(processed_data.columns),
-                            "dtypes": processed_data.dtypes.to_dict(),
-                        })
+                        try:
+                            data_records = []
+                            for record in processed_data.to_dict('records'):
+                                clean_record = {}
+                                for key, value in record.items():
+                                    if hasattr(value, 'item'):
+                                        clean_record[str(key)] = value.item()
+                                    elif value is None or isinstance(value, (str, int, float, bool)):
+                                        clean_record[str(key)] = value
+                                    else:
+                                        clean_record[str(key)] = str(value)
+                                data_records.append(clean_record)
 
-                        # Management components
-                        management_components.append(_create_file_management_card(
-                            file_id, filename, processed_data
-                        ))
+                            dtypes_clean = {str(col): str(dtype) for col, dtype in processed_data.dtypes.items()}
+
+                            file_data = {
+                                'id': str(file_id),
+                                'filename': str(filename),
+                                'data': data_records,
+                                'shape': [int(processed_data.shape[0]), int(processed_data.shape[1])],
+                                'columns': [str(col) for col in processed_data.columns],
+                                'dtypes': dtypes_clean,
+                                'memory_usage': int(processed_data.memory_usage(deep=True).sum()),
+                                'null_count': int(processed_data.isnull().sum().sum()),
+                                'upload_timestamp': str(pd.Timestamp.now()),
+                            }
+
+                            all_data.append(file_data)
+
+                        except Exception as e:
+                            logger.error(f"Error converting data for {filename}: {e}")
+                            all_data.append({
+                                'id': str(file_id),
+                                'filename': str(filename),
+                                'error': f"Data conversion error: {str(e)}",
+                                'shape': [int(processed_data.shape[0]), int(processed_data.shape[1])],
+                                'columns': [str(col) for col in processed_data.columns],
+                            })
+
+                        management_components.append(
+                            _create_file_management_card(file_id, filename, processed_data)
+                        )
 
                     else:
-                        upload_status.append(_create_warning_alert(
-                            f"\u26A0\uFE0F {filename}: {message}"
-                        ))
+                        upload_status.append(_create_warning_alert(f"⚠️ {filename}: {message}"))
                         if suggestions:
-                            upload_status.append(_create_info_alert(
-                                f"\U0001F4A1 Suggestions: {', '.join(suggestions)}"
-                            ))
+                            upload_status.append(
+                                _create_info_alert(f"💡 Suggestions: {', '.join(suggestions)}")
+                            )
                 else:
-                    upload_status.append(_create_error_alert(
-                        f"\u274C Failed to process {filename}"
-                    ))
+                    upload_status.append(_create_error_alert(f"❌ Failed to process {filename}"))
 
             except Exception as e:
-                upload_status.append(_create_error_alert(
-                    f"\u274C Error processing {filename}: {str(e)}"
-                ))
+                logger.error(f"Error processing file {filename}: {e}")
+                upload_status.append(_create_error_alert(f"❌ Error processing {filename}: {str(e)}"))
 
-        return (
-            html.Div(upload_status),
-            {"files": all_data},
-            html.Div(file_info),
-            html.Div(management_components) if management_components else html.Div()
-        )
+        try:
+            return (
+                html.Div(upload_status),
+                {'files': all_data},
+                html.Div(file_info),
+                html.Div(management_components) if management_components else html.Div(),
+            )
+        except Exception as e:
+            logger.error(f"Error in callback return: {e}")
+            return (
+                html.Div([_create_error_alert(f"Callback error: {str(e)}")]),
+                {'files': [], 'error': str(e)},
+                html.Div(),
+                html.Div(),
+            )
 
 
 def _create_success_alert(message: str) -> dbc.Alert:
@@ -237,29 +265,64 @@ def _create_info_alert(message: str) -> dbc.Alert:
 
 def _create_file_info_card(df, filename: str) -> dbc.Card:
     """Create detailed file information card"""
-    return dbc.Card([
-        dbc.CardHeader([
-            html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
-        ]),
-        dbc.CardBody([
-            dbc.Row([
-                dbc.Col([
-                    html.P(f"Rows: {len(df)}", className="mb-1"),
-                    html.P(f"Columns: {len(df.columns)}", className="mb-1"),
-                ], width=6),
-                dbc.Col([
-                    html.P(f"Memory: {format_file_size(df.memory_usage(deep=True).sum())}", className="mb-1"),
-                    html.P(f"Null values: {df.isnull().sum().sum()}", className="mb-1"),
-                ], width=6),
+    try:
+        # Convert to basic Python types
+        memory_usage = int(df.memory_usage(deep=True).sum())
+        null_count = int(df.isnull().sum().sum())
+        
+        return dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
             ]),
-            html.Hr(),
-            html.H6("Column Types:", className="mt-2"),
-            html.Div([
-                dbc.Badge(f"{safe_text(col)}: {safe_text(dtype)}", color="secondary", className="me-1 mb-1")
-                for col, dtype in df.dtypes.items()
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.P(f"Rows: {len(df)}", className="mb-1"),
+                        html.P(f"Columns: {len(df.columns)}", className="mb-1"),
+                    ], width=6),
+                    dbc.Col([
+                        html.P(f"Memory: {format_file_size(memory_usage)}", className="mb-1"),
+                        html.P(f"Null values: {null_count}", className="mb-1"),
+                    ], width=6),
+                ]),
+                html.Hr(),
+                html.H6("Column Types:", className="mt-2"),
+                html.Div([
+                    dbc.Badge(
+                        f"{safe_text(str(col))}: {safe_text(str(dtype))}", 
+                        color="secondary", 
+                        className="me-1 mb-1"
+                    )
+                    for col, dtype in df.dtypes.items()
+                ]),
+                html.Hr(),
+                html.H6("Sample Data:", className="mt-2"),
+                html.Div([
+                    html.Pre(
+                        str(df.head(3).to_string(max_cols=5)),
+                        style={
+                            "background-color": "#f8f9fa",
+                            "padding": "10px",
+                            "border-radius": "5px",
+                            "font-size": "12px",
+                            "max-height": "200px",
+                            "overflow": "auto"
+                        }
+                    )
+                ])
+            ])
+        ], className="mb-3")
+        
+    except Exception as e:
+        logger.error(f"Error creating file info card: {e}")
+        return dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
             ]),
-        ])
-    ], className="mb-3")
+            dbc.CardBody([
+                html.P(f"Error displaying file info: {str(e)}", className="text-danger")
+            ])
+        ], className="mb-3")
 
 
 def _create_file_management_card(file_id: str, filename: str, df) -> dbc.Card:
