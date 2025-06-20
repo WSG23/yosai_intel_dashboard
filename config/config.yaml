@@ -38,3 +38,16 @@ plugins:
     compress_large_objects: true
     fallback_to_repr: true
     auto_wrap_callbacks: true
+
+  navbar:
+    enabled: true
+navbar:
+  location_name: "Tokyo HQ"
+  zone_name: "East Wing"
+  user_info: "HQ Tower – East Wing"
+  logo_path: "/assets/yosai_logo_name_white.png"
+  logo_height: "45px"
+  enable_language_toggle: true
+  enable_live_time: true
+  icons_base_path: "/assets/navbar_icons"
+
