@@ -66,14 +66,13 @@ def create_navbar_layout():
                                                 html.Div(
                                                     id="facility-header",
                                                     children="HQ Tower – East Wing",
-                                                    className="navbar-title text-center text-primary",
-                                                    style={"color": "var(--color-text-primary)"}
+                                                    className="navbar-title text-center",
+                                                    style={"color": "var(--color-text-secondary)"}
                                                 ),
                                                 html.Div(
                                                     id="page-context",
                                                     children="Dashboard – Main Operations",
-                                                    className="text-center text-sm font-weight-bold",
-                                                    style={"color": "var(--color-text-primary)"}
+                                                    className="navbar-subtitle text-center",
                                                 ),
                                                 html.Div(
                                                     [
@@ -83,16 +82,16 @@ def create_navbar_layout():
                                                         ),
                                                         html.Span(
                                                             "🟢",
-                                                            className="ml-4",
+                                                            className="ml-2",
                                                             style={"fontSize": "0.75rem"}
                                                         ),
                                                         html.Span(
                                                             id="live-time",
                                                             children="Live: 2025-06-20 09:55:54",
-                                                            className="ml-3 text-xs text-tertiary"
+                                                            className="ml-2 text-xs text-tertiary"
                                                         )
                                                     ],
-                                                    className="d-flex align-items-center justify-content-center mt-1",
+                                                    className="d-inline-flex align-items-center justify-content-center mt-1",
                                                 )
                                             ],
                                             className="text-center",
@@ -178,12 +177,12 @@ def create_navbar_layout():
                                                 # Language Toggle
                                                 html.Div(
                                                     [
-                                                        html.Span("EN", className="navbar-lang-active"),
-                                                        html.Span(" | ", className="text-tertiary"),
-                                                        html.Span("JP", className="navbar-lang-option"),
+                                                        html.Button("EN", className="language-btn active"),
+                                                        html.Span("|", className="mx-1"),
+                                                        html.Button("JP", className="language-btn"),
                                                     ],
-                                                    className="text-xs text-tertiary",
-                                                    style={"cursor": "pointer", "marginLeft": "2rem"},  # Increased spacing
+                                                    className="d-flex align-items-center text-sm",
+                                                    style={"marginLeft": "2rem"},
                                                     id="language-toggle"
                                                 ),
                                             ],
@@ -237,15 +236,15 @@ def register_navbar_callbacks(app):
             """Toggle between EN and JP languages"""
             if n_clicks and n_clicks % 2 == 1:
                 return [
-                    html.Span("EN", className="navbar-lang-option"),
-                    html.Span(" | ", className="text-tertiary"),
-                    html.Span("JP", className="navbar-lang-active"),
+                    html.Button("EN", className="language-btn"),
+                    html.Span("|", className="mx-1"),
+                    html.Button("JP", className="language-btn active"),
                 ]
             else:
                 return [
-                    html.Span("EN", className="navbar-lang-active"),
-                    html.Span(" | ", className="text-tertiary"),
-                    html.Span("JP", className="navbar-lang-option"),
+                    html.Button("EN", className="language-btn active"),
+                    html.Span("|", className="mx-1"),
+                    html.Button("JP", className="language-btn"),
                 ]
 
         @app.callback(

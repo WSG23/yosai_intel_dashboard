@@ -292,11 +292,18 @@ html, body, #root, .dash-app {
 }
 
 .navbar-icon {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;  /* Added to prevent squishing */
+  width: 24px;
+  height: auto; /* preserve natural aspect */
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
   filter: brightness(0.9);
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.navbar-icon:hover {
+  opacity: 0.8;
+  filter: brightness(1.2);
+  cursor: pointer;
 }
 
 .navbar-nav-link {
@@ -314,26 +321,32 @@ html, body, #root, .dash-app {
   transform: scale(1.05);  /* Reduced from 1.1 to prevent distortion */
 }
 
-.navbar-lang-option {
+.language-btn {
+  background: none;
+  border: none;
   color: var(--color-text-tertiary);
+  font-size: 0.875rem;
   cursor: pointer;
+  padding: 0;
   transition: color 0.3s ease;
 }
 
-.navbar-lang-option:hover {
+.language-btn:hover {
+  text-decoration: underline;
   color: var(--color-accent);
 }
 
-.navbar-lang-active {
-  color: var(--color-accent) !important;
+.language-btn.active {
+  color: var(--color-accent);
   font-weight: bold;
 }
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .navbar-icon {
-    width: 56px;
-    height: 56px;
-    object-fit: contain;  /* Added to prevent squishing */
+    width: 32px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
   }
 }
