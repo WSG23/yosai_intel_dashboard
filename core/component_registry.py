@@ -15,7 +15,7 @@ class ComponentRegistry:
 
     def _load_all_components(self) -> None:
         """Load all components with error handling"""
-        # Load your actual components with fallbacks
+        # Load components from specific files
         self._components["navbar"] = self._safe_import_component(
             "dashboard.layout.navbar", "create_navbar_layout"
         )
