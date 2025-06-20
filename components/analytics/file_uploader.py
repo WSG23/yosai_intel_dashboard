@@ -43,6 +43,8 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
                                 html.P("✅ Excel files (.xlsx, .xls)")
                             ], className="upload-supported-types")
                         ]),
+
+
                         multiple=True,
                         accept='.csv,.json,.xlsx,.xls,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
                     ),
