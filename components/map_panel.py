@@ -1,7 +1,3 @@
-# pyright: reportArgumentType=false
-
-# yosai_intel_dashboard/components/map_panel.py
-
 import dash_leaflet as dl
 from dash_leaflet import Marker, TileLayer, Tooltip, Popup, ScaleControl, ZoomControl
 from dash import html, dcc, Output, Input, callback_context, no_update
@@ -70,9 +66,10 @@ layout = html.Div(
     style={"width": "100%", "height": "100%", "backgroundColor": "#121212"},
 )
 
+# JSON SANITIZATION - Convert LazyString objects to regular strings
+layout = sanitize_lazystring_recursive(layout)
+
 # Register callbacks
-
-
 def register_callbacks(app):
     if not hasattr(app, "_callback_registered_map_center"):
         app._callback_registered_map_center = True
@@ -93,7 +90,4 @@ def register_callbacks(app):
             if not ctx.triggered:
                 return no_update
             button_id = ctx.triggered[0]["prop_id"].split(".")[0]
-            return view_centers.get(button_id.split("-")[-1], view_centers["site"]) 
-
-# Convert any LazyString objects to regular strings for safe serialization
-layout = sanitize_lazystring_recursive(layout)
+            return view_centers.get(button_id.split("-")[-1], view_centers["site"])

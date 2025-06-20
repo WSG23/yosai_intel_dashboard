@@ -1,5 +1,3 @@
-# yosai_intel_dashboard/components/incident_alerts_panel.py
-
 from dash import html, dcc, callback, Output, Input, State
 import dash_bootstrap_components as dbc
 from flask_babel import lazy_gettext as _l
@@ -27,11 +25,8 @@ TICKET_CATEGORIES = [
     {"label": _l("Dismissed Tickets"), "color": "light", "id": "ticket-dismissed"},
 ]
 
-
 # Sample ticket card layout
-def ticket_card(
-    ticket_id, threat_score, location, timestamp, area, device, group, result
-):
+def ticket_card(ticket_id, threat_score, location, timestamp, area, device, group, result):
     return dbc.Card(
         [
             dbc.CardHeader(f"Event ID: {ticket_id}", className="ticket-id"),
@@ -39,15 +34,12 @@ def ticket_card(
                 [
                     html.Div(
                         [
-                            html.Div(
-                                _l("Threat Level:"), className="ticket-threat-label"
-                            ),
+                            html.Div(_l("Threat Level:"), className="ticket-threat-label"),
                             dbc.Progress(
                                 value=threat_score,
                                 max=100,
                                 color=(
-                                    "success"
-                                    if threat_score <= 40
+                                    "success" if threat_score <= 40
                                     else "warning" if threat_score <= 70 else "danger"
                                 ),
                                 striped=True,
@@ -59,12 +51,8 @@ def ticket_card(
                     html.Hr(),
                     html.Div(
                         [
-                            html.P(
-                                _l("Location: {location}").format(location=location)
-                            ),
-                            html.P(
-                                _l("Timestamp: {timestamp}").format(timestamp=timestamp)
-                            ),
+                            html.P(_l("Location: {location}").format(location=location)),
+                            html.P(_l("Timestamp: {timestamp}").format(timestamp=timestamp)),
                             html.P(_l("Area: {area}").format(area=area)),
                             html.P(_l("Device: {device}").format(device=device)),
                             html.P(_l("Access Group: {group}").format(group=group)),
@@ -76,7 +64,6 @@ def ticket_card(
         ],
         className="ticket-card",
     )
-
 
 # Category section with sample tickets
 def ticket_category_block(cat):
@@ -112,7 +99,7 @@ def ticket_category_block(cat):
         item_id=cat["id"],
     )
 
-
+# Create the main layout
 layout = html.Div(
     [
         html.H4(_l("Incident Alerts"), className="incident-panel-header"),
@@ -126,5 +113,5 @@ layout = html.Div(
     className="incident-alert-panel",
 )
 
-# Sanitize layout to ensure LazyString objects are converted to plain strings
+# JSON SANITIZATION - Convert LazyString objects to regular strings
 layout = sanitize_lazystring_recursive(layout)
