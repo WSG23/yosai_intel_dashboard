@@ -5,6 +5,13 @@ Focuses purely on data analysis and visualization
 from typing import Optional, Dict, Any, List
 import logging
 
+# Define safe_text directly to avoid import issues
+def safe_text(text):
+    """Return text safely, handling any objects"""
+    if text is None:
+        return ""
+    return str(text)
+
 # Safe imports with fallbacks
 try:
     from dash import html, dcc, Input, Output, State, callback
@@ -21,7 +28,6 @@ try:
         create_data_preview,
         AnalyticsGenerator
     )
-    from utils.safe_callbacks import safe_text
     ANALYTICS_COMPONENTS_AVAILABLE = True
 except ImportError:
     ANALYTICS_COMPONENTS_AVAILABLE = False
@@ -75,7 +81,7 @@ def layout():
                                         {"label": "Sample Data", "value": "sample"},
                                         {"label": "Database", "value": "database"},
                                     ],
-                                    value="uploaded",
+                                    value="sample",  # Default to sample since uploaded might not be available
                                     placeholder="Choose data source..."
                                 )
                             ], width=6),
@@ -438,7 +444,7 @@ def _create_no_data_message(data_source):
     """Create no data available message"""
     return dbc.Alert([
         html.I(className="fas fa-info-circle me-2"),
-        f"No data available from source: {data_source}",
+        f"No data available from source: {safe_text(data_source)}",
         html.Hr(),
         html.P("Please upload files using the File Upload page or select a different data source.", className="mb-0")
     ], color="info")
@@ -448,7 +454,7 @@ def _create_error_display(error_message):
     """Create error display"""
     return dbc.Alert([
         html.I(className="fas fa-exclamation-triangle me-2"),
-        f"Error generating analytics: {error_message}"
+        f"Error generating analytics: {safe_text(error_message)}"
     ], color="danger")
 
 
