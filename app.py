@@ -84,6 +84,10 @@ def create_full_dashboard() -> Optional[Any]:
         from core.layout_manager import LayoutManager
         from core.callback_manager import CallbackManager
         from core.container import Container
+        from components.settings_modal import (
+            create_settings_modal,
+            register_settings_modal_callbacks,
+        )
 
         # Create container for dependency injection
         container = Container()
@@ -94,10 +98,17 @@ def create_full_dashboard() -> Optional[Any]:
         callback_manager = CallbackManager(app, component_registry, layout_manager, container)
 
         # Step 4: Create main layout using your layout manager
-        app.layout = layout_manager.create_main_layout()
+        main_layout = layout_manager.create_main_layout()
+
+        if hasattr(main_layout, "children") and isinstance(main_layout.children, list):
+            # Insert settings modal after navbar
+            main_layout.children.insert(2, create_settings_modal())
+
+        app.layout = main_layout
 
         # Step 5: Register all callbacks using your callback manager
         callback_manager.register_all_callbacks()
+        register_settings_modal_callbacks(app)
 
         # Store references in app
         app._yosai_json_plugin = json_plugin

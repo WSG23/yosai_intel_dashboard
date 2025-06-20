@@ -149,15 +149,21 @@ def create_navbar_layout():
                                                             className="navbar-nav-link",
                                                             title="Export"
                                                         ),
-                                                        html.A(
+                                                        html.Button(
                                                             html.Img(
-                                                                src="/assets/navbar_icons/settings.png",  # Changed from setting.png to settings.png
+                                                                src="/assets/navbar_icons/settings.png",
                                                                 className="navbar-icon",
                                                                 alt="Settings"
                                                             ),
-                                                            href="/settings",
+                                                            id="navbar-settings-btn",
                                                             className="navbar-nav-link",
-                                                            title="Settings"
+                                                            title="Settings",
+                                                            style={
+                                                                "background": "none",
+                                                                "border": "none",
+                                                                "padding": "0",
+                                                                "cursor": "pointer",
+                                                            },
                                                         ),
                                                         html.A(
                                                             html.Img(
