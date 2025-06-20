@@ -34,7 +34,7 @@ class ModularityValidator:
             'services/': ['__init__.py', 'analytics_service.py'],
             'components/': ['__init__.py', 'navbar.py'],
             'components/analytics/': ['__init__.py', 'file_uploader.py', 'data_preview.py', 'analytics_charts.py'],
-            'pages/': ['__init__.py', 'deep_analytics.py'],
+            'pages/': ['__init__.py', 'deep_analytics.py', 'file_upload.py'],
             'utils/': ['__init__.py'],
             'assets/css/': ['main.css'],
             '.': ['app.py', 'requirements.txt']
@@ -65,7 +65,8 @@ class ModularityValidator:
             'services.analytics_service',
             'components.navbar',
             'components.analytics',
-            'pages.deep_analytics'
+            'pages.deep_analytics',
+            'pages.file_upload'
         ]
         
         import_results = {}

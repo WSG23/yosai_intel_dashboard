@@ -1,286 +1,455 @@
 """
-Deep Analytics page with safe text handling
-UPDATED: Removed babel dependency, uses safe text functions
+Deep Analytics Page - Analytics Only (Upload functionality removed)
+Focuses purely on data analysis and visualization
 """
-
-import pandas as pd
-from dash import html, dcc, callback, Output, Input, State, no_update
-import dash_bootstrap_components as dbc
-from typing import List, Dict, Any, Optional, Tuple, Union
+from typing import Optional, Dict, Any, List
 import logging
 
-logger = logging.getLogger(__name__)
+# Safe imports with fallbacks
+try:
+    from dash import html, dcc, Input, Output, State, callback
+    import dash_bootstrap_components as dbc
+    DASH_AVAILABLE = True
+except ImportError:
+    DASH_AVAILABLE = False
+    html = dcc = dbc = None
 
-# Safe text function that works without babel
-def safe_text(text: str) -> str:
-    """Return text safely, handling any babel objects"""
-    return str(text)
-
-# Import the modular analytics components with safe fallbacks
 try:
     from components.analytics import (
-        create_file_uploader,
-        create_data_preview,
         create_analytics_charts,
         create_summary_cards,
-        FileProcessor,
-        AnalyticsGenerator,
+        create_data_preview,
+        AnalyticsGenerator
     )
-
+    from utils.safe_callbacks import safe_text
     ANALYTICS_COMPONENTS_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Analytics components not fully available: {e}")
+except ImportError:
     ANALYTICS_COMPONENTS_AVAILABLE = False
-
-    # Create fallback functions
-    def create_file_uploader(*args, **kwargs):
-        return html.Div(safe_text("File uploader not available"))
-
-    def create_data_preview(*args, **kwargs):
-        return html.Div(safe_text("Data preview not available"))
-
-    def create_analytics_charts(*args, **kwargs):
-        return html.Div(safe_text("Charts not available"))
-
-    def create_summary_cards(*args, **kwargs):
-        return html.Div(safe_text("Summary cards not available"))
-
-    class FallbackFileProcessor:
-        @staticmethod
-        def process_file_content(contents, filename):
-            return None
-
-        @staticmethod
-        def validate_dataframe(df):
-            return False, "FileProcessor not available", []
-
+    
+    # Fallback analytics generator
     class FallbackAnalyticsGenerator:
         @staticmethod
         def generate_analytics(df):
             return {}
-
-# Assign fallback classes to main names if analytics components are unavailable
-if not ANALYTICS_COMPONENTS_AVAILABLE:
-    FileProcessor = FallbackFileProcessor
+    
     AnalyticsGenerator = FallbackAnalyticsGenerator
+
+logger = logging.getLogger(__name__)
 
 
 def layout():
-    """Deep Analytics page layout"""
-    return dbc.Container(
-        [
-            # Page header
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H1(
-                                safe_text("🔍 Deep Analytics"), className="text-primary mb-0"
-                            ),
-                            html.P(
-                                safe_text(
-                                    "Advanced data analysis and visualization for security intelligence"
-                                ),
-                                className="text-secondary mb-4",
-                            ),
-                        ]
-                    )
-                ]
-            ),
-            # File upload section
-            dbc.Row([dbc.Col([create_file_uploader("analytics-file-upload")])]),
-            # Data storage for uploaded files
-            dcc.Store(id="uploaded-data-store", data={}),
-            # Results section
-            html.Div(id="analytics-results", children=[]),
-        ],
-        fluid=True,
-        className="p-4",
-    )
+    """Deep Analytics page layout - Analytics focused"""
+    if not DASH_AVAILABLE:
+        return "Deep Analytics page not available - Dash components missing"
+    
+    return dbc.Container([
+        # Page header
+        dbc.Row([
+            dbc.Col([
+                html.H1(
+                    safe_text("\U0001F50D Deep Analytics"), 
+                    className="text-primary mb-0"
+                ),
+                html.P(
+                    safe_text("Advanced data analysis and visualization for security intelligence"),
+                    className="text-secondary mb-4",
+                ),
+            ])
+        ]),
+        
+        # Data source selection
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("\U0001F4CA Data Source Selection", className="mb-0")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Select Data Source:"),
+                                dcc.Dropdown(
+                                    id="analytics-data-source",
+                                    options=[
+                                        {"label": "Uploaded Files", "value": "uploaded"},
+                                        {"label": "Sample Data", "value": "sample"},
+                                        {"label": "Database", "value": "database"},
+                                    ],
+                                    value="uploaded",
+                                    placeholder="Choose data source..."
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Label("Analysis Type:"),
+                                dcc.Dropdown(
+                                    id="analytics-type",
+                                    options=[
+                                        {"label": "Security Patterns", "value": "security"},
+                                        {"label": "Access Trends", "value": "trends"},
+                                        {"label": "User Behavior", "value": "behavior"},
+                                        {"label": "Custom Analysis", "value": "custom"},
+                                    ],
+                                    value="security",
+                                    placeholder="Select analysis type..."
+                                )
+                            ], width=6),
+                        ]),
+                        html.Hr(),
+                        dbc.Button(
+                            "Generate Analytics", 
+                            id="generate-analytics-btn",
+                            color="primary",
+                            className="mt-2"
+                        )
+                    ])
+                ])
+            ])
+        ]),
+        
+        # Analytics display area
+        html.Div(id="analytics-display-area", className="mt-4"),
+        
+        # Data stores
+        dcc.Store(id="analytics-config-store", data={}),
+        dcc.Store(id="analytics-results-store", data={}),
+        
+    ], fluid=True, className="p-4")
 
 
 def register_analytics_callbacks(app, container=None):
-    """Register analytics page callbacks with DI container"""
-
-    if not ANALYTICS_COMPONENTS_AVAILABLE:
-        print("Warning: Analytics callbacks not registered - components not available")
+    """Register deep analytics callbacks"""
+    if not DASH_AVAILABLE:
+        logger.warning("Analytics callbacks not registered - Dash not available")
         return
 
     @app.callback(
         [
-            Output("upload-status", "children"),
-            Output("uploaded-data-store", "data"),
-            Output("analytics-results", "children"),
+            Output("analytics-display-area", "children"),
+            Output("analytics-results-store", "data"),
         ],
-        Input("analytics-file-upload", "contents"),
-        State("analytics-file-upload", "filename"),
+        [
+            Input("generate-analytics-btn", "n_clicks"),
+        ],
+        [
+            State("analytics-data-source", "value"),
+            State("analytics-type", "value"),
+        ],
         prevent_initial_call=True,
     )
-    def process_uploaded_files(
-        contents_list: Optional[Union[str, List[str]]],
-        filename_list: Optional[Union[str, List[str]]],
-    ) -> Tuple[html.Div, Dict[str, Any], html.Div]:
-        """Process uploaded files and generate analytics"""
+    def generate_analytics_display(
+        n_clicks: Optional[int],
+        data_source: str,
+        analysis_type: str,
+    ):
+        """Generate and display analytics based on selected parameters"""
         
-        if not contents_list:
-            return (
-                html.Div(),
-                {},
-                html.Div(),
-            )
+        if not n_clicks:
+            return html.Div(), {}
+        
+        try:
+            # Get data based on source
+            df = _get_data_from_source(data_source, container)
+            
+            if df is None or df.empty:
+                return _create_no_data_message(data_source), {}
+            
+            # Generate analytics
+            analytics_results = _generate_analytics_by_type(df, analysis_type)
+            
+            # Create display components
+            display_components = _create_analytics_display(analytics_results, analysis_type)
+            
+            return display_components, analytics_results
+            
+        except Exception as e:
+            logger.error(f"Error generating analytics: {e}")
+            return _create_error_display(str(e)), {}
 
-        # Ensure inputs are lists
-        if isinstance(contents_list, str):
-            contents_list = [contents_list]
-        if isinstance(filename_list, str):
-            filename_list = [filename_list]
-
-        upload_status = []
-        all_data = []
-        errors = []
-
-        # Process each uploaded file
-        for contents, filename in zip(contents_list, filename_list):
-            try:
-                # Process file content
-                processed_data = FileProcessor.process_file_content(contents, filename)
-                
-                if processed_data is not None:
-                    # Validate the dataframe
-                    is_valid, message, suggestions = FileProcessor.validate_dataframe(
-                        processed_data
-                    )
-                    
-                    if is_valid:
-                        upload_status.append(_create_success_alert(
-                            safe_text(f"✅ {filename} uploaded successfully ({len(processed_data)} rows)")
-                        ))
-                        all_data.append({
-                            "filename": filename,
-                            "data": processed_data.to_dict("records"),
-                            "shape": processed_data.shape,
-                        })
-                    else:
-                        upload_status.append(_create_warning_alert(
-                            safe_text(f"⚠️ {filename}: {message}")
-                        ))
-                        errors.append(f"{filename}: {message}")
-                else:
-                    upload_status.append(_create_error_alert(
-                        safe_text(f"❌ Failed to process {filename}")
-                    ))
-                    errors.append(f"Failed to process {filename}")
-                    
-            except Exception as e:
-                error_msg = safe_text(f"❌ Error processing {filename}: {str(e)}")
-                upload_status.append(_create_error_alert(error_msg))
-                errors.append(error_msg)
-
-        # Generate analytics if we have valid data
-        analytics_results = html.Div()
-        if all_data:
-            try:
-                # Combine all uploaded data
-                combined_df = _combine_uploaded_data(all_data)
-                
-                if not combined_df.empty:
-                    # Generate analytics using the service if available
-                    analytics_service = container.get('analytics_service') if container else None
-                    analytics_data = _generate_analytics_with_service(
-                        combined_df, analytics_service, len(all_data)
-                    )
-                    
-                    # Create analytics display components
-                    analytics_results = html.Div([
-                        html.Hr(),
-                        html.H3(safe_text("📊 Analytics Results"), className="text-primary"),
-                        create_summary_cards(analytics_data, combined_df),
-                        create_data_preview(combined_df),
-                        create_analytics_charts(analytics_data, combined_df),
-                    ])
-                    
-            except Exception as e:
-                analytics_results = _create_error_alert(
-                    safe_text(f"Error generating analytics: {str(e)}")
-                )
-
-        return (
-            html.Div(upload_status),
-            {"files": all_data, "errors": errors},
-            analytics_results,
-        )
+    @app.callback(
+        Output("analytics-data-source", "options"),
+        Input("analytics-data-source", "id"),
+        prevent_initial_call=False,
+    )
+    def update_data_source_options(component_id):
+        """Update available data sources dynamically"""
+        options = [
+            {"label": "Sample Data", "value": "sample"},
+        ]
+        
+        # Check for uploaded files (this would connect to file upload page)
+        # This is where you'd check the file upload store if needed
+        
+        # Check for database connection
+        if container and _has_database_connection(container):
+            options.append({"label": "Database", "value": "database"})
+        
+        return options
 
 
-def _generate_analytics_with_service(
-    combined_df: pd.DataFrame, 
-    analytics_service: Optional[Any], 
-    num_files: int
-) -> Dict[str, Any]:
-    """Generate analytics using injected service or fallback"""
+def _get_data_from_source(source: str, container=None):
+    """Get data from the specified source"""
+    import pandas as pd
     
-    if analytics_service is not None:
-        try:
-            analytics_data = analytics_service.process_uploaded_file(
-                combined_df, f"Combined Data ({num_files} files)"
-            )
-            if analytics_data.get("success", False):
-                return analytics_data["analytics"]
-            return {}
-        except Exception as e:
-            print(f"Error using injected analytics service: {e}")
-            return AnalyticsGenerator.generate_analytics(combined_df)
-
-    return AnalyticsGenerator.generate_analytics(combined_df)
+    if source == "sample":
+        return _generate_sample_data()
+    elif source == "uploaded":
+        # This would interface with the file upload page data
+        return _get_uploaded_data()
+    elif source == "database":
+        return _get_database_data(container)
+    else:
+        return None
 
 
-def _combine_uploaded_data(all_data: List[Dict[str, Any]]) -> pd.DataFrame:
-    """Combine multiple uploaded files into a single DataFrame"""
-    combined_df = pd.DataFrame()
-
-    for file_data in all_data:
-        try:
-            file_df = pd.DataFrame(file_data["data"])
-            combined_df = pd.concat(
-                [combined_df, file_df], ignore_index=True, sort=False
-            )
-        except Exception as e:
-            print(
-                f"Error combining data from {file_data.get('filename', 'unknown')}: {e}"
-            )
-            continue
-
-    return combined_df
-
-
-def _create_success_alert(message: str) -> html.Div:
-    """Create a success alert message"""
-    alert = dbc.Alert(
-        [html.I(className="fas fa-check-circle me-2"), message],
-        color="success",
-        className="mb-2",
-    )
-    return html.Div(alert)
+def _generate_sample_data():
+    """Generate sample security data for analytics"""
+    import pandas as pd
+    from datetime import datetime, timedelta
+    import random
+    
+    # Generate sample access data
+    data = []
+    base_time = datetime.now() - timedelta(days=30)
+    
+    users = [f"EMP{i:03d}" for i in range(1, 51)]
+    doors = ["MAIN_ENTRANCE", "SERVER_ROOM", "LAB_A", "LAB_B", "EXECUTIVE", "STORAGE"]
+    results = ["Granted", "Denied"]
+    
+    for i in range(1000):
+        data.append({
+            "timestamp": base_time + timedelta(minutes=random.randint(0, 43200)),
+            "person_id": random.choice(users),
+            "door_id": random.choice(doors),
+            "access_result": random.choice(results),
+            "badge_id": f"BADGE_{random.randint(1000, 9999)}",
+        })
+    
+    return pd.DataFrame(data)
 
 
-def _create_warning_alert(message: str) -> html.Div:
-    """Create a warning alert message"""
-    alert = dbc.Alert(
-        [html.I(className="fas fa-exclamation-triangle me-2"), message],
-        color="warning",
-        className="mb-2",
-    )
-    return html.Div(alert)
+def _get_uploaded_data():
+    """Get data from uploaded files (interface with file upload page)"""
+    # This would need to interface with the file upload page's data store
+    # For now, return None - implement based on your data sharing strategy
+    return None
 
 
-def _create_error_alert(message: str) -> html.Div:
-    """Create an error alert message"""
-    alert = dbc.Alert(
-        [html.I(className="fas fa-times-circle me-2"), message],
-        color="danger",
-        className="mb-2",
-    )
-    return html.Div(alert)
+def _get_database_data(container):
+    """Get data from database if available"""
+    # Implement database data retrieval if needed
+    return None
 
 
-# Export the layout function and callback registration
+def _has_database_connection(container):
+    """Check if database connection is available"""
+    # Implement database connection check
+    return False
+
+
+def _generate_analytics_by_type(df, analysis_type: str):
+    """Generate analytics based on the specified type"""
+    base_analytics = AnalyticsGenerator.generate_analytics(df)
+    
+    if analysis_type == "security":
+        return _enhance_security_analytics(base_analytics, df)
+    elif analysis_type == "trends":
+        return _enhance_trend_analytics(base_analytics, df)
+    elif analysis_type == "behavior":
+        return _enhance_behavior_analytics(base_analytics, df)
+    elif analysis_type == "custom":
+        return _enhance_custom_analytics(base_analytics, df)
+    
+    return base_analytics
+
+
+def _enhance_security_analytics(base_analytics, df):
+    """Add security-specific analytics"""
+    enhanced = base_analytics.copy()
+    
+    # Add security-specific metrics
+    if not df.empty and 'access_result' in df.columns:
+        enhanced['security_metrics'] = {
+            'failed_attempts': len(df[df['access_result'] == 'Denied']),
+            'success_rate': len(df[df['access_result'] == 'Granted']) / len(df) * 100,
+            'suspicious_patterns': _detect_suspicious_patterns(df)
+        }
+    
+    return enhanced
+
+
+def _enhance_trend_analytics(base_analytics, df):
+    """Add trend-specific analytics"""
+    enhanced = base_analytics.copy()
+    
+    # Add trend analysis
+    if not df.empty and 'timestamp' in df.columns:
+        enhanced['trend_metrics'] = {
+            'daily_patterns': _analyze_daily_patterns(df),
+            'weekly_trends': _analyze_weekly_trends(df),
+            'growth_rate': _calculate_growth_rate(df)
+        }
+    
+    return enhanced
+
+
+def _enhance_behavior_analytics(base_analytics, df):
+    """Add behavior-specific analytics"""
+    enhanced = base_analytics.copy()
+    
+    # Add behavioral analysis
+    if not df.empty:
+        enhanced['behavior_metrics'] = {
+            'user_patterns': _analyze_user_patterns(df),
+            'anomaly_detection': _detect_anomalies(df),
+            'clustering_results': _perform_user_clustering(df)
+        }
+    
+    return enhanced
+
+
+def _enhance_custom_analytics(base_analytics, df):
+    """Add custom analytics"""
+    enhanced = base_analytics.copy()
+    enhanced['custom_metrics'] = {
+        'custom_analysis': 'Custom analysis would be implemented here'
+    }
+    return enhanced
+
+
+def _detect_suspicious_patterns(df):
+    """Detect suspicious access patterns"""
+    # Implement suspicious pattern detection
+    return []
+
+
+def _analyze_daily_patterns(df):
+    """Analyze daily access patterns"""
+    # Implement daily pattern analysis
+    return {}
+
+
+def _analyze_weekly_trends(df):
+    """Analyze weekly trends"""
+    # Implement weekly trend analysis
+    return {}
+
+
+def _calculate_growth_rate(df):
+    """Calculate growth rate in access events"""
+    # Implement growth rate calculation
+    return 0
+
+
+def _analyze_user_patterns(df):
+    """Analyze individual user patterns"""
+    # Implement user pattern analysis
+    return {}
+
+
+def _detect_anomalies(df):
+    """Detect anomalous behavior"""
+    # Implement anomaly detection
+    return []
+
+
+def _perform_user_clustering(df):
+    """Perform user clustering analysis"""
+    # Implement user clustering
+    return {}
+
+
+def _create_analytics_display(analytics_results, analysis_type):
+    """Create the analytics display components"""
+    if not ANALYTICS_COMPONENTS_AVAILABLE:
+        return html.Div("Analytics components not available")
+    
+    components = []
+    
+    # Summary cards
+    if analytics_results:
+        components.append(
+            dbc.Row([
+                dbc.Col([
+                    create_summary_cards(analytics_results)
+                ])
+            ], className="mb-4")
+        )
+        
+        # Charts
+        components.append(
+            dbc.Row([
+                dbc.Col([
+                    create_analytics_charts(analytics_results)
+                ])
+            ], className="mb-4")
+        )
+        
+        # Analysis-specific components
+        if analysis_type == "security":
+            components.append(_create_security_analysis_section(analytics_results))
+        elif analysis_type == "trends":
+            components.append(_create_trend_analysis_section(analytics_results))
+        elif analysis_type == "behavior":
+            components.append(_create_behavior_analysis_section(analytics_results))
+    
+    return html.Div(components)
+
+
+def _create_security_analysis_section(analytics_results):
+    """Create security-specific analysis section"""
+    return dbc.Card([
+        dbc.CardHeader([
+            html.H5("\U0001F512 Security Analysis", className="mb-0")
+        ]),
+        dbc.CardBody([
+            html.P("Security-specific analysis would be displayed here"),
+            # Add security-specific visualizations
+        ])
+    ], className="mb-4")
+
+
+def _create_trend_analysis_section(analytics_results):
+    """Create trend-specific analysis section"""
+    return dbc.Card([
+        dbc.CardHeader([
+            html.H5("\U0001F4C8 Trend Analysis", className="mb-0")
+        ]),
+        dbc.CardBody([
+            html.P("Trend analysis would be displayed here"),
+            # Add trend-specific visualizations
+        ])
+    ], className="mb-4")
+
+
+def _create_behavior_analysis_section(analytics_results):
+    """Create behavior-specific analysis section"""
+    return dbc.Card([
+        dbc.CardHeader([
+            html.H5("\U0001F464 Behavior Analysis", className="mb-0")
+        ]),
+        dbc.CardBody([
+            html.P("Behavioral analysis would be displayed here"),
+            # Add behavior-specific visualizations
+        ])
+    ], className="mb-4")
+
+
+def _create_no_data_message(data_source):
+    """Create no data available message"""
+    return dbc.Alert([
+        html.I(className="fas fa-info-circle me-2"),
+        f"No data available from source: {data_source}",
+        html.Hr(),
+        html.P("Please upload files using the File Upload page or select a different data source.", className="mb-0")
+    ], color="info")
+
+
+def _create_error_display(error_message):
+    """Create error display"""
+    return dbc.Alert([
+        html.I(className="fas fa-exclamation-triangle me-2"),
+        f"Error generating analytics: {error_message}"
+    ], color="danger")
+
+
 __all__ = ["layout", "register_analytics_callbacks"]

@@ -15,6 +15,7 @@ def safe_navbar():
             html.H3("🏯 Yōsai Intel Dashboard", className="text-white mb-0"),
             dbc.Nav([
                 dbc.NavItem(dbc.NavLink("Dashboard", href="/", external_link=True)),
+                dbc.NavItem(dbc.NavLink("File Upload", href="/file-upload", external_link=True)),
                 dbc.NavItem(dbc.NavLink("Analytics", href="/analytics", external_link=True)),
             ], navbar=True),
             html.Span("Logged in as: HQ Tower - East Wing", className="text-light")
