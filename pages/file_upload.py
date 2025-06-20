@@ -228,119 +228,62 @@ def register_file_upload_callbacks(app, container=None):
             )
 
 
-def _create_success_alert(message: str) -> dbc.Alert:
-    """Create a success alert message"""
-    return dbc.Alert(
-        [html.I(className="fas fa-check-circle me-2"), safe_text(message)],
-        color="success",
-        className="mb-2",
-    )
+def _create_success_alert(message: str) -> html.Div:
+    """Create a success alert component"""
+    if not DASH_AVAILABLE:
+        return html.Div(message)
+    return dbc.Alert(message, color="success", dismissable=True, className="mb-2")
 
 
-def _create_warning_alert(message: str) -> dbc.Alert:
-    """Create a warning alert message"""
-    return dbc.Alert(
-        [html.I(className="fas fa-exclamation-triangle me-2"), safe_text(message)],
-        color="warning",
-        className="mb-2",
-    )
+def _create_warning_alert(message: str) -> html.Div:
+    """Create a warning alert component"""
+    if not DASH_AVAILABLE:
+        return html.Div(message)
+    return dbc.Alert(message, color="warning", dismissable=True, className="mb-2")
 
 
-def _create_error_alert(message: str) -> dbc.Alert:
-    """Create an error alert message"""
-    return dbc.Alert(
-        [html.I(className="fas fa-times-circle me-2"), safe_text(message)],
-        color="danger",
-        className="mb-2",
-    )
+def _create_error_alert(message: str) -> html.Div:
+    """Create an error alert component"""
+    if not DASH_AVAILABLE:
+        return html.Div(message)
+    return dbc.Alert(message, color="danger", dismissable=True, className="mb-2")
 
 
-def _create_info_alert(message: str) -> dbc.Alert:
-    """Create an info alert message"""
-    return dbc.Alert(
-        [html.I(className="fas fa-info-circle me-2"), safe_text(message)],
-        color="info",
-        className="mb-2",
-    )
+def _create_info_alert(message: str) -> html.Div:
+    """Create an info alert component"""
+    if not DASH_AVAILABLE:
+        return html.Div(message)
+    return dbc.Alert(message, color="info", dismissable=True, className="mb-2")
 
 
-def _create_file_info_card(df, filename: str) -> dbc.Card:
-    """Create detailed file information card"""
-    try:
-        # Convert to basic Python types
-        memory_usage = int(df.memory_usage(deep=True).sum())
-        null_count = int(df.isnull().sum().sum())
-        
-        return dbc.Card([
-            dbc.CardHeader([
-                html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
-            ]),
-            dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        html.P(f"Rows: {len(df)}", className="mb-1"),
-                        html.P(f"Columns: {len(df.columns)}", className="mb-1"),
-                    ], width=6),
-                    dbc.Col([
-                        html.P(f"Memory: {format_file_size(memory_usage)}", className="mb-1"),
-                        html.P(f"Null values: {null_count}", className="mb-1"),
-                    ], width=6),
-                ]),
-                html.Hr(),
-                html.H6("Column Types:", className="mt-2"),
-                html.Div([
-                    dbc.Badge(
-                        f"{safe_text(str(col))}: {safe_text(str(dtype))}", 
-                        color="secondary", 
-                        className="me-1 mb-1"
-                    )
-                    for col, dtype in df.dtypes.items()
-                ]),
-                html.Hr(),
-                html.H6("Sample Data:", className="mt-2"),
-                html.Div([
-                    html.Pre(
-                        str(df.head(3).to_string(max_cols=5)),
-                        style={
-                            "background-color": "#f8f9fa",
-                            "padding": "10px",
-                            "border-radius": "5px",
-                            "font-size": "12px",
-                            "max-height": "200px",
-                            "overflow": "auto"
-                        }
-                    )
-                ])
-            ])
-        ], className="mb-3")
-        
-    except Exception as e:
-        logger.error(f"Error creating file info card: {e}")
-        return dbc.Card([
-            dbc.CardHeader([
-                html.H5(f"\U0001F4CA {safe_text(filename)}", className="mb-0"),
-            ]),
-            dbc.CardBody([
-                html.P(f"Error displaying file info: {str(e)}", className="text-danger")
-            ])
-        ], className="mb-3")
+def _create_file_info_card(df, filename: str) -> html.Div:
+    """Create a file information card"""
+    if not DASH_AVAILABLE or df is None:
+        return html.Div(f"File info for {filename}")
 
-
-def _create_file_management_card(file_id: str, filename: str, df) -> dbc.Card:
-    """Create file management card with actions"""
     return dbc.Card([
-        dbc.CardHeader([
-            html.H6(f"\U0001F527 Manage {safe_text(filename)}", className="mb-0"),
-        ]),
         dbc.CardBody([
-            dbc.ButtonGroup([
-                dbc.Button("Preview Data", id=f"preview-{file_id}", color="primary", size="sm"),
-                dbc.Button("Export Analytics", id=f"export-{file_id}", color="success", size="sm"),
-                dbc.Button("Remove File", id=f"remove-{file_id}", color="danger", size="sm"),
-            ], className="mb-2"),
-            html.Div(id=f"file-actions-{file_id}")
+            html.H5(f"\U0001F4CA {filename}", className="card-title"),
+            html.P([
+                html.Strong("Rows: "), f"{len(df):,}", html.Br(),
+                html.Strong("Columns: "), f"{len(df.columns)}", html.Br(),
+                html.Strong("Memory: "), f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB"
+            ])
         ])
     ], className="mb-3")
+
+
+def _create_file_management_card(file_id: str, filename: str, df) -> html.Div:
+    """Create a file management card"""
+    if not DASH_AVAILABLE:
+        return html.Div(f"Management for {filename}")
+
+    return dbc.Card([
+        dbc.CardBody([
+            html.H6(f"\U0001F4C2 {filename}"),
+            html.P(f"Uploaded successfully - {len(df)} rows"),
+        ])
+    ], className="mb-2")
 
 
 __all__ = ["layout", "register_file_upload_callbacks"]

@@ -27,7 +27,7 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
                         children=html.Div([
                             # Upload icon (will be dynamically updated)
                             html.Img(
-                                src="/assets/upload_file_csv_icon.png",
+                                src="/assets/navbar_icons/upload.png",
                                 className="upload-icon",
                                 id=f"{upload_id}-icon"
                             ),
@@ -100,14 +100,14 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
             function(contents, filename, current_state) {{
                 if (!contents) {{
                     return [
-                        '/assets/upload_file_csv_icon.png',
+                        '/assets/navbar_icons/upload.png',
                         'upload-box upload-box-active',
                         'upload-progress-overlay',
                         {{status: 'idle', files: []}}
                     ];
                 }}
                 return [
-                    '/assets/upload_file_csv_icon.png',
+                    '/assets/navbar_icons/upload.png',
                     'upload-box upload-box-active',
                     'upload-progress-overlay show',
                     {{status: 'uploading', files: filename}}
@@ -161,7 +161,7 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
                         "/assets/navbar_icons/upload.png"
                     ]
             return [
-                "/assets/upload_file_csv_icon.png",
+                "/assets/navbar_icons/upload.png",
                 "upload-box upload-box-active",
                 "upload-progress-overlay",
                 "Ready for upload",
