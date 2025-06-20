@@ -1,6 +1,5 @@
-# components/navbar.py - FIXED: Type-safe navbar
 """
-Navigation bar component with complete type safety
+Navigation bar component with grid layout using existing framework
 """
 
 import datetime
@@ -20,7 +19,6 @@ try:
 except ImportError:
     print("Warning: Dash components not available")
     DASH_AVAILABLE = False
-    # Create fallbacks
     dbc = None
     html = None
     dcc = None
@@ -30,7 +28,7 @@ except ImportError:
 
 
 def create_navbar_layout():
-    """Create navbar layout with fallback"""
+    """Create navbar layout with responsive grid design"""
     if not DASH_AVAILABLE:
         return None
 
@@ -40,153 +38,213 @@ def create_navbar_layout():
                 dbc.Container(
                     [
                         dcc.Location(id="url-i18n"),
-                        # Logo
+                        # Grid container using existing Bootstrap classes
                         dbc.Row(
                             [
+                                # Left Column: Logo Area (clickable)
                                 dbc.Col(
                                     [
-                                        html.Img(
-                                            src="/assets/yosai_logo_name_white.png",
-                                            height="40px",
-                                            className="navbar__logo",
+                                        html.A(
+                                            html.Img(
+                                                src="/assets/yosai_logo_name_white.png",
+                                                height="45px",
+                                                className="navbar__logo",
+                                            ),
+                                            href="/",
+                                            style={"text-decoration": "none"}
                                         )
                                     ],
-                                    width="auto",
-                                )
-                            ],
-                            align="center",
-                        ),
-                        # Center content
-                        dbc.Row(
-                            [
+                                    width=3,
+                                    className="d-flex align-items-center pl-4",
+                                ),
+
+                                # Center Column: Main Panel Label & Context
                                 dbc.Col(
                                     [
                                         html.Div(
                                             [
-                                                html.H5(
-                                                    _l("Main Panel"),
-                                                    className="navbar__title text-primary",
+                                                html.Div(
+                                                    "Main Panel: Tokyo HQ – East Wing",
+                                                    className="text-center text-secondary text-sm font-weight-bold",
                                                 ),
-                                                html.Small(
-                                                    _l(
-                                                        "Logged in as: HQ Tower - East Wing"
-                                                    ),
-                                                    className="navbar__subtitle text-secondary",
-                                                ),
-                                                html.Small(
-                                                    id="live-time",
-                                                    className="navbar__subtitle text-tertiary",
-                                                ),
+                                                html.Div(
+                                                    [
+                                                        html.Span(
+                                                            "Logged in as: HQ Tower – East Wing",
+                                                            className="text-xs text-tertiary"
+                                                        ),
+                                                        html.Span(
+                                                            [
+                                                                html.Span("🟢", className="ml-2"),
+                                                                html.Span(
+                                                                    id="live-time",
+                                                                    children="Live: 2025-06-20 09:55:54",
+                                                                    className="ml-1"
+                                                                )
+                                                            ],
+                                                            className="text-xs text-tertiary"
+                                                        )
+                                                    ],
+                                                    className="d-flex align-items-center justify-content-center mt-1",
+                                                )
                                             ],
                                             className="text-center",
                                         )
-                                    ]
-                                )
-                            ],
-                            align="center",
-                            className="flex-grow-1",
-                        ),
-                        # Navigation links
-                        dbc.Row(
-                            [
+                                    ],
+                                    width=6,
+                                    className="d-flex align-items-center justify-content-center",
+                                ),
+
+                                # Right Column: Navigation Icons + Language Toggle
                                 dbc.Col(
                                     [
-                                        dbc.Nav(
+                                        html.Div(
                                             [
-                                                dbc.NavItem(
-                                                    dbc.NavLink(
-                                                        _l("Dashboard"),
-                                                        href="/",
-                                                        className="nav-link",
-                                                        active="exact",
-                                                    )
+                                                # Navigation Icons
+                                                html.Div(
+                                                    [
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/dashboard.png",
+                                                                className="navbar-icon",
+                                                                alt="Dashboard"
+                                                            ),
+                                                            href="/",
+                                                            className="navbar-nav-link",
+                                                            title="Dashboard"
+                                                        ),
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/analytics.png",
+                                                                className="navbar-icon",
+                                                                alt="Analytics"
+                                                            ),
+                                                            href="/analytics",
+                                                            className="navbar-nav-link",
+                                                            title="Analytics"
+                                                        ),
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/upload.png",
+                                                                className="navbar-icon",
+                                                                alt="Upload"
+                                                            ),
+                                                            href="/file-upload",
+                                                            className="navbar-nav-link",
+                                                            title="File Upload"
+                                                        ),
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/print.png",
+                                                                className="navbar-icon",
+                                                                alt="Export"
+                                                            ),
+                                                            href="/export",
+                                                            className="navbar-nav-link",
+                                                            title="Export"
+                                                        ),
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/setting.png",
+                                                                className="navbar-icon",
+                                                                alt="Settings"
+                                                            ),
+                                                            href="/settings",
+                                                            className="navbar-nav-link",
+                                                            title="Settings"
+                                                        ),
+                                                        html.A(
+                                                            html.Img(
+                                                                src="/assets/navbar_icons/logout.png",
+                                                                className="navbar-icon",
+                                                                alt="Logout"
+                                                            ),
+                                                            href="/logout",
+                                                            className="navbar-nav-link",
+                                                            title="Logout"
+                                                        ),
+                                                    ],
+                                                    className="d-flex align-items-center",
+                                                    style={"gap": "0.75rem"}
                                                 ),
-                                                dbc.NavItem(
-                                                    dbc.NavLink(
-                                                        _l("File Upload"),
-                                                        href="/file-upload",
-                                                        className="nav-link",
-                                                        active="exact",
-                                                    )
-                                                ),
-                                                dbc.NavItem(
-                                                    dbc.NavLink(
-                                                        _l("Deep Analytics"),
-                                                        href="/analytics",
-                                                        className="nav-link",
-                                                        active="exact",
-                                                    )
-                                                ),
-                                                dbc.NavItem(
-                                                    dbc.NavLink(
-                                                        _l("Export Log"),
-                                                        href="#",
-                                                        className="nav-link",
-                                                    )
-                                                ),
-                                                dbc.NavItem(
-                                                    dbc.NavLink(
-                                                        _l("Settings"),
-                                                        href="#",
-                                                        className="nav-link",
-                                                    )
+
+                                                # Language Toggle
+                                                html.Div(
+                                                    [
+                                                        html.Span("EN", className="navbar-lang-active"),
+                                                        html.Span(" | ", className="text-tertiary"),
+                                                        html.Span("JP", className="navbar-lang-option"),
+                                                    ],
+                                                    className="ml-4 text-xs text-tertiary",
+                                                    style={"cursor": "pointer"},
+                                                    id="language-toggle"
                                                 ),
                                             ],
-                                            navbar=True,
-                                            className="navbar__nav",
+                                            className="d-flex align-items-center justify-content-end",
                                         )
-                                    ]
-                                )
+                                    ],
+                                    width=3,
+                                    className="d-flex align-items-center justify-content-end pr-4",
+                                ),
                             ],
-                            align="center",
-                        ),
-                        dbc.DropdownMenu(
-                            children=[
-                                dbc.DropdownMenuItem(_l("English"), id="set-en"),
-                                dbc.DropdownMenuItem(_l("Japanese"), id="set-ja"),
-                            ],
-                            nav=True,
-                            in_navbar=True,
-                            label=_l("Language"),
-                            className="ms-2",
+                            className="w-100 align-items-center",
+                            style={"min-height": "60px"}
                         ),
                     ],
                     fluid=True,
-                    className="navbar__container",
                 )
             ],
-            color="dark",
+            color="primary",
             dark=True,
-            className="navbar",
+            sticky="top",
+            className="navbar-main"
         )
+
     except Exception as e:
-        print(f"Error creating navbar: {e}")
-        return html.Div("Navigation not available")
+        print(f"Error creating navbar layout: {e}")
+        return html.Div("Navbar unavailable", className="text-center text-danger p-3")
 
 
-# Create the layout
-layout = create_navbar_layout()
-
-
-# Safe callback registration
+@safe_callback
 def register_navbar_callbacks(app):
-    """Register navbar callbacks safely"""
+    """Register navbar callbacks for live updates"""
     if not DASH_AVAILABLE:
         return
 
     try:
-
         @app.callback(
             Output("live-time", "children"),
-            Input("live-time", "id"),
-            prevent_initial_call=False,
+            Input("url-i18n", "pathname"),
         )
-        @safe_callback
-        def update_time(_):
-            try:
-                return f"Live Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            except Exception:
-                return "Time unavailable"
+        def update_live_time(pathname):
+            """Update live time display"""
+            current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return f"Live: {current_time}"
+
+        @app.callback(
+            Output("language-toggle", "children"),
+            Input("language-toggle", "n_clicks"),
+            prevent_initial_call=True
+        )
+        def toggle_language(n_clicks):
+            """Toggle between EN and JP languages"""
+            if n_clicks and n_clicks % 2 == 1:
+                return [
+                    html.Span("EN", className="navbar-lang-option"),
+                    html.Span(" | ", className="text-tertiary"),
+                    html.Span("JP", className="navbar-lang-active"),
+                ]
+            else:
+                return [
+                    html.Span("EN", className="navbar-lang-active"),
+                    html.Span(" | ", className="text-tertiary"),
+                    html.Span("JP", className="navbar-lang-option"),
+                ]
 
     except Exception as e:
         print(f"Error registering navbar callbacks: {e}")
+
+
+# Export functions for component registry
+layout = create_navbar_layout
+__all__ = ["create_navbar_layout", "register_navbar_callbacks", "layout"]
