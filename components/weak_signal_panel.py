@@ -2,6 +2,7 @@
 
 from dash import html
 import dash_bootstrap_components as dbc
+from utils.lazystring_handler import sanitize_lazystring_recursive
 
 # Safe text function that works with or without babel
 def safe_text(text):
@@ -76,3 +77,6 @@ layout = html.Div(
     ],
     className="weak-signal-panel",
 )
+
+# Convert any LazyString objects to regular strings for safe serialization  
+layout = sanitize_lazystring_recursive(layout)
