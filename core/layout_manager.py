@@ -125,3 +125,12 @@ class LayoutManager:
             <p>Dash components are not available</p>
         </div>
         """
+
+    def _get_navigation_items(self):
+        """Get navigation items including new pages"""
+        nav_items = [
+            {"label": "Dashboard", "href": "/"},
+            {"label": "File Upload", "href": "/file-upload"},
+            {"label": "Deep Analytics", "href": "/analytics"},
+        ]
+        return nav_items

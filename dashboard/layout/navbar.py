@@ -103,6 +103,14 @@ def create_navbar_layout():
                                                 ),
                                                 dbc.NavItem(
                                                     dbc.NavLink(
+                                                        _l("File Upload"),
+                                                        href="/file-upload",
+                                                        className="nav-link",
+                                                        active="exact",
+                                                    )
+                                                ),
+                                                dbc.NavItem(
+                                                    dbc.NavLink(
                                                         _l("Deep Analytics"),
                                                         href="/analytics",
                                                         className="nav-link",

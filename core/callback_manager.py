@@ -45,7 +45,8 @@ class CallbackManager:
     def _register_page_routing_callback(self) -> None:
         """Page routing callback"""
         try:
-            from dash import Output, Input
+            from dash import Output, Input, html
+            from pages import get_page_layout
 
             @self.app.callback(
                 Output("page-content", "children"),
@@ -53,20 +54,25 @@ class CallbackManager:
                 prevent_initial_call=False,
             )
             def display_page(pathname: Optional[str]) -> Any:
-                """Route to appropriate page content"""
-                try:
-                    if pathname == "/analytics":
-                        return self._handle_analytics_page()
-                    else:
-                        # Default to dashboard
-                        return self.layout_manager.create_dashboard_content()
+                """Route to appropriate page"""
+                if pathname == "/" or pathname is None:
+                    return self.layout_manager.create_dashboard_content()
+                elif pathname == "/file-upload":
+                    layout_func = get_page_layout('file_upload')
+                    return layout_func() if layout_func else "File Upload page not available"
+                elif pathname == "/analytics":
+                    layout_func = get_page_layout('deep_analytics')
+                    return layout_func() if layout_func else "Analytics page not available"
+                else:
+                    return html.Div([
+                        html.H1("404 - Page Not Found"),
+                        html.P(f"The page '{pathname}' was not found."),
+                    ])
 
-                except Exception as e:
-                    logger.error(f"Error in page routing: {e}")
-                    return self._create_error_page(f"Page routing error: {str(e)}")
+            logger.info("Page routing callback registered")
 
-        except ImportError:
-            logger.error("Cannot register page routing - Dash not available")
+        except Exception as e:
+            logger.error(f"Error registering page routing: {e}")
 
     def _handle_analytics_page(self) -> Any:
         """Handle analytics page with safe error handling"""
@@ -123,20 +129,26 @@ class CallbackManager:
             logger.error(f"Error in component callback registration: {e}")
 
     def _register_analytics_callbacks(self) -> None:
-        """Register analytics callbacks"""
+        """Register analytics and page callbacks"""
         try:
-            analytics_module = self.registry.get_component("analytics_module")
-            if analytics_module:
-                register_func = getattr(analytics_module, "register_callbacks", None)
-                if register_func and callable(register_func):
-                    try:
-                        register_func(self.app)
-                        logger.info("Analytics callbacks registered")
-                    except Exception as e:
-                        logger.error(f"Error registering analytics callbacks: {e}")
+            from pages import register_page_callbacks
+
+            # Register deep analytics callbacks
+            success_analytics = register_page_callbacks('deep_analytics', self.app, self.container)
+            if success_analytics:
+                logger.info("Deep analytics callbacks registered successfully")
+            else:
+                logger.warning("Failed to register deep analytics callbacks")
+
+            # Register file upload callbacks
+            success_upload = register_page_callbacks('file_upload', self.app, self.container)
+            if success_upload:
+                logger.info("File upload callbacks registered successfully")
+            else:
+                logger.warning("Failed to register file upload callbacks")
 
         except Exception as e:
-            logger.error(f"Error in analytics callback registration: {e}")
+            logger.error(f"Error registering page callbacks: {e}")
 
     def _register_navbar_callback(self) -> None:
         """Register navbar callbacks"""
