@@ -59,6 +59,7 @@ class LayoutManager:
             )
             
             return html.Div([
+                html.Link(rel="stylesheet", href="/assets/styles/modal_styles.css"),
                 location_component,
                 navbar_component,
                 content_component
