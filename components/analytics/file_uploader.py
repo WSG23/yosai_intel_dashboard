@@ -14,7 +14,7 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
         return html.Div([
             # Header section
             html.Div([
-                html.H3("📁 File Upload Manager", className="upload-section-title"),
+                html.H3("\U0001F4C1 File Upload Manager", className="upload-section-title"),
                 html.P("Upload and validate CSV, JSON, and Excel files", className="upload-section-subtitle")
             ], className="text-center mb-4"),
 
@@ -38,13 +38,11 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
 
                             # Supported file types
                             html.Div([
-                                html.P("✅ CSV files (.csv)"),
-                                html.P("✅ JSON files (.json)"),
-                                html.P("✅ Excel files (.xlsx, .xls)")
+                                html.P("\u2705 CSV files (.csv)"),
+                                html.P("\u2705 JSON files (.json)"),
+                                html.P("\u2705 Excel files (.xlsx, .xls)")
                             ], className="upload-supported-types")
                         ]),
-
-
                         multiple=True,
                         accept='.csv,.json,.xlsx,.xls,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
                     ),
@@ -70,9 +68,9 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
                     html.Div("Database Upload", className="upload-box-title"),
                     html.Div("Connect to database", className="upload-box-subtitle"),
                     html.Div([
-                        html.P("🔄 MySQL connections"),
-                        html.P("🔄 PostgreSQL support"),
-                        html.P("🔄 Cloud integrations")
+                        html.P("\U0001F504 MySQL connections"),
+                        html.P("\U0001F504 PostgreSQL support"),
+                        html.P("\U0001F504 Cloud integrations")
                     ], className="upload-supported-types", style={"color": "var(--color-text-tertiary)"})
                 ], className="upload-box upload-box-inactive", id="database-upload-box")
 
@@ -172,4 +170,3 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
 
 layout = create_dual_file_uploader
 __all__ = ["create_dual_file_uploader", "register_dual_upload_callbacks", "layout"]
-
