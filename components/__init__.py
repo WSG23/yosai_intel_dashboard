@@ -29,7 +29,11 @@ except ImportError as e:
     SETTINGS_MODAL_AVAILABLE = False
 
 try:
-    from .door_mapping_modal import create_door_mapping_modal, register_door_mapping_modal_callbacks
+    from .door_mapping_modal import (
+        create_door_mapping_modal,
+        register_door_mapping_modal_callbacks,
+        register_door_mapping_clientside_callbacks,
+    )
     DOOR_MAPPING_MODAL_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Door mapping modal component not available: {e}")
@@ -45,6 +49,10 @@ if SETTINGS_MODAL_AVAILABLE:
     __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
 
 if DOOR_MAPPING_MODAL_AVAILABLE:
-    __all__.extend(['create_door_mapping_modal', 'register_door_mapping_modal_callbacks'])
+    __all__.extend([
+        'create_door_mapping_modal',
+        'register_door_mapping_modal_callbacks',
+        'register_door_mapping_clientside_callbacks',
+    ])
 
 

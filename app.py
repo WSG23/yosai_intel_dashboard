@@ -91,6 +91,7 @@ def create_full_dashboard() -> Optional[Any]:
         from components.door_mapping_modal import (
             create_door_mapping_modal,
             register_door_mapping_modal_callbacks,
+            register_door_mapping_clientside_callbacks,
         )
 
         # Create container for dependency injection
@@ -116,6 +117,7 @@ def create_full_dashboard() -> Optional[Any]:
         callback_manager.register_all_callbacks()
         register_settings_modal_callbacks(app)
         register_door_mapping_modal_callbacks(app)
+        register_door_mapping_clientside_callbacks(app)
 
         # Store references in app
         app._yosai_json_plugin = json_plugin

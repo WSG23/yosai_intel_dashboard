@@ -220,7 +220,7 @@ def create_toggle_switch(switch_id: str, checked: bool = False) -> dbc.Switch:
 
 def register_door_mapping_modal_callbacks(app):
     """Register callbacks for door mapping modal functionality"""
-    
+
     if not DASH_AVAILABLE:
         return
 
@@ -243,12 +243,10 @@ def register_door_mapping_modal_callbacks(app):
                 raise dash.exceptions.PreventUpdate
 
             triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
-            
+
             if triggered_id == "door-mapping-modal-trigger":
-                # Open modal
                 return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
             else:
-                # Close modal
                 return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden"
 
         # Update modal content when data is uploaded
@@ -257,77 +255,81 @@ def register_door_mapping_modal_callbacks(app):
                 Output("door-mapping-table-container", "children"),
                 Output("door-mapping-row-count", "children"),
                 Output("door-mapping-original-data-store", "data"),
-                Output("door-mapping-current-data-store", "data")
+                Output("door-mapping-current-data-store", "data"),
             ],
             [Input("door-mapping-modal-data-trigger", "data")],
             prevent_initial_call=True,
-            allow_duplicate=True
         )
         def update_door_mapping_content(modal_data):
             """Update modal content when new data is provided"""
             if not modal_data:
                 raise dash.exceptions.PreventUpdate
-            
-            devices_data = modal_data.get('devices', [])
+
+            devices_data = modal_data.get("devices", [])
             row_count = len(devices_data)
-            
+
             table = create_device_mapping_table(devices_data)
             row_count_text = f"{row_count} rows detected"
-            
+
             return table, row_count_text, devices_data, devices_data
 
-        # Combined callback for current data store updates (FIXED - no more duplicates)
+        # Handle reset to original data
         @app.callback(
             Output("door-mapping-current-data-store", "data"),
             [Input("door-mapping-reset-btn", "n_clicks")],
             [State("door-mapping-original-data-store", "data")],
             prevent_initial_call=True,
-            allow_duplicate=True
         )
-        def handle_current_data_updates(reset_clicks, original_data):
-            """Handle all updates to current data store"""
-            ctx = callback_context
-            if not ctx.triggered:
+        def reset_to_original_data(n_clicks, original_data):
+            """Reset current data to original AI values"""
+            if not n_clicks:
                 raise dash.exceptions.PreventUpdate
-                
-            triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
-            
-            if triggered_id == "door-mapping-reset-btn":
-                # Reset to original AI values
-                return original_data
-                
-            raise dash.exceptions.PreventUpdate
+            return original_data
 
-        # Track manual edits - FIXED clientside callback (moved outside server callback)
+        logger.info("Door mapping modal callbacks registered successfully")
+
+    except Exception as e:
+        logger.error(f"Error registering door mapping modal callbacks: {e}")
+
+
+# SEPARATE clientside callbacks - register them at module level, not in function
+def register_door_mapping_clientside_callbacks(app):
+    """Register clientside callbacks separately to avoid conflicts"""
+
+    if not DASH_AVAILABLE:
+        return
+
+    try:
+        # Save manual edits clientside callback
         app.clientside_callback(
             """
             function(n_clicks, current_edits, original_data) {
                 if (!n_clicks) {
                     return window.dash_clientside.no_update;
                 }
-                
+
                 // Collect all current form values
                 const manual_edits = {};
                 const form_elements = document.querySelectorAll('[id*="-entry"], [id*="-exit"], [id*="-elevator"], [id*="-stairwell"], [id*="-fire_escape"], [id*="-other"], [id*="-security-slider"]');
-                
+
                 form_elements.forEach(element => {
                     const device_id = element.id.split('-')[0];
                     const attribute = element.id.split('-').slice(1).join('_');
-                    
+
                     if (!manual_edits[device_id]) {
                         manual_edits[device_id] = {};
                     }
-                    
+
                     if (element.type === 'range') {
                         manual_edits[device_id][attribute] = parseInt(element.value);
                     } else {
                         manual_edits[device_id][attribute] = element.checked;
                     }
                 });
-                
+
                 // Store in localStorage for persistence
                 localStorage.setItem('yosai_door_mapping_manual_edits', JSON.stringify(manual_edits));
-                
+
                 return manual_edits;
             }
             """,
@@ -336,17 +338,16 @@ def register_door_mapping_modal_callbacks(app):
             [State("door-mapping-manual-edits-store", "data"),
              State("door-mapping-original-data-store", "data")],
             prevent_initial_call=True,
-            allow_duplicate=True
         )
 
-        # Clear manual edits - FIXED separate clientside callback for reset
+        # Clear manual edits on reset
         app.clientside_callback(
             """
             function(n_clicks) {
                 if (!n_clicks) {
                     return window.dash_clientside.no_update;
                 }
-                
+
                 // Clear localStorage
                 localStorage.removeItem('yosai_door_mapping_manual_edits');
                 return {};
@@ -355,13 +356,21 @@ def register_door_mapping_modal_callbacks(app):
             Output("door-mapping-manual-edits-store", "data"),
             [Input("door-mapping-reset-btn", "n_clicks")],
             prevent_initial_call=True,
-            allow_duplicate=True
+            allow_duplicate=True,
         )
 
+        logger.info("Door mapping clientside callbacks registered successfully")
+
     except Exception as e:
-        logger.error(f"Error registering door mapping modal callbacks: {e}")
+        logger.error(f"Error registering door mapping clientside callbacks: {e}")
 
 
 # Export the layout function for consistency with other components
 layout = create_door_mapping_modal
-__all__ = ["create_door_mapping_modal", "register_door_mapping_modal_callbacks", "layout", "create_device_mapping_table"]
+__all__ = [
+    "create_door_mapping_modal",
+    "register_door_mapping_modal_callbacks",
+    "register_door_mapping_clientside_callbacks",
+    "layout",
+    "create_device_mapping_table",
+]
