@@ -275,8 +275,29 @@ def register_door_mapping_modal_callbacks(app):
             
             return table, row_count_text, devices_data, devices_data
 
-        # Track manual edits
-        clientside_callback(
+        # Combined callback for current data store updates (FIXED - no more duplicates)
+        @app.callback(
+            Output("door-mapping-current-data-store", "data"),
+            [Input("door-mapping-reset-btn", "n_clicks")],
+            [State("door-mapping-original-data-store", "data")],
+            prevent_initial_call=True
+        )
+        def handle_current_data_updates(reset_clicks, original_data):
+            """Handle all updates to current data store"""
+            ctx = callback_context
+            if not ctx.triggered:
+                raise dash.exceptions.PreventUpdate
+                
+            triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+            
+            if triggered_id == "door-mapping-reset-btn":
+                # Reset to original AI values
+                return original_data
+                
+            raise dash.exceptions.PreventUpdate
+
+        # Track manual edits - FIXED clientside callback (moved outside server callback)
+        app.clientside_callback(
             """
             function(n_clicks, current_edits, original_data) {
                 if (!n_clicks) {
@@ -310,39 +331,29 @@ def register_door_mapping_modal_callbacks(app):
             """,
             Output("door-mapping-manual-edits-store", "data"),
             [Input("door-mapping-save-edits-btn", "n_clicks")],
-            [State("door-mapping-manual-edits-store", "data"),
+            [State("door-mapping-manual-edits-store", "data"), 
              State("door-mapping-original-data-store", "data")],
             prevent_initial_call=True
         )
 
-        # Reset to AI values
-        @app.callback(
-            Output("door-mapping-current-data-store", "data"),
+        # Clear manual edits - FIXED separate clientside callback for reset
+        app.clientside_callback(
+            """
+            function(n_clicks) {
+                if (!n_clicks) {
+                    return window.dash_clientside.no_update;
+                }
+                
+                // Clear localStorage
+                localStorage.removeItem('yosai_door_mapping_manual_edits');
+                return {};
+            }
+            """,
+            Output("door-mapping-manual-edits-store", "data"),
             [Input("door-mapping-reset-btn", "n_clicks")],
-            [State("door-mapping-original-data-store", "data")],
             prevent_initial_call=True,
             allow_duplicate=True
         )
-        def reset_to_ai_values(n_clicks, original_data):
-            """Reset all values to original AI-generated values"""
-            if not n_clicks:
-                raise dash.exceptions.PreventUpdate
-            
-            # Clear localStorage
-            clientside_callback(
-                """
-                function() {
-                    localStorage.removeItem('yosai_door_mapping_manual_edits');
-                    return null;
-                }
-                """,
-                Output("door-mapping-manual-edits-store", "data"),
-                [Input("door-mapping-reset-btn", "n_clicks")],
-                prevent_initial_call=True,
-                allow_duplicate=True
-            )
-            
-            return original_data
 
     except Exception as e:
         logger.error(f"Error registering door mapping modal callbacks: {e}")
