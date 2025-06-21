@@ -88,6 +88,10 @@ def create_full_dashboard() -> Optional[Any]:
             create_settings_modal,
             register_settings_modal_callbacks,
         )
+        from components.door_mapping_modal import (
+            create_door_mapping_modal,
+            register_door_mapping_modal_callbacks,
+        )
 
         # Create container for dependency injection
         container = Container()
@@ -103,12 +107,15 @@ def create_full_dashboard() -> Optional[Any]:
         if hasattr(main_layout, "children") and isinstance(main_layout.children, list):
             # Insert settings modal after navbar
             main_layout.children.insert(2, create_settings_modal())
+            # Insert door mapping modal after settings modal
+            main_layout.children.insert(3, create_door_mapping_modal())
 
         app.layout = main_layout
 
         # Step 5: Register all callbacks using your callback manager
         callback_manager.register_all_callbacks()
         register_settings_modal_callbacks(app)
+        register_door_mapping_modal_callbacks(app)
 
         # Store references in app
         app._yosai_json_plugin = json_plugin
