@@ -51,7 +51,7 @@ def create_navbar_layout():
                                                 className="navbar__logo",
                                             ),
                                             href="/",
-                                            style={"text-decoration": "none"}
+                                            style={"textDecoration": "none"}
                                         )
                                     ],
                                     width=3,
@@ -200,7 +200,7 @@ def create_navbar_layout():
                                 ),
                             ],
                             className="w-100 align-items-center",
-                            style={"min-height": "60px"}
+                            style={"minHeight": "60px"}
                         ),
                     ],
                     fluid=True,
