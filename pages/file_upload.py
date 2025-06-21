@@ -1,6 +1,4 @@
-"""
-File Upload Page - Uses Plugin Architecture (FIXED)
-"""
+"""File Upload Page - Direct component import"""
 from typing import Optional, Union, List, Dict, Any, Tuple
 import logging
 
@@ -14,14 +12,14 @@ except ImportError:
     html = dcc = dbc = None
 
 try:
-    from plugins.file_upload_plugin import (
+    from components.analytics import (
         create_dual_file_uploader,
         register_dual_upload_callbacks,
         FileProcessor,
+        UPLOAD_AVAILABLE,
     )
-    COMPONENTS_AVAILABLE = True
 except ImportError:
-    COMPONENTS_AVAILABLE = False
+    UPLOAD_AVAILABLE = False
     FileProcessor = None
 
 logger = logging.getLogger(__name__)
@@ -85,7 +83,7 @@ def _create_file_info_card(df, filename: str):
 
 
 def layout():
-    """File Upload page layout using plugin"""
+    """File Upload page layout using direct components"""
     if not DASH_AVAILABLE:
         return "File Upload page not available - Dash components missing"
 
@@ -109,7 +107,7 @@ def layout():
             dbc.Col([
                 dbc.Alert([
                     html.P(f"DASH_AVAILABLE: {DASH_AVAILABLE}"),
-                    html.P(f"COMPONENTS_AVAILABLE: {COMPONENTS_AVAILABLE}"),
+                    html.P(f"UPLOAD_AVAILABLE: {UPLOAD_AVAILABLE}"),
                     html.P(f"FileProcessor available: {FileProcessor is not None}")
                 ], color="info", className="mb-3")
             ])
@@ -118,8 +116,8 @@ def layout():
         # File upload section
         dbc.Row([
             dbc.Col([
-                create_dual_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
-                else _create_error_alert("File uploader not available - Plugin not loaded")
+                create_dual_file_uploader("file-upload-main") if UPLOAD_AVAILABLE
+                else _create_error_alert("File uploader not available")
             ])
         ], className="mb-4"),
 
@@ -136,12 +134,12 @@ def layout():
 
 
 def register_file_upload_callbacks(app, container=None):
-    """Register file upload page callbacks using plugin"""
-    if not DASH_AVAILABLE or not COMPONENTS_AVAILABLE:
+    """Register file upload page callbacks using direct components"""
+    if not DASH_AVAILABLE or not UPLOAD_AVAILABLE:
         logger.warning("File upload callbacks not registered - components not available")
         return
 
-    # Register plugin callbacks
+    # Register component callbacks
     register_dual_upload_callbacks(app, "file-upload-main")
 
     # Page-specific callback for file management

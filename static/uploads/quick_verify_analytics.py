@@ -14,9 +14,9 @@ def test_imports():
     
     try:
         from components.analytics import (
-            FileProcessor, 
+            FileProcessor,
             AnalyticsGenerator,
-            create_file_uploader,
+            create_dual_file_uploader,
             create_data_preview
         )
         print("✅ All imports successful")
@@ -95,10 +95,10 @@ def test_component_creation():
     print("\n🎨 Testing component creation...")
     
     try:
-        from components.analytics import create_file_uploader, create_data_preview
+        from components.analytics import create_dual_file_uploader, create_data_preview
         
         # Test file uploader
-        uploader = create_file_uploader()
+        uploader = create_dual_file_uploader()
         if uploader is not None:
             print("✅ File uploader creation works")
         else:

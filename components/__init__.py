@@ -37,7 +37,4 @@ if ANALYTICS_AVAILABLE:
 if SETTINGS_MODAL_AVAILABLE:
     __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
 
-# Dual upload component disabled here to avoid circular imports
-DUAL_UPLOAD_AVAILABLE = False
-__all__.append('DUAL_UPLOAD_AVAILABLE')
 

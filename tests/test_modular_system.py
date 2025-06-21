@@ -114,14 +114,14 @@ class ModularityValidator:
         # Test analytics components isolation
         try:
             from components.analytics import (
-                create_file_uploader,
+                create_dual_file_uploader,
                 create_data_preview,
                 create_analytics_charts,
                 FileProcessor
             )
             
             # Test component creation
-            uploader = create_file_uploader()
+            uploader = create_dual_file_uploader()
             sample_df = pd.DataFrame({'A': [1, 2, 3], 'B': ['x', 'y', 'z']})
             preview = create_data_preview(sample_df, "test.csv")
             
@@ -291,13 +291,13 @@ class IntegrationTester(unittest.TestCase):
         """Test that components can be rendered"""
         try:
             from components.analytics import (
-                create_file_uploader,
+                create_dual_file_uploader,
                 create_data_preview,
                 create_analytics_charts
             )
             
             # Test component creation
-            uploader = create_file_uploader()
+            uploader = create_dual_file_uploader()
             self.assertIsNotNone(uploader)
             
             preview = create_data_preview(self.test_data, "test.csv")

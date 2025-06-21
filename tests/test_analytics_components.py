@@ -7,7 +7,7 @@ import pandas as pd
 from components.analytics import (
     FileProcessor,
     AnalyticsGenerator,
-    create_file_uploader,
+    create_dual_file_uploader,
     create_data_preview,
     create_analytics_charts,
     create_summary_cards,
@@ -70,7 +70,7 @@ def test_analytics_generation() -> None:
 
 def test_component_creation() -> None:
     """Verify dashboard component factory helpers."""
-    uploader = create_file_uploader()
+    uploader = create_dual_file_uploader()
     assert uploader is not None
 
     sample_data = pd.DataFrame({"A": [1, 2, 3], "B": ["x", "y", "z"]})
