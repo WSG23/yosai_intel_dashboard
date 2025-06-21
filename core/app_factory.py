@@ -35,7 +35,8 @@ except ImportError:
 
 
 from .auth import init_auth
-from config.yaml_config import ConfigurationManager, get_configuration_manager
+from config.yaml_config import get_configuration_manager
+from core.plugins.config import get_service_locator
 from .component_registry import ComponentRegistry
 from .layout_manager import LayoutManager
 from .callback_manager import CallbackManager
@@ -51,7 +52,7 @@ class YosaiDash(dash.Dash):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._yosai_container: Optional[Container] = None
-        self._config_manager: Optional[ConfigurationManager] = None
+        self._config_manager: Optional['ConfigurationManager'] = None
         self._yosai_plugin_manager: Optional[Any] = None
 
 
@@ -60,7 +61,7 @@ class DashAppFactory:
 
     @staticmethod
     def create_app(
-        config_manager: Optional[ConfigurationManager] = None,
+        config_manager: Optional['ConfigurationManager'] = None,
     ) -> Optional[YosaiDash]:
         """Create and configure a Dash app with proper JSON plugin integration"""
 
@@ -222,7 +223,7 @@ class DashAppFactory:
             return None
 
     @staticmethod
-    def _get_stylesheets(config_manager: ConfigurationManager) -> list:
+    def _get_stylesheets(config_manager: 'ConfigurationManager') -> list:
         """Get CSS stylesheets based on configuration"""
         stylesheets = ["/assets/css/main.css"]
 
@@ -237,7 +238,7 @@ class DashAppFactory:
         return stylesheets
 
     @staticmethod
-    def _get_meta_tags(config_manager: ConfigurationManager) -> list:
+    def _get_meta_tags(config_manager: 'ConfigurationManager') -> list:
         """Get HTML meta tags based on configuration"""
         return [
             {"name": "viewport", "content": "width=device-width, initial-scale=1"},
@@ -248,12 +249,19 @@ class DashAppFactory:
 
 
 def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]:
-    """Create application with YAML configuration and JSON plugin"""
+    """Create application with enhanced modular configuration"""
     try:
         # Load configuration
         config_manager = get_configuration_manager()
         if config_path:
             config_manager.load_configuration(config_path)
+        else:
+            config_manager.load_configuration()
+
+        # Initialize modular services
+        service_locator = get_service_locator()
+        service_locator.initialize_from_config(config_manager)
+        service_locator.start_services()
 
         app = DashAppFactory.create_app(config_manager)
 
@@ -261,14 +269,15 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
             logger.error("Failed to create Dash app instance")
             return None
 
-        logger.info("Dashboard application created successfully with JSON plugin")
+        # Store service locator in app for later access
+        app._yosai_service_locator = service_locator
+
+        logger.info("Dashboard application created successfully with modular configuration")
         return app
 
     except ImportError:
         logger.error("Cannot create application - Dash dependencies not available")
-        print(
-            "❌ Error: Dash not installed. Run: pip install dash dash-bootstrap-components"
-        )
+        print("❌ Error: Dash not installed. Run: pip install dash dash-bootstrap-components")
         return None
     except Exception as e:
         logger.error(f"Error creating application: {e}")
