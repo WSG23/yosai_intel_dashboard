@@ -180,8 +180,8 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
             Output("door-mapping-modal-data-trigger", "data"),
             Output("door-mapping-modal-trigger", "n_clicks")
         ],
-        [Input("analytics-file-upload", "contents")],
-        [State("analytics-file-upload", "filename")],
+        [Input(upload_id, "contents")],
+        [State(upload_id, "filename")],
         prevent_initial_call=True
     )
     def trigger_door_mapping_modal(contents, filename):
@@ -375,13 +375,11 @@ def render_column_mapping_panel(header_options, file_name="access_control_data_1
      Output('column-mapping-modal', 'style'),
      Output('upload-status', 'children'),
      Output('mapping-verified-status', 'children')],
-    [Input('analytics-file-upload', 'contents'),
-     Input('upload-data', 'contents'),
+    [Input('upload-data', 'contents'),
      Input('close-mapping-modal', 'n_clicks'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks')],
-    [State('analytics-file-upload', 'filename'),
-     State('upload-data', 'filename'),
+    [State('upload-data', 'filename'),
      State('timestamp-dropdown', 'value'),
      State('device-column-dropdown', 'value'),
      State('user-id', 'value'),
@@ -390,17 +388,17 @@ def render_column_mapping_panel(header_options, file_name="access_control_data_1
      State('user-id-storage', 'children')],
     prevent_initial_call=True
 )
-def handle_all_upload_modal_actions(analytics_contents, upload_contents, close_clicks, cancel_clicks, verify_clicks,
-                                  analytics_filename, upload_filename, timestamp_col, device_col, user_col,
+def handle_all_upload_modal_actions(upload_contents, close_clicks, cancel_clicks, verify_clicks,
+                                  upload_filename, timestamp_col, device_col, user_col,
                                   event_type_col, floor_estimate, user_id):
     """Single callback to handle all upload and modal actions"""
     ctx = dash.callback_context
     if not ctx.triggered:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    contents = analytics_contents if analytics_contents else upload_contents
-    filename = analytics_filename if analytics_filename else upload_filename
-    if trigger_id in ['analytics-file-upload', 'upload-data'] and contents is not None:
+    contents = upload_contents
+    filename = upload_filename
+    if trigger_id == 'upload-data' and contents is not None:
         try:
             content_type, content_string = contents.split(',')
             decoded = base64.b64decode(content_string)
