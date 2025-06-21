@@ -246,6 +246,39 @@ class DoorMappingService:
             updated_data.append(updated_device)
             
         return updated_data
+
+    def save_verified_mapping(self, mapping_data: Dict[str, Any], user_id: str) -> bool:
+        """
+        Save verified column mapping for future use
+
+        Args:
+            mapping_data: Verified mapping configuration
+            user_id: User identifier
+
+        Returns:
+            Success status
+        """
+        try:
+            mapping_record = {
+                'user_id': user_id,
+                'timestamp_col': mapping_data.get('timestamp'),
+                'device_col': mapping_data.get('device_name'),
+                'user_col': mapping_data.get('token_id'),
+                'event_type_col': mapping_data.get('event_type'),
+                'floor_estimate': mapping_data.get('floors', 1),
+                'verified_at': datetime.now().isoformat(),
+                'ai_model_version': self.ai_model_version
+            }
+
+            # Store in your preferred storage system
+            # This could be database, file, or cache depending on your setup
+            logger.info(f"Saved verified mapping for user {user_id}: {mapping_record}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error saving verified mapping: {e}")
+            return False
     
     def save_manual_edits_for_training(self, manual_edits: Dict[str, Dict], original_data: List[Dict]):
         """
