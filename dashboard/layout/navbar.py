@@ -3,31 +3,39 @@ Navigation bar component with grid layout using existing framework
 """
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Any, Union
 from flask_babel import lazy_gettext as _l
 from core.plugins.decorators import safe_callback
 
+# Type checking imports
 if TYPE_CHECKING:
     import dash_bootstrap_components as dbc
     from dash import html, dcc, callback, Output, Input
 
+# Runtime imports with proper fallbacks
 try:
     import dash_bootstrap_components as dbc
     from dash import html, dcc, callback, Output, Input
-
     DASH_AVAILABLE = True
 except ImportError:
     print("Warning: Dash components not available")
     DASH_AVAILABLE = False
-    dbc = None
-    html = None
-    dcc = None
+    # Create stub classes for type safety
+    class _StubComponent:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __call__(self, *args, **kwargs):
+            return None
+    
+    dbc = _StubComponent()
+    html = _StubComponent()
+    dcc = _StubComponent()
     callback = None
     Output = None
     Input = None
 
 
-def create_navbar_layout():
+def create_navbar_layout() -> Optional[Any]:
     """Create navbar layout with responsive grid design"""
     if not DASH_AVAILABLE:
         return None
@@ -65,36 +73,23 @@ def create_navbar_layout():
                                             [
                                                 html.Div(
                                                     id="facility-header",
-                                                    children="HQ Tower – East Wing",
-                                                    className="navbar-title text-center",
-                                                    style={"color": "var(--color-text-secondary)"}
-                                                ),
-                                                html.Div(
-                                                    id="page-context",
-                                                    children="Dashboard – Main Operations",
-                                                    className="navbar-subtitle text-center",
-                                                ),
-                                                html.Div(
-                                                    [
-                                                        html.Span(
-                                                            "Logged in as: Toshi Iwaki",
-                                                            className="text-xs text-tertiary"
+                                                    children=[
+                                                        html.H5(
+                                                            _l("Main Panel"),
+                                                            className="navbar-title text-primary",
                                                         ),
-                                                        html.Span(
-                                                            "🟢",
-                                                            className="ml-2",
-                                                            style={"fontSize": "0.75rem"}
+                                                        html.Small(
+                                                            _l("Logged in as: HQ Tower - East Wing"),
+                                                            className="navbar-subtitle text-secondary",
                                                         ),
-                                                        html.Span(
+                                                        html.Small(
                                                             id="live-time",
-                                                            children="Live: 2025-06-20 09:55:54",
-                                                            className="ml-2 text-xs text-tertiary"
-                                                        )
+                                                            className="navbar-subtitle text-tertiary",
+                                                        ),
                                                     ],
-                                                    className="d-inline-flex align-items-center justify-content-center mt-1",
+                                                    className="text-center",
                                                 )
-                                            ],
-                                            className="text-center",
+                                            ]
                                         )
                                     ],
                                     width=6,
@@ -214,13 +209,18 @@ def create_navbar_layout():
 
     except Exception as e:
         print(f"Error creating navbar layout: {e}")
-        return html.Div("Navbar unavailable", className="text-center text-danger p-3")
+        return _create_fallback_navbar()
+
+
+def _create_fallback_navbar() -> str:
+    """Create fallback navbar when Dash components unavailable"""
+    return "Navbar unavailable - Dash components not loaded"
 
 
 @safe_callback
-def register_navbar_callbacks(app):
+def register_navbar_callbacks(app: Any) -> None:
     """Register navbar callbacks for live updates"""
-    if not DASH_AVAILABLE:
+    if not DASH_AVAILABLE or not app:
         return
 
     try:
@@ -228,7 +228,7 @@ def register_navbar_callbacks(app):
             Output("live-time", "children"),
             Input("url-i18n", "pathname"),
         )
-        def update_live_time(pathname):
+        def update_live_time(pathname: str) -> str:
             """Update live time display"""
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             return f"Live: {current_time}"
@@ -238,7 +238,7 @@ def register_navbar_callbacks(app):
             Input("language-toggle", "n_clicks"),
             prevent_initial_call=True
         )
-        def toggle_language(n_clicks):
+        def toggle_language(n_clicks: Optional[int]) -> list:
             """Toggle between EN and JP languages"""
             if n_clicks and n_clicks % 2 == 1:
                 return [
@@ -257,7 +257,7 @@ def register_navbar_callbacks(app):
             Output("page-context", "children"),
             Input("url-i18n", "pathname"),
         )
-        def update_page_context(pathname):
+        def update_page_context(pathname: str) -> str:
             """Update page context based on current route"""
             page_contexts = {
                 "/": "Dashboard – Main Operations",
