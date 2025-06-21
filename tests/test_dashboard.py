@@ -304,7 +304,7 @@ class ComponentModuleTester(ModularTestBase):
         start_time = datetime.now()
         try:
             from components.analytics import (
-                create_file_uploader,
+                create_dual_file_uploader,
                 create_data_preview,
                 create_analytics_charts
             )
@@ -328,7 +328,7 @@ class ComponentModuleTester(ModularTestBase):
         # Test 2: File Uploader Component
         start_time = datetime.now()
         try:
-            uploader = create_file_uploader()
+            uploader = create_dual_file_uploader()
             execution_time = (datetime.now() - start_time).total_seconds()
             results.append(TestResult(
                 "File Uploader Creation",

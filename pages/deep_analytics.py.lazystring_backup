@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 # Import the modular analytics components with safe fallbacks
 try:
     from components.analytics import (
-        create_file_uploader,
+        create_dual_file_uploader,
         create_data_preview,
         create_analytics_charts,
         create_summary_cards,
@@ -28,7 +28,7 @@ except ImportError as e:
     ANALYTICS_COMPONENTS_AVAILABLE = False
 
     # Create fallback functions (same as before)
-    def create_file_uploader(*args, **kwargs):
+    def create_dual_file_uploader(*args, **kwargs):
         return html.Div(_l("File uploader not available"))
 
     def create_data_preview(*args, **kwargs):
@@ -84,7 +84,7 @@ def layout():
                 ]
             ),
             # File upload section
-            dbc.Row([dbc.Col([create_file_uploader("analytics-file-upload")])]),
+            dbc.Row([dbc.Col([create_dual_file_uploader("analytics-file-upload")])]),
             # Data storage for uploaded files
             dcc.Store(id="uploaded-data-store", data={}),
             # Results section

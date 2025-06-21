@@ -1,73 +1,30 @@
-# components/analytics/__init__.py - FIXED: Safe analytics imports
-"""
-Analytics components module - Type-safe imports
-"""
+"""Analytics components - Direct imports"""
 
-# Import main component functions with error handling
+# Direct exports
 try:
-    from plugins.file_upload_plugin import create_file_uploader, FileProcessor
-except ImportError as e:
-    print(f"Warning: Could not import file_upload_plugin: {e}")
-    def create_file_uploader(*args, **kwargs):
-        from dash import html
-        return html.Div("File uploader component not available")
-    FileProcessor = None
-
-try:
+    from .file_uploader import create_dual_file_uploader, register_dual_upload_callbacks
+    from .file_processing import FileProcessor, AnalyticsGenerator
     from .data_preview import create_data_preview
-except ImportError as e:
-    print(f"Warning: Could not import data_preview: {e}")
-    def create_data_preview(*args, **kwargs):
-        from dash import html
-        return html.Div("Data preview component not available")
-
-try:
     from .analytics_charts import create_analytics_charts, create_summary_cards
-except ImportError as e:
-    print(f"Warning: Could not import analytics_charts: {e}")
-    def create_analytics_charts(*args, **kwargs):
-        from dash import html
-        return html.Div("Analytics charts component not available")
-    
-    def create_summary_cards(*args, **kwargs):
-        from dash import html
-        return html.Div("Summary cards component not available")
+    UPLOAD_AVAILABLE = True
+except Exception as e:
+    print(f"Upload components not available: {e}")
+    create_dual_file_uploader = None
+    register_dual_upload_callbacks = None
+    FileProcessor = None
+    AnalyticsGenerator = None
+    create_data_preview = None
+    create_analytics_charts = None
+    create_summary_cards = None
+    UPLOAD_AVAILABLE = False
 
-# Handle file processing imports if not provided by the plugin
-AnalyticsGenerator = None
-
-try:
-    from .file_processing import FileProcessor as _FP, AnalyticsGenerator as _AnalyticsGenerator
-    if 'FileProcessor' not in globals() or FileProcessor is None:
-        FileProcessor = _FP
-    AnalyticsGenerator = _AnalyticsGenerator
-except ImportError as e:
-    print(f"Warning: Could not import file_processing: {e}")
-    
-    # Create fallback classes
-    class _FallbackFileProcessor:
-        @staticmethod
-        def process_file_content(contents, filename):
-            return None
-        
-        @staticmethod
-        def validate_dataframe(df):
-            return True, "Fallback validation", []
-    
-    class _FallbackAnalyticsGenerator:
-        @staticmethod
-        def generate_analytics(df):
-            return {}
-    
-    FileProcessor = _FallbackFileProcessor
-    AnalyticsGenerator = _FallbackAnalyticsGenerator
-
-# Export all public functions
 __all__ = [
-    'create_file_uploader',
-    'create_data_preview', 
+    'create_dual_file_uploader',
+    'register_dual_upload_callbacks',
+    'create_data_preview',
     'create_analytics_charts',
     'create_summary_cards',
     'FileProcessor',
-    'AnalyticsGenerator'
+    'AnalyticsGenerator',
+    'UPLOAD_AVAILABLE'
 ]
