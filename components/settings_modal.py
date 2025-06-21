@@ -22,15 +22,15 @@ def create_settings_modal() -> html.Div:
         return html.Div("Settings modal not available")
 
     settings_items = [
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Critical Doors", "id": "critical-doors"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Event Reason Aliases", "id": "event-aliases"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Insights Settings", "id": "insights-settings"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Learning Rate", "id": "learning-rate"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Critical Doors", "id": "critical-doors"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Event Reason Aliases", "id": "event-aliases"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Insights Settings", "id": "insights-settings"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Learning Rate", "id": "learning-rate"},
         {"icon": "/assets/navbar_icons/settings.png", "text": "Manage Auth", "id": "manage-auth"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Resolution Tags", "id": "resolution-tags"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "System Admin Tools", "id": "system-admin"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Ticket Criticality", "id": "ticket-criticality"},
-        {"icon": "/assets/navbar_icons/folder.png", "text": "Ticket Generation", "id": "ticket-generation"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Resolution Tags", "id": "resolution-tags"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "System Admin Tools", "id": "system-admin"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Ticket Criticality", "id": "ticket-criticality"},
+        {"icon": "/assets/navbar_icons/upload.png", "text": "Ticket Generation", "id": "ticket-generation"},
         {"icon": "/assets/navbar_icons/settings.png", "text": "User Management", "id": "user-management"},
     ]
 

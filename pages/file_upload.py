@@ -1,5 +1,7 @@
-"""File Upload Page - Uses Plugin Architecture"""
-from typing import Optional
+"""
+File Upload Page - Uses Plugin Architecture (FIXED)
+"""
+from typing import Optional, Union, List, Dict, Any, Tuple
 import logging
 
 # Safe imports with fallbacks
@@ -7,17 +9,79 @@ try:
     from dash import html, dcc, Input, Output, State, callback
     import dash_bootstrap_components as dbc
     DASH_AVAILABLE = True
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:
     DASH_AVAILABLE = False
     html = dcc = dbc = None
 
 try:
-    from plugins.file_upload_plugin import FileUploadPlugin
-    PLUGIN_AVAILABLE = True
-except ImportError:  # pragma: no cover - optional dependency
-    PLUGIN_AVAILABLE = False
+    from plugins.file_upload_plugin import (
+        create_dual_file_uploader,
+        register_dual_upload_callbacks,
+        FileProcessor,
+    )
+    COMPONENTS_AVAILABLE = True
+except ImportError:
+    COMPONENTS_AVAILABLE = False
+    FileProcessor = None
 
 logger = logging.getLogger(__name__)
+
+
+def safe_text(text):
+    """Return text safely, handling any objects"""
+    if text is None:
+        return ""
+    return str(text)
+
+
+def format_file_size(size_bytes):
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0 B"
+
+    size_names = ["B", "KB", "MB", "GB", "TB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+
+    return f"{size_bytes:.1f} {size_names[i]}"
+
+
+def _create_success_alert(message: str):
+    """Create success alert"""
+    if not DASH_AVAILABLE:
+        return f"SUCCESS: {message}"
+    return dbc.Alert(message, color="success", dismissable=True)
+
+
+def _create_warning_alert(message: str):
+    """Create warning alert"""
+    if not DASH_AVAILABLE:
+        return f"WARNING: {message}"
+    return dbc.Alert(message, color="warning", dismissable=True)
+
+
+def _create_error_alert(message: str):
+    """Create error alert"""
+    if not DASH_AVAILABLE:
+        return f"ERROR: {message}"
+    return dbc.Alert(message, color="danger", dismissable=True)
+
+
+def _create_file_info_card(df, filename: str):
+    """Create file info card"""
+    if not DASH_AVAILABLE:
+        return f"File: {filename}, Rows: {len(df)}"
+
+    return dbc.Card([
+        dbc.CardHeader(f"\U0001F4C4 File: {filename}"),
+        dbc.CardBody([
+            html.P(f"\U0001F4CA Rows: {len(df):,}"),
+            html.P(f"\U0001F4CB Columns: {len(df.columns)}"),
+            html.P(f"\U0001F3F7\uFE0F Column Names: {', '.join(df.columns.tolist())}")
+        ])
+    ], className="mt-3")
 
 
 def layout():
@@ -25,27 +89,37 @@ def layout():
     if not DASH_AVAILABLE:
         return "File Upload page not available - Dash components missing"
 
-    if not PLUGIN_AVAILABLE:
-        return dbc.Container([
-            dbc.Alert("File Upload Plugin not available", color="danger")
-        ])
-
-    # Use plugin directly
-    plugin = FileUploadPlugin()
-
     return dbc.Container([
         # Page header
         dbc.Row([
             dbc.Col([
-                html.H1("\U0001F4C1 File Upload Manager", className="text-primary mb-0"),
-                html.P("Upload and validate CSV, JSON, and Excel files", className="text-secondary mb-4"),
+                html.H1(
+                    "\U0001F4C1 File Upload Manager",
+                    className="text-primary mb-0"
+                ),
+                html.P(
+                    "Upload and validate CSV, JSON, and Excel files",
+                    className="text-secondary mb-4",
+                ),
             ])
         ]),
 
-        # Plugin component
+        # Debug info (remove after testing)
         dbc.Row([
             dbc.Col([
-                plugin.create_dual_file_uploader("file-upload-main")
+                dbc.Alert([
+                    html.P(f"DASH_AVAILABLE: {DASH_AVAILABLE}"),
+                    html.P(f"COMPONENTS_AVAILABLE: {COMPONENTS_AVAILABLE}"),
+                    html.P(f"FileProcessor available: {FileProcessor is not None}")
+                ], color="info", className="mb-3")
+            ])
+        ]),
+
+        # File upload section
+        dbc.Row([
+            dbc.Col([
+                create_dual_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
+                else _create_error_alert("File uploader not available - Plugin not loaded")
             ])
         ], className="mb-4"),
 
@@ -63,15 +137,14 @@ def layout():
 
 def register_file_upload_callbacks(app, container=None):
     """Register file upload page callbacks using plugin"""
-    if not DASH_AVAILABLE or not PLUGIN_AVAILABLE:
+    if not DASH_AVAILABLE or not COMPONENTS_AVAILABLE:
         logger.warning("File upload callbacks not registered - components not available")
         return
 
-    # Use plugin for callback registration
-    plugin = FileUploadPlugin()
-    plugin.register_callbacks(app, container)
+    # Register plugin callbacks
+    register_dual_upload_callbacks(app, "file-upload-main")
 
-    # Additional page-specific callbacks can go here
+    # Page-specific callback for file management
     @app.callback(
         Output("file-management-section", "children"),
         Input("file-upload-data-store", "data"),
@@ -79,35 +152,75 @@ def register_file_upload_callbacks(app, container=None):
     )
     def update_file_management(data):
         if not data:
-            return html.Div("No files uploaded yet")
+            return html.Div("No files uploaded yet", className="text-muted")
 
-        return dbc.Alert(f"Files uploaded: {len(data.get('files', []))}", color="info")
+        files = data.get('files', [])
+        return dbc.Alert(
+            f"Files uploaded: {len(files)}", 
+            color="info" if files else "secondary"
+        )
 
+    # File processing callback
+    @app.callback(
+        [
+            Output("file-upload-main-status", "children"),
+            Output("file-upload-data-store", "data"),
+            Output("file-upload-main-info", "children"),
+        ],
+        Input("file-upload-main", "contents"),
+        State("file-upload-main", "filename"),
+        prevent_initial_call=True,
+    )
+    def process_file_uploads(
+        contents_list: Optional[Union[str, List[str]]],
+        filename_list: Optional[Union[str, List[str]]],
+    ) -> Tuple[html.Div, Dict[str, Any], html.Div]:
+        """Process uploaded files and provide detailed information"""
 
-def _create_success_alert(message: str):
-    """Create success alert"""
-    return dbc.Alert(message, color="success", dismissable=True)
+        if not contents_list:
+            return (
+                html.Div(),
+                {},
+                html.Div(),
+            )
 
+        if isinstance(contents_list, str):
+            contents_list = [contents_list]
+        if isinstance(filename_list, str):
+            filename_list = [filename_list]
 
-def _create_warning_alert(message: str):
-    """Create warning alert"""
-    return dbc.Alert(message, color="warning", dismissable=True)
+        try:
+            upload_status = []
+            file_info = []
+            all_data = {"files": []}
 
+            for i, (contents, filename) in enumerate(zip(contents_list, filename_list)):
+                try:
+                    if FileProcessor:
+                        processed_data = FileProcessor.process_file_content(contents, filename)
 
-def _create_error_alert(message: str):
-    """Create error alert"""
-    return dbc.Alert(message, color="danger", dismissable=True)
+                        if processed_data:
+                            upload_status.append(_create_success_alert(f"\u2705 {filename} uploaded successfully"))
+                            file_info.append(_create_file_info_card(processed_data, filename))
+                            all_data["files"].append(filename)
+                        else:
+                            upload_status.append(_create_error_alert(f"\u274C Failed to process {filename}"))
+                    else:
+                        upload_status.append(_create_warning_alert(f"\u26A0\uFE0F FileProcessor not available for {filename}"))
 
+                except Exception as e:
+                    upload_status.append(_create_error_alert(f"\u274C Error processing {filename}: {str(e)}"))
 
-def _create_file_info_card(df, filename: str):
-    """Create file info card"""
-    return dbc.Card([
-        dbc.CardHeader(f"File: {filename}"),
-        dbc.CardBody([
-            html.P(f"Rows: {len(df)}"),
-            html.P(f"Columns: {len(df.columns)}"),
-            html.P(f"Columns: {', '.join(df.columns.tolist())}")
-        ])
-    ])
+            return (
+                html.Div(upload_status),
+                all_data,
+                html.Div(file_info),
+            )
 
-__all__ = ["layout", "register_file_upload_callbacks"]
+        except Exception as e:
+            logger.error(f"File upload processing error: {e}")
+            return (
+                _create_error_alert(f"Processing error: {str(e)}"),
+                {},
+                html.Div(),
+            )
