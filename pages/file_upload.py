@@ -2,8 +2,10 @@
 File Upload Page - Separated from Deep Analytics
 Handles CSV, JSON, and Excel file uploads with validation
 """
+
 from typing import Optional, Union, List, Dict, Any, Tuple
 import logging
+
 
 # Define safe_text directly to avoid import issues
 def safe_text(text):
@@ -12,23 +14,26 @@ def safe_text(text):
         return ""
     return str(text)
 
+
 def format_file_size(size_bytes):
     """Format file size in human readable format"""
     if size_bytes == 0:
         return "0 B"
-    
+
     size_names = ["B", "KB", "MB", "GB", "TB"]
     i = 0
     while size_bytes >= 1024 and i < len(size_names) - 1:
         size_bytes /= 1024.0
         i += 1
-    
+
     return f"{size_bytes:.1f} {size_names[i]}"
+
 
 # Safe imports with fallbacks
 try:
     from dash import html, dcc, Input, Output, State, callback
     import dash_bootstrap_components as dbc
+
     DASH_AVAILABLE = True
 except ImportError:
     DASH_AVAILABLE = False
@@ -40,10 +45,27 @@ try:
         register_dual_upload_callbacks,
         FileProcessor,
     )
+
     COMPONENTS_AVAILABLE = True
 except ImportError:
     COMPONENTS_AVAILABLE = False
     FileProcessor = None
+    # Fallback to a basic uploader from the analytics components
+    try:
+        from components.analytics import create_file_uploader as _basic_uploader
+    except Exception:
+        _basic_uploader = None
+
+    def create_dual_file_uploader(upload_id: str = "file-upload"):
+        if _basic_uploader:
+            return _basic_uploader(upload_id=upload_id)
+        if DASH_AVAILABLE:
+            return dcc.Upload(id=upload_id)
+        return None
+
+    def register_dual_upload_callbacks(app, upload_id: str = "file-upload") -> bool:
+        return False
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,48 +75,60 @@ def layout():
     if not DASH_AVAILABLE:
         return "File Upload page not available - Dash components missing"
 
-    return dbc.Container([
-        # Page header
-        dbc.Row([
-            dbc.Col([
-                html.H1(
-                    safe_text("\U0001F4C1 File Upload Manager"),
-                    className="text-primary mb-0"
-                ),
-                html.P(
-                    safe_text("Upload and validate CSV, JSON, and Excel files"),
-                    className="text-secondary mb-4",
-                ),
-            ])
-        ]),
-
-        # File upload section
-        dbc.Row([
-            dbc.Col([
-                create_dual_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
-                else html.Div("File uploader not available")
-            ])
-        ]),
-
-
-        # The dual upload component already includes status and info areas
-
-        # Data storage for uploaded files
-        dcc.Store(id="file-upload-data-store", data={}),
-
-        # File management section
-        dbc.Row([
-            dbc.Col([
-                html.Div(id="file-management-section", className="mt-4")
-            ])
-        ])
-    ], fluid=True, className="p-4")
+    return dbc.Container(
+        [
+            # Page header
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H1(
+                                safe_text("\U0001f4c1 File Upload Manager"),
+                                className="text-primary mb-0",
+                            ),
+                            html.P(
+                                safe_text(
+                                    "Upload and validate CSV, JSON, and Excel files"
+                                ),
+                                className="text-secondary mb-4",
+                            ),
+                        ]
+                    )
+                ]
+            ),
+            # File upload section
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            (
+                                create_dual_file_uploader("file-upload-main")
+                                if COMPONENTS_AVAILABLE
+                                else html.Div("File uploader not available")
+                            )
+                        ]
+                    )
+                ]
+            ),
+            # The dual upload component already includes status and info areas
+            # Data storage for uploaded files
+            dcc.Store(id="file-upload-data-store", data={}),
+            # File management section
+            dbc.Row(
+                [dbc.Col([html.Div(id="file-management-section", className="mt-4")])]
+            ),
+        ],
+        fluid=True,
+        className="p-4",
+    )
 
 
 def register_file_upload_callbacks(app, container=None):
     """Register file upload page callbacks"""
     if not DASH_AVAILABLE or not COMPONENTS_AVAILABLE:
-        logger.warning("File upload callbacks not registered - components not available")
+        logger.warning(
+            "File upload callbacks not registered - components not available"
+        )
         return
 
     # Register dual upload box callbacks
@@ -153,76 +187,109 @@ def register_file_upload_callbacks(app, container=None):
                             )
                         )
 
-                        file_info.append(_create_file_info_card(processed_data, filename))
+                        file_info.append(
+                            _create_file_info_card(processed_data, filename)
+                        )
 
                         try:
                             data_records = []
-                            for record in processed_data.to_dict('records'):
+                            for record in processed_data.to_dict("records"):
                                 clean_record = {}
                                 for key, value in record.items():
-                                    if hasattr(value, 'item'):
+                                    if hasattr(value, "item"):
                                         clean_record[str(key)] = value.item()
-                                    elif value is None or isinstance(value, (str, int, float, bool)):
+                                    elif value is None or isinstance(
+                                        value, (str, int, float, bool)
+                                    ):
                                         clean_record[str(key)] = value
                                     else:
                                         clean_record[str(key)] = str(value)
                                 data_records.append(clean_record)
 
-                            dtypes_clean = {str(col): str(dtype) for col, dtype in processed_data.dtypes.items()}
+                            dtypes_clean = {
+                                str(col): str(dtype)
+                                for col, dtype in processed_data.dtypes.items()
+                            }
 
                             file_data = {
-                                'id': str(file_id),
-                                'filename': str(filename),
-                                'data': data_records,
-                                'shape': [int(processed_data.shape[0]), int(processed_data.shape[1])],
-                                'columns': [str(col) for col in processed_data.columns],
-                                'dtypes': dtypes_clean,
-                                'memory_usage': int(processed_data.memory_usage(deep=True).sum()),
-                                'null_count': int(processed_data.isnull().sum().sum()),
-                                'upload_timestamp': str(pd.Timestamp.now()),
+                                "id": str(file_id),
+                                "filename": str(filename),
+                                "data": data_records,
+                                "shape": [
+                                    int(processed_data.shape[0]),
+                                    int(processed_data.shape[1]),
+                                ],
+                                "columns": [str(col) for col in processed_data.columns],
+                                "dtypes": dtypes_clean,
+                                "memory_usage": int(
+                                    processed_data.memory_usage(deep=True).sum()
+                                ),
+                                "null_count": int(processed_data.isnull().sum().sum()),
+                                "upload_timestamp": str(pd.Timestamp.now()),
                             }
 
                             all_data.append(file_data)
 
                         except Exception as e:
                             logger.error(f"Error converting data for {filename}: {e}")
-                            all_data.append({
-                                'id': str(file_id),
-                                'filename': str(filename),
-                                'error': f"Data conversion error: {str(e)}",
-                                'shape': [int(processed_data.shape[0]), int(processed_data.shape[1])],
-                                'columns': [str(col) for col in processed_data.columns],
-                            })
+                            all_data.append(
+                                {
+                                    "id": str(file_id),
+                                    "filename": str(filename),
+                                    "error": f"Data conversion error: {str(e)}",
+                                    "shape": [
+                                        int(processed_data.shape[0]),
+                                        int(processed_data.shape[1]),
+                                    ],
+                                    "columns": [
+                                        str(col) for col in processed_data.columns
+                                    ],
+                                }
+                            )
 
                         management_components.append(
-                            _create_file_management_card(file_id, filename, processed_data)
+                            _create_file_management_card(
+                                file_id, filename, processed_data
+                            )
                         )
 
                     else:
-                        upload_status.append(_create_warning_alert(f"⚠️ {filename}: {message}"))
+                        upload_status.append(
+                            _create_warning_alert(f"⚠️ {filename}: {message}")
+                        )
                         if suggestions:
                             upload_status.append(
-                                _create_info_alert(f"💡 Suggestions: {', '.join(suggestions)}")
+                                _create_info_alert(
+                                    f"💡 Suggestions: {', '.join(suggestions)}"
+                                )
                             )
                 else:
-                    upload_status.append(_create_error_alert(f"❌ Failed to process {filename}"))
+                    upload_status.append(
+                        _create_error_alert(f"❌ Failed to process {filename}")
+                    )
 
             except Exception as e:
                 logger.error(f"Error processing file {filename}: {e}")
-                upload_status.append(_create_error_alert(f"❌ Error processing {filename}: {str(e)}"))
+                upload_status.append(
+                    _create_error_alert(f"❌ Error processing {filename}: {str(e)}")
+                )
 
         try:
             return (
                 html.Div(upload_status),
-                {'files': all_data},
+                {"files": all_data},
                 html.Div(file_info),
-                html.Div(management_components) if management_components else html.Div(),
+                (
+                    html.Div(management_components)
+                    if management_components
+                    else html.Div()
+                ),
             )
         except Exception as e:
             logger.error(f"Error in callback return: {e}")
             return (
                 html.Div([_create_error_alert(f"Callback error: {str(e)}")]),
-                {'files': [], 'error': str(e)},
+                {"files": [], "error": str(e)},
                 html.Div(),
                 html.Div(),
             )
@@ -261,16 +328,28 @@ def _create_file_info_card(df, filename: str) -> html.Div:
     if not DASH_AVAILABLE or df is None:
         return html.Div(f"File info for {filename}")
 
-    return dbc.Card([
-        dbc.CardBody([
-            html.H5(f"\U0001F4CA {filename}", className="card-title"),
-            html.P([
-                html.Strong("Rows: "), f"{len(df):,}", html.Br(),
-                html.Strong("Columns: "), f"{len(df.columns)}", html.Br(),
-                html.Strong("Memory: "), f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB"
-            ])
-        ])
-    ], className="mb-3")
+    return dbc.Card(
+        [
+            dbc.CardBody(
+                [
+                    html.H5(f"\U0001f4ca {filename}", className="card-title"),
+                    html.P(
+                        [
+                            html.Strong("Rows: "),
+                            f"{len(df):,}",
+                            html.Br(),
+                            html.Strong("Columns: "),
+                            f"{len(df.columns)}",
+                            html.Br(),
+                            html.Strong("Memory: "),
+                            f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB",
+                        ]
+                    ),
+                ]
+            )
+        ],
+        className="mb-3",
+    )
 
 
 def _create_file_management_card(file_id: str, filename: str, df) -> html.Div:
@@ -278,12 +357,17 @@ def _create_file_management_card(file_id: str, filename: str, df) -> html.Div:
     if not DASH_AVAILABLE:
         return html.Div(f"Management for {filename}")
 
-    return dbc.Card([
-        dbc.CardBody([
-            html.H6(f"\U0001F4C2 {filename}"),
-            html.P(f"Uploaded successfully - {len(df)} rows"),
-        ])
-    ], className="mb-2")
+    return dbc.Card(
+        [
+            dbc.CardBody(
+                [
+                    html.H6(f"\U0001f4c2 {filename}"),
+                    html.P(f"Uploaded successfully - {len(df)} rows"),
+                ]
+            )
+        ],
+        className="mb-2",
+    )
 
 
 __all__ = ["layout", "register_file_upload_callbacks"]
