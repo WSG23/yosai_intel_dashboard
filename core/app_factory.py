@@ -4,6 +4,7 @@ App factory with proper JSON plugin integration
 
 from typing import Any, Optional
 import logging
+from pathlib import Path
 import dash
 from flask_login import login_required
 from flask_wtf import CSRFProtect
@@ -97,11 +98,17 @@ class DashAppFactory:
                 logger.error("❌ Failed to load JSON plugin")
 
             # Create Dash app with configuration
+            # Ensure assets are served from the project-level ``assets`` folder
+            project_root = Path(__file__).resolve().parents[1]
+            assets_path = str(project_root / "assets")
+
             app = YosaiDash(
                 __name__,
                 external_stylesheets=DashAppFactory._get_stylesheets(config_manager),
                 suppress_callback_exceptions=True,
                 meta_tags=DashAppFactory._get_meta_tags(config_manager),
+                assets_folder=assets_path,
+                assets_url_path="/assets",
             )
 
             app.title = config_manager.app_config.title
