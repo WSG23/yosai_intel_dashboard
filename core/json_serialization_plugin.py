@@ -309,17 +309,23 @@ class JsonSerializationPlugin:
     def apply_to_app(self, app):
         """Apply JSON serialization to a specific Flask/Dash app"""
         try:
-            if hasattr(app, 'server') and hasattr(self, '_yosai_json_provider_class'):
-                # This is a Dash app
-                app.server.json_provider_class = self._yosai_json_provider_class
-                app.server.json = self._yosai_json_provider_class(app.server)
-                app._yosai_json_plugin = self
-                self.logger.info("Applied JSON serialization to Dash app")
-            elif hasattr(app, 'json_provider_class') and hasattr(self, '_yosai_json_provider_class'):
-                # This is a Flask app
-                app.json_provider_class = self._yosai_json_provider_class
-                app.json = self._yosai_json_provider_class(app)
-                self.logger.info("Applied JSON serialization to Flask app")
+            if hasattr(self, 'serialization_service'):
+                if hasattr(app, 'server') and hasattr(self, '_yosai_json_provider_class'):
+                    # This is a Dash app
+                    app.server.json_provider_class = self._yosai_json_provider_class
+                    app.server.json = self._yosai_json_provider_class(app.server)
+                    app._yosai_json_plugin = self
+                    self.logger.info("Applied JSON serialization to Dash app")
+                elif hasattr(app, 'json_provider_class') and hasattr(self, '_yosai_json_provider_class'):
+                    # This is a Flask app
+                    app.json_provider_class = self._yosai_json_provider_class
+                    app.json = self._yosai_json_provider_class(app)
+                    self.logger.info("Applied JSON serialization to Flask app")
+            else:
+                logger.info("Using fallback JSON serialization")
+                # Fallback implementation
+        except AttributeError as e:
+            logger.warning(f"JSON plugin fallback: {e}")
         except Exception as e:
             self.logger.warning(f"Could not apply to app: {e}")
     

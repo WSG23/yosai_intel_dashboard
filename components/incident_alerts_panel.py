@@ -99,19 +99,21 @@ def ticket_category_block(cat):
         item_id=cat["id"],
     )
 
-# Create the main layout
-layout = html.Div(
-    [
-        html.H4(_l("Incident Alerts"), className="incident-panel-header"),
-        dbc.Accordion(
-            children=[ticket_category_block(cat) for cat in TICKET_CATEGORIES],
-            start_collapsed=True,
-            always_open=False,
-            id="incident-alert-accordion",
-        ),
-    ],
-    className="incident-alert-panel",
-)
 
-# JSON SANITIZATION - Convert LazyString objects to regular strings
-layout = sanitize_lazystring_recursive(layout)
+def layout():
+    """Return the incident alerts panel layout"""
+    layout_div = html.Div(
+        [
+            html.H4(_l("Incident Alerts"), className="incident-panel-header"),
+            dbc.Accordion(
+                children=[ticket_category_block(cat) for cat in TICKET_CATEGORIES],
+                start_collapsed=True,
+                always_open=False,
+                id="incident-alert-accordion",
+            ),
+        ],
+        className="incident-alert-panel",
+    )
+
+    # JSON SANITIZATION - Convert LazyString objects to regular strings
+    return sanitize_lazystring_recursive(layout_div)

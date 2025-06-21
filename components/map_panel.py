@@ -17,9 +17,12 @@ tile_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
 attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
 
 # Map layout with enhancements
-layout = html.Div(
-    [
-        dcc.Store(id="map-center-store", data=view_centers["site"]),
+
+
+def layout():
+    layout_div = html.Div(
+        [
+            dcc.Store(id="map-center-store", data=view_centers["site"]),
         dl.Map(
             id="facility-map",
             center=view_centers["site"],
@@ -62,12 +65,12 @@ layout = html.Div(
             className="map-toggle-stack",
         ),
     ],
-    className="map-panel",
-    style={"width": "100%", "height": "100%", "backgroundColor": "#121212"},
-)
+        className="map-panel",
+        style={"width": "100%", "height": "100%", "backgroundColor": "#121212"},
+    )
 
-# JSON SANITIZATION - Convert LazyString objects to regular strings
-layout = sanitize_lazystring_recursive(layout)
+    # JSON SANITIZATION - Convert LazyString objects to regular strings
+    return sanitize_lazystring_recursive(layout_div)
 
 # Register callbacks
 def register_callbacks(app):

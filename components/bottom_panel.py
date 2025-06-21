@@ -2,10 +2,11 @@ from dash import html
 from flask_babel import lazy_gettext as _l
 from utils.lazystring_handler import sanitize_lazystring_recursive
 
-def get_layout():
+
+def layout():
     """Return the complete bottom panel layout with both sections"""
 
-    layout = html.Div(
+    layout_div = html.Div(
         [
             # Left Section: Incident Detection Breakdown
             html.Div(
@@ -93,8 +94,5 @@ def get_layout():
         ],
         className="bottom-panel",
     )
-    
-    return layout
 
-# Create layout and ensure JSON serialization
-layout = sanitize_lazystring_recursive(get_layout())
+    return sanitize_lazystring_recursive(layout_div)
