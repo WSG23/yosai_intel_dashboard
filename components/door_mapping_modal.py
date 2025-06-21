@@ -260,7 +260,8 @@ def register_door_mapping_modal_callbacks(app):
                 Output("door-mapping-current-data-store", "data")
             ],
             [Input("door-mapping-modal-data-trigger", "data")],
-            prevent_initial_call=True
+            prevent_initial_call=True,
+            allow_duplicate=True
         )
         def update_door_mapping_content(modal_data):
             """Update modal content when new data is provided"""
