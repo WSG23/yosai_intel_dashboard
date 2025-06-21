@@ -28,7 +28,14 @@ except ImportError as e:
     logger.warning(f"Settings modal component not available: {e}")
     SETTINGS_MODAL_AVAILABLE = False
 
-__all__ = ['NAVBAR_AVAILABLE', 'ANALYTICS_AVAILABLE', 'SETTINGS_MODAL_AVAILABLE']
+try:
+    from .door_mapping_modal import create_door_mapping_modal, register_door_mapping_modal_callbacks
+    DOOR_MAPPING_MODAL_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Door mapping modal component not available: {e}")
+    DOOR_MAPPING_MODAL_AVAILABLE = False
+
+__all__ = ['NAVBAR_AVAILABLE', 'ANALYTICS_AVAILABLE', 'SETTINGS_MODAL_AVAILABLE', 'DOOR_MAPPING_MODAL_AVAILABLE']
 
 if NAVBAR_AVAILABLE:
     __all__.append('create_navbar')
@@ -36,5 +43,8 @@ if ANALYTICS_AVAILABLE:
     __all__.append('analytics')
 if SETTINGS_MODAL_AVAILABLE:
     __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
+
+if DOOR_MAPPING_MODAL_AVAILABLE:
+    __all__.extend(['create_door_mapping_modal', 'register_door_mapping_modal_callbacks'])
 
 

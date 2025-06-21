@@ -4,6 +4,10 @@ Dual Upload Box Component with Tailwind styling
 from dash import html, dcc, clientside_callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import logging
+import pandas as pd
+import base64
+import io
+import dash
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +171,43 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
             ]
     except Exception as e:
         logger.error(f"Error registering dual upload callbacks: {e}")
+
+    @app.callback(
+        [
+            Output("door-mapping-modal-data-trigger", "data"),
+            Output("door-mapping-modal-trigger", "n_clicks")
+        ],
+        [Input("analytics-file-upload", "contents")],
+        [State("analytics-file-upload", "filename")],
+        prevent_initial_call=True
+    )
+    def trigger_door_mapping_modal(contents, filename):
+        """Trigger door mapping modal after successful file upload"""
+        if contents is None:
+            raise dash.exceptions.PreventUpdate
+
+        try:
+            from services.door_mapping_service import door_mapping_service
+
+            content_type, content_string = contents.split(',')
+            decoded = base64.b64decode(content_string)
+
+            if filename.endswith('.csv'):
+                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            elif filename.endswith('.xlsx') or filename.endswith('.xls'):
+                df = pd.read_excel(io.BytesIO(decoded))
+            elif filename.endswith('.json'):
+                df = pd.read_json(io.StringIO(decoded.decode('utf-8')))
+            else:
+                raise ValueError("Unsupported file format")
+
+            modal_data = door_mapping_service.process_uploaded_data(df)
+
+            return modal_data, 1
+
+        except Exception as e:
+            logger.error(f"Error processing file for door mapping: {e}")
+            raise dash.exceptions.PreventUpdate
 
 layout = create_dual_file_uploader
 __all__ = ["create_dual_file_uploader", "register_dual_upload_callbacks", "layout"]

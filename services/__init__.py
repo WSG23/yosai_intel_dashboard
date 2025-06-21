@@ -3,5 +3,6 @@
 
 from .analytics_service import AnalyticsService
 from .file_processor import FileProcessor
+from .door_mapping_service import DoorMappingService, door_mapping_service
 
-__all__ = ["AnalyticsService", "FileProcessor"]
+__all__ = ["AnalyticsService", "FileProcessor", "DoorMappingService", "door_mapping_service"]
