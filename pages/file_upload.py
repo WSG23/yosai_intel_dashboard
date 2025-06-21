@@ -72,9 +72,9 @@ def layout():
         dbc.Row([
             dbc.Col([
                 create_dual_file_uploader("file-upload-main") if COMPONENTS_AVAILABLE
-                else html.Div("File uploader not available")
-            ])
-        ]),
+                else html.Div("File uploader not available", className="alert alert-warning")
+            ], width=12)
+        ], className="mb-4"),
 
 
         # The dual upload component already includes status and info areas
