@@ -91,18 +91,10 @@ def create_full_dashboard() -> Optional[Any]:
 
         # Create container for dependency injection
         container = Container()
-
-        # Register component services with container
-        from core.service_registry import configure_container_fixed  # Use your existing service registry
-        configure_container_fixed(container)
-
-        # Create component registry with DI container
-        component_registry = ComponentRegistry(container)
-
-        # Create layout manager with container access
-        layout_manager = LayoutManager(component_registry, container)
-
-        # Create callback manager with container
+        
+        # Create your modular managers
+        component_registry = ComponentRegistry()
+        layout_manager = LayoutManager(component_registry)
         callback_manager = CallbackManager(app, component_registry, layout_manager, container)
 
         # Step 4: Create main layout using your layout manager
