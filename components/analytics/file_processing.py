@@ -71,40 +71,54 @@ class FileProcessor:
         """Process CSV file with multiple encoding attempts"""
         if not decoded:
             return None
-            
+
         for encoding in ['utf-8', 'latin-1', 'cp1252']:
             try:
                 df = pd.read_csv(io.StringIO(decoded.decode(encoding)))
                 # Clean column names
                 df.columns = df.columns.astype(str).str.strip()
+
+                # FIXED: Add explicit empty check instead of relying on truthiness
+                if df.empty:
+                    return None
+
                 return df
-            except (UnicodeDecodeError, pd.errors.EmptyDataError, pd.errors.ParserError):
+            except (UnicodeDecodeError, pd.errors.EmptyDataError):
                 continue
+            except Exception as e:
+                print(f"Error processing CSV with {encoding}: {e}")
+                continue
+
         return None
     
     @staticmethod
     def _process_json(decoded: bytes) -> Optional[pd.DataFrame]:
-        """Process JSON file"""
+        """Process JSON file with error handling"""
         if not decoded:
             return None
-            
+
         try:
-            json_data = json.loads(decoded.decode('utf-8'))
-            if isinstance(json_data, list):
-                df = pd.DataFrame(json_data)
-            elif isinstance(json_data, dict):
-                if 'data' in json_data:
-                    df = pd.DataFrame(json_data['data'])
+            json_str = decoded.decode('utf-8')
+            data = json.loads(json_str)
+
+            if isinstance(data, list):
+                df = pd.DataFrame(data)
+            elif isinstance(data, dict):
+                if 'data' in data:
+                    df = pd.DataFrame(data['data'])
                 else:
-                    df = pd.DataFrame([json_data])
+                    df = pd.DataFrame([data])
             else:
                 return None
-            
-            # Clean column names
-            df.columns = df.columns.astype(str).str.strip()
+
+            # FIXED: Add explicit empty check
+            if df.empty:
+                return None
+
             return df
-            
-        except (json.JSONDecodeError, ValueError):
+
+        except Exception as e:
+            print(f"Error processing JSON: {e}")
             return None
     
     @staticmethod
@@ -112,13 +126,17 @@ class FileProcessor:
         """Process Excel file"""
         if not decoded:
             return None
-            
+
         try:
             df = pd.read_excel(io.BytesIO(decoded))
-            # Clean column names
-            df.columns = df.columns.astype(str).str.strip()
+
+            # FIXED: Add explicit empty check
+            if df.empty:
+                return None
+
             return df
-        except Exception:
+        except Exception as e:
+            print(f"Error processing Excel: {e}")
             return None
     
     @staticmethod
