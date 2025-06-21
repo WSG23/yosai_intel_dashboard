@@ -35,11 +35,11 @@ except ImportError:
     html = dcc = dbc = None
 
 try:
-    from components.analytics.file_uploader import (
+    from plugins.file_upload_plugin import (
         create_dual_file_uploader,
         register_dual_upload_callbacks,
+        FileProcessor,
     )
-    from components.analytics.file_processing import FileProcessor
     COMPONENTS_AVAILABLE = True
 except ImportError:
     COMPONENTS_AVAILABLE = False

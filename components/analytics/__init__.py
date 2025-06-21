@@ -5,12 +5,13 @@ Analytics components module - Type-safe imports
 
 # Import main component functions with error handling
 try:
-    from .file_uploader import create_file_uploader
+    from plugins.file_upload_plugin import create_file_uploader, FileProcessor
 except ImportError as e:
-    print(f"Warning: Could not import file_uploader: {e}")
+    print(f"Warning: Could not import file_upload_plugin: {e}")
     def create_file_uploader(*args, **kwargs):
         from dash import html
         return html.Div("File uploader component not available")
+    FileProcessor = None
 
 try:
     from .data_preview import create_data_preview
@@ -32,13 +33,13 @@ except ImportError as e:
         from dash import html
         return html.Div("Summary cards component not available")
 
-# Handle file processing imports
-FileProcessor = None
+# Handle file processing imports if not provided by the plugin
 AnalyticsGenerator = None
 
 try:
-    from .file_processing import FileProcessor as _FileProcessor, AnalyticsGenerator as _AnalyticsGenerator
-    FileProcessor = _FileProcessor
+    from .file_processing import FileProcessor as _FP, AnalyticsGenerator as _AnalyticsGenerator
+    if 'FileProcessor' not in globals() or FileProcessor is None:
+        FileProcessor = _FP
     AnalyticsGenerator = _AnalyticsGenerator
 except ImportError as e:
     print(f"Warning: Could not import file_processing: {e}")
