@@ -10,11 +10,46 @@ from typing import Any, Dict, Optional
 from core.plugins.protocols import CallbackPluginProtocol, PluginMetadata, PluginPriority
 
 # Reuse existing uploader UI and processing logic
-from components.analytics.file_uploader import (
-    create_dual_file_uploader,
-    register_dual_upload_callbacks,
-)
-from components.analytics.file_processing import FileProcessor
+try:
+    from components.analytics.file_uploader import (
+        create_dual_file_uploader as _create_dual_file_uploader,
+        register_dual_upload_callbacks as _register_dual_upload_callbacks,
+    )
+    from components.analytics.file_processing import FileProcessor as _FileProcessor
+    COMPONENTS_AVAILABLE = True
+except Exception as exc:  # pragma: no cover - optional dependency handling
+    logging.getLogger(__name__).warning(
+        "File upload components unavailable: %s", exc
+    )
+    COMPONENTS_AVAILABLE = False
+    _create_dual_file_uploader = None
+    _register_dual_upload_callbacks = None
+    _FileProcessor = None
+
+def create_dual_file_uploader(upload_id: str = "analytics-file-upload"):
+    """Safe wrapper to create the file uploader component."""
+    if COMPONENTS_AVAILABLE and _create_dual_file_uploader:
+        return _create_dual_file_uploader(upload_id)
+    try:
+        from dash import html
+        return html.Div("File uploader component not available")
+    except Exception:
+        return None
+
+
+def register_dual_upload_callbacks(app: Any, upload_id: str = "analytics-file-upload") -> bool:
+    """Safely register upload callbacks if components are available."""
+    if COMPONENTS_AVAILABLE and _register_dual_upload_callbacks:
+        try:
+            _register_dual_upload_callbacks(app, upload_id)
+            return True
+        except Exception as exc:  # pragma: no cover - runtime failure
+            logging.getLogger(__name__).error("Failed to register callbacks: %s", exc)
+            return False
+    return False
+
+
+FileProcessor = _FileProcessor  # type: ignore
 
 
 @dataclass
