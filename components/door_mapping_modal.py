@@ -249,42 +249,59 @@ def register_door_mapping_modal_callbacks(app):
             else:
                 return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden"
 
+        # CONSOLIDATED: Handle all current data store updates
+        @app.callback(
+            Output("door-mapping-current-data-store", "data"),
+            [
+                Input("door-mapping-modal-data-trigger", "data"),
+                Input("door-mapping-reset-btn", "n_clicks")
+            ],
+            [State("door-mapping-original-data-store", "data")],
+            prevent_initial_call=True
+        )
+        def handle_current_data_updates(modal_data, reset_clicks, original_data):
+            """Handle all updates to current data store - CONSOLIDATED to avoid duplicates"""
+            ctx = callback_context
+            if not ctx.triggered:
+                raise dash.exceptions.PreventUpdate
+
+            triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+            if triggered_id == "door-mapping-modal-data-trigger":
+                # New data uploaded
+                if modal_data:
+                    devices_data = modal_data.get('devices', [])
+                    return devices_data
+
+            elif triggered_id == "door-mapping-reset-btn":
+                # Reset to original data
+                if reset_clicks and original_data:
+                    return original_data
+
+            raise dash.exceptions.PreventUpdate
+
         # Update modal content when data is uploaded
         @app.callback(
             [
                 Output("door-mapping-table-container", "children"),
                 Output("door-mapping-row-count", "children"),
-                Output("door-mapping-original-data-store", "data"),
-                Output("door-mapping-current-data-store", "data"),
+                Output("door-mapping-original-data-store", "data")
             ],
             [Input("door-mapping-modal-data-trigger", "data")],
-            prevent_initial_call=True,
+            prevent_initial_call=True
         )
-        def update_door_mapping_content(modal_data):
+        def update_modal_content(modal_data):
             """Update modal content when new data is provided"""
             if not modal_data:
                 raise dash.exceptions.PreventUpdate
 
-            devices_data = modal_data.get("devices", [])
+            devices_data = modal_data.get('devices', [])
             row_count = len(devices_data)
 
             table = create_device_mapping_table(devices_data)
             row_count_text = f"{row_count} rows detected"
 
-            return table, row_count_text, devices_data, devices_data
-
-        # Handle reset to original data
-        @app.callback(
-            Output("door-mapping-current-data-store", "data"),
-            [Input("door-mapping-reset-btn", "n_clicks")],
-            [State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True,
-        )
-        def reset_to_original_data(n_clicks, original_data):
-            """Reset current data to original AI values"""
-            if not n_clicks:
-                raise dash.exceptions.PreventUpdate
-            return original_data
+            return table, row_count_text, devices_data
 
         logger.info("Door mapping modal callbacks registered successfully")
 
@@ -300,63 +317,60 @@ def register_door_mapping_clientside_callbacks(app):
         return
 
     try:
-        # Save manual edits clientside callback
+        # CONSOLIDATED: Handle all manual edits store updates
         app.clientside_callback(
             """
-            function(n_clicks, current_edits, original_data) {
-                if (!n_clicks) {
+            function(save_clicks, reset_clicks, current_edits, original_data) {
+                const ctx = window.dash_clientside.callback_context;
+                if (!ctx.triggered || ctx.triggered.length === 0) {
                     return window.dash_clientside.no_update;
                 }
 
-                // Collect all current form values
-                const manual_edits = {};
-                const form_elements = document.querySelectorAll('[id*="-entry"], [id*="-exit"], [id*="-elevator"], [id*="-stairwell"], [id*="-fire_escape"], [id*="-other"], [id*="-security-slider"]');
+                const triggered_id = ctx.triggered[0].prop_id.split('.')[0];
 
-                form_elements.forEach(element => {
-                    const device_id = element.id.split('-')[0];
-                    const attribute = element.id.split('-').slice(1).join('_');
+                if (triggered_id === 'door-mapping-save-edits-btn' && save_clicks) {
+                    // Save manual edits
+                    const manual_edits = {};
+                    const form_elements = document.querySelectorAll('[id*="-entry"], [id*="-exit"], [id*="-elevator"], [id*="-stairwell"], [id*="-fire_escape"], [id*="-other"], [id*="-security-slider"]');
 
-                    if (!manual_edits[device_id]) {
-                        manual_edits[device_id] = {};
-                    }
+                    form_elements.forEach(element => {
+                        const device_id = element.id.split('-')[0];
+                        const attribute = element.id.split('-').slice(1).join('_');
 
-                    if (element.type === 'range') {
-                        manual_edits[device_id][attribute] = parseInt(element.value);
-                    } else {
-                        manual_edits[device_id][attribute] = element.checked;
-                    }
-                });
+                        if (!manual_edits[device_id]) {
+                            manual_edits[device_id] = {};
+                        }
 
-                // Store in localStorage for persistence
-                localStorage.setItem('yosai_door_mapping_manual_edits', JSON.stringify(manual_edits));
+                        if (element.type === 'range') {
+                            manual_edits[device_id][attribute] = parseInt(element.value);
+                        } else {
+                            manual_edits[device_id][attribute] = element.checked;
+                        }
+                    });
 
-                return manual_edits;
-            }
-            """,
-            Output("door-mapping-manual-edits-store", "data"),
-            [Input("door-mapping-save-edits-btn", "n_clicks")],
-            [State("door-mapping-manual-edits-store", "data"),
-             State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True,
-        )
+                    // Store in localStorage for persistence
+                    localStorage.setItem('yosai_door_mapping_manual_edits', JSON.stringify(manual_edits));
+                    return manual_edits;
 
-        # Clear manual edits on reset
-        app.clientside_callback(
-            """
-            function(n_clicks) {
-                if (!n_clicks) {
-                    return window.dash_clientside.no_update;
+                } else if (triggered_id === 'door-mapping-reset-btn' && reset_clicks) {
+                    // Clear manual edits
+                    localStorage.removeItem('yosai_door_mapping_manual_edits');
+                    return {};
                 }
 
-                // Clear localStorage
-                localStorage.removeItem('yosai_door_mapping_manual_edits');
-                return {};
+                return window.dash_clientside.no_update;
             }
             """,
             Output("door-mapping-manual-edits-store", "data"),
-            [Input("door-mapping-reset-btn", "n_clicks")],
-            prevent_initial_call=True,
-            allow_duplicate=True,
+            [
+                Input("door-mapping-save-edits-btn", "n_clicks"),
+                Input("door-mapping-reset-btn", "n_clicks")
+            ],
+            [
+                State("door-mapping-manual-edits-store", "data"),
+                State("door-mapping-original-data-store", "data")
+            ],
+            prevent_initial_call=True
         )
 
         logger.info("Door mapping clientside callbacks registered successfully")
