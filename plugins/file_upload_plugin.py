@@ -29,13 +29,18 @@ class FileUploadConfig:
 class FileUploadPlugin(CallbackPluginProtocol):
     """Plugin providing file upload components and processing."""
 
-    metadata = PluginMetadata(
+    _metadata = PluginMetadata(
         name="FileUploadPlugin",
         version="1.0",
         description="Provide CSV/JSON/XLS upload and processing",
         author="Yosai",
         priority=PluginPriority.NORMAL,
     )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
+        return self._metadata
 
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
