@@ -93,8 +93,8 @@ def create_full_dashboard() -> Optional[Any]:
         container = Container()
 
         # Register component services with container
-        from core.service_registry_fixed import configure_container_fixed
-        configure_container_fixed(container)
+        from core.service_registry import configure_container_with_yaml
+        configure_container_with_yaml(container)
 
         # Create component registry with DI container
         component_registry = ComponentRegistry(container)
