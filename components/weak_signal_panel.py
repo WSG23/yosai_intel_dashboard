@@ -37,40 +37,42 @@ def category_block(title, signals, category_id):
         className="signal-category",
     )
 
-layout = html.Div(
-    [
-        html.H4(_l("Weak-Signal Live Feed"), className="panel-header"),
-        category_block(
-            _l("News Scraping"),
-            [
-                signal_card(
-                    "N",
-                    "0001",
-                    "High",
-                    "Yokohama",
-                    "Foreign actor probing energy facilities",
-                    "25 June 2025",
-                )
-            ],
-            "weak-signal-news",
-        ),
-        category_block(
-            _l("Cross-Location"),
-            [
-                signal_card(
-                    "CO",
-                    "0001",
-                    "Medium",
-                    "Tokyo HQ",
-                    "Unusual access pattern detected",
-                    "25 June 2025",
-                )
-            ],
-            "weak-signal-cross-location",
-        ),
-    ],
-    className="weak-signal-panel",
-)
 
-# JSON SANITIZATION - Convert LazyString objects to regular strings  
-layout = sanitize_lazystring_recursive(layout)
+def layout():
+    layout_div = html.Div(
+        [
+            html.H4(_l("Weak-Signal Live Feed"), className="panel-header"),
+            category_block(
+                _l("News Scraping"),
+                [
+                    signal_card(
+                        "N",
+                        "0001",
+                        "High",
+                        "Yokohama",
+                        "Foreign actor probing energy facilities",
+                        "25 June 2025",
+                    )
+                ],
+                "weak-signal-news",
+            ),
+            category_block(
+                _l("Cross-Location"),
+                [
+                    signal_card(
+                        "CO",
+                        "0001",
+                        "Medium",
+                        "Tokyo HQ",
+                        "Unusual access pattern detected",
+                        "25 June 2025",
+                    )
+                ],
+                "weak-signal-cross-location",
+            ),
+        ],
+        className="weak-signal-panel",
+    )
+
+    # JSON SANITIZATION - Convert LazyString objects to regular strings
+    return sanitize_lazystring_recursive(layout_div)
