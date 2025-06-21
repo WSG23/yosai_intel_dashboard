@@ -127,6 +127,17 @@ class FileUploadPlugin(CallbackPluginProtocol):
         self.config.database_uri = uri
         return True
 
+    # Component creation ------------------------------------------------
+    def create_dual_file_uploader(self, upload_id: str = "analytics-file-upload"):
+        """Create dual file uploader through plugin"""
+        if COMPONENTS_AVAILABLE and _create_dual_file_uploader:
+            return _create_dual_file_uploader(upload_id)
+        try:
+            from dash import html
+            return html.Div("File uploader component not available", className="alert alert-warning")
+        except Exception:
+            return None
+
     # Callback registration --------------------------------------------
     def register_callbacks(self, app: Any, container: Any) -> bool:
         try:
