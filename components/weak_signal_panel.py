@@ -24,54 +24,56 @@ def signal_card(prefix, code, severity, location, description, timestamp):
     )
 
 # Expandable category block
-def category_block(title, signals, category_id):
-    return html.Details(
-        [
-            html.Summary(
-                f"{title} ({len(signals)})",
-                className="signal-summary",
-            ),
-            html.Div(signals, className="signal-category-content"),
-        ],
-        id=category_id,
-        className="signal-category",
+def signal_category_block(title, signals, category_id):
+    """Return an accordion item block for a signal category"""
+    return dbc.AccordionItem(
+        html.Div(signals, className="signal-list"),
+        title=f"{title} ({len(signals)})",
+        item_id=category_id,
     )
 
 
 def layout():
     layout_div = html.Div(
         [
-            html.H4(_l("Weak-Signal Live Feed"), className="panel-header"),
-            category_block(
-                _l("News Scraping"),
-                [
-                    signal_card(
-                        "N",
-                        "0001",
-                        "High",
-                        "Yokohama",
-                        "Foreign actor probing energy facilities",
-                        "25 June 2025",
-                    )
+            html.H4(_l("Weak-Signal Live Feed"), className="incident-panel-header"),
+            dbc.Accordion(
+                children=[
+                    signal_category_block(
+                        _l("News Scraping"),
+                        [
+                            signal_card(
+                                "N",
+                                "0001",
+                                "High",
+                                "Yokohama",
+                                "Foreign actor probing energy facilities",
+                                "25 June 2025",
+                            )
+                        ],
+                        "weak-signal-news",
+                    ),
+                    signal_category_block(
+                        _l("Cross-Location"),
+                        [
+                            signal_card(
+                                "CO",
+                                "0001",
+                                "Medium",
+                                "Tokyo HQ",
+                                "Unusual access pattern detected",
+                                "25 June 2025",
+                            )
+                        ],
+                        "weak-signal-cross-location",
+                    ),
                 ],
-                "weak-signal-news",
-            ),
-            category_block(
-                _l("Cross-Location"),
-                [
-                    signal_card(
-                        "CO",
-                        "0001",
-                        "Medium",
-                        "Tokyo HQ",
-                        "Unusual access pattern detected",
-                        "25 June 2025",
-                    )
-                ],
-                "weak-signal-cross-location",
+                start_collapsed=True,
+                always_open=False,
+                id="weak-signal-accordion",
             ),
         ],
-        className="weak-signal-panel",
+        className="incident-alert-panel",
     )
 
     # JSON SANITIZATION - Convert LazyString objects to regular strings
