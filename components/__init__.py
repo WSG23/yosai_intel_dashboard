@@ -37,9 +37,12 @@ if ANALYTICS_AVAILABLE:
 if SETTINGS_MODAL_AVAILABLE:
     __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
 
-# Dual upload component
+# Dual upload component is now provided via plugin
 try:
-    from .analytics.file_uploader import create_dual_file_uploader, register_dual_upload_callbacks
+    from plugins.file_upload_plugin import (
+        create_dual_file_uploader,
+        register_dual_upload_callbacks,
+    )
     DUAL_UPLOAD_AVAILABLE = True
 except Exception as e:
     logger.warning(f"Dual upload component not available: {e}")
