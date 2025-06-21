@@ -43,7 +43,7 @@ class CallbackManager:
             logger.error(f"Error registering callbacks: {e}")
 
     def _register_page_routing_callback(self) -> None:
-        """Page routing callback using DI container for service resolution"""
+        """Page routing callback"""
         try:
             from dash import Output, Input, html
             from pages import get_page_layout
@@ -54,39 +54,22 @@ class CallbackManager:
                 prevent_initial_call=False,
             )
             def display_page(pathname: Optional[str]) -> Any:
-                """Route to appropriate page using service layer"""
-                try:
-                    if pathname == "/" or pathname is None:
-                        # Return dashboard content - this should persist
-                        return self.layout_manager.create_dashboard_content()
+                """Route to appropriate page"""
+                if pathname == "/" or pathname is None:
+                    return self.layout_manager.create_dashboard_content()
+                elif pathname == "/file-upload":
+                    layout_func = get_page_layout('file_upload')
+                    return layout_func() if layout_func else "File Upload page not available"
+                elif pathname == "/analytics":
+                    layout_func = get_page_layout('deep_analytics')
+                    return layout_func() if layout_func else "Analytics page not available"
+                else:
+                    return html.Div([
+                        html.H1("404 - Page Not Found"),
+                        html.P(f"The page '{pathname}' was not found."),
+                    ])
 
-                    elif pathname == "/file-upload":
-                        # Get file upload service through DI
-                        layout_func = get_page_layout('file_upload')
-                        if layout_func and callable(layout_func):
-                            return layout_func()
-                        else:
-                            return self._create_error_page("File Upload service not available")
-
-                    elif pathname == "/analytics":
-                        # Get analytics service through DI
-                        layout_func = get_page_layout('deep_analytics')
-                        if layout_func and callable(layout_func):
-                            return layout_func()
-                        else:
-                            return self._create_error_page("Analytics service not available")
-                    else:
-                        return html.Div([
-                            html.H1("404 - Page Not Found"),
-                            html.P(f"The page '{pathname}' was not found."),
-                            html.A("← Back to Dashboard", href="/", className="btn btn-primary")
-                        ], className="container text-center mt-5")
-
-                except Exception as e:
-                    logger.error(f"Error in page routing: {e}")
-                    return self._create_error_page(f"Service error: {str(e)}")
-
-            logger.info("Page routing callback registered with DI integration")
+            logger.info("Page routing callback registered")
 
         except Exception as e:
             logger.error(f"Error registering page routing: {e}")
