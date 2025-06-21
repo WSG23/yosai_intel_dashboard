@@ -32,6 +32,24 @@ class FloorEstimationConfig:
 
 
 @dataclass
+class EntryClassificationConfig:
+    security_level_factors: Dict[str, float] = field(
+        default_factory=lambda: {
+            "time_of_day": 0.3,
+            "location_type": 0.4,
+            "access_frequency": 0.3,
+        }
+    )
+
+
+@dataclass
+class JapaneseConfig:
+    enabled: bool = True
+    use_mecab: bool = True
+    fallback_encoding: str = "shift_jis"
+
+
+@dataclass
 class DatabaseConfig:
     path: str = "data/ai_classification.db"
     csv_path: str = "data/csv_storage.db"
@@ -44,6 +62,8 @@ class AIClassificationConfig:
     csv_processing: CSVProcessingConfig = field(default_factory=CSVProcessingConfig)
     column_mapping: ColumnMappingConfig = field(default_factory=ColumnMappingConfig)
     floor_estimation: FloorEstimationConfig = field(default_factory=FloorEstimationConfig)
+    entry_classification: EntryClassificationConfig = field(default_factory=EntryClassificationConfig)
+    japanese: JapaneseConfig = field(default_factory=JapaneseConfig)
 
 
 def get_ai_config() -> AIClassificationConfig:

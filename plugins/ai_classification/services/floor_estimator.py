@@ -3,13 +3,15 @@
 import logging
 from typing import Dict, Any, List
 
+from ..database.csv_storage import CSVStorageRepository
 from ..config import FloorEstimationConfig
 
 logger = logging.getLogger(__name__)
 
 
 class FloorEstimationService:
-    def __init__(self, config: FloorEstimationConfig) -> None:
+    def __init__(self, repository: CSVStorageRepository, config: FloorEstimationConfig) -> None:
+        self.repository = repository
         self.config = config
         self.logger = logger
 
@@ -24,4 +26,7 @@ class FloorEstimationService:
                     except ValueError:
                         pass
         total_floors = max(floors) if floors else 1
+        estimation = {"session_id": session_id, "total_floors": total_floors}
+        self.repository.store_floor_estimation(session_id, estimation)
         return {"success": True, "total_floors": total_floors}
+
