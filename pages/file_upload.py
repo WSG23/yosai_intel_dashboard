@@ -1,240 +1,151 @@
-"""File Upload Page - Direct component import"""
-from typing import Optional, Union, List, Dict, Any, Tuple
+"""
+Enhanced File Upload Page with AI Integration
+Uses existing AI plugin for processing
+"""
+
+from dash import html, dcc, Input, Output, State, callback
+import base64
+import pandas as pd
+import io
+import tempfile
+import os
+import uuid
 import logging
 
-# Safe imports with fallbacks
-try:
-    from dash import html, dcc, Input, Output, State, callback
-    import dash_bootstrap_components as dbc
-    DASH_AVAILABLE = True
-except ImportError:
-    DASH_AVAILABLE = False
-    html = dcc = dbc = None
-
-try:
-    from components.analytics import (
-        create_dual_file_uploader,
-        register_dual_upload_callbacks,
-        FileProcessor,
-        UPLOAD_AVAILABLE,
-    )
-except ImportError:
-    UPLOAD_AVAILABLE = False
-    FileProcessor = None
+from components.analytics.file_uploader import render_column_mapping_panel
 
 logger = logging.getLogger(__name__)
 
 
-def safe_text(text):
-    """Return text safely, handling any objects"""
-    if text is None:
-        return ""
-    return str(text)
-
-
-def format_file_size(size_bytes):
-    """Format file size in human readable format"""
-    if size_bytes == 0:
-        return "0 B"
-
-    size_names = ["B", "KB", "MB", "GB", "TB"]
-    i = 0
-    while size_bytes >= 1024 and i < len(size_names) - 1:
-        size_bytes /= 1024.0
-        i += 1
-
-    return f"{size_bytes:.1f} {size_names[i]}"
-
-
-def _create_success_alert(message: str):
-    """Create success alert"""
-    if not DASH_AVAILABLE:
-        return f"SUCCESS: {message}"
-    return dbc.Alert(message, color="success", dismissable=True)
-
-
-def _create_warning_alert(message: str):
-    """Create warning alert"""
-    if not DASH_AVAILABLE:
-        return f"WARNING: {message}"
-    return dbc.Alert(message, color="warning", dismissable=True)
-
-
-def _create_error_alert(message: str):
-    """Create error alert"""
-    if not DASH_AVAILABLE:
-        return f"ERROR: {message}"
-    return dbc.Alert(message, color="danger", dismissable=True)
-
-
-def _create_file_info_card(df, filename: str) -> html.Div:
-    """Create a file information card"""
-    if not DASH_AVAILABLE or df is None:
-        return html.Div(f"File info for {filename}")
-
-    return dbc.Card([
-        dbc.CardBody([
-            html.H5(f"\U0001F4CA {filename}", className="card-title"),
-            html.P([
-                html.Strong("Rows: "), f"{len(df):,}", html.Br(),
-                html.Strong("Columns: "), f"{len(df.columns)}", html.Br(),
-                html.Strong("Memory: "), f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB"
-            ])
-        ])
-    ], className="mb-3 file-info-card")
-
-
-def _create_file_management_card(file_id: str, filename: str, df) -> html.Div:
-    """Create a file management card"""
-    if not DASH_AVAILABLE:
-        return html.Div(f"Management for {filename}")
-
-    return dbc.Card([
-        dbc.CardBody([
-            html.H6(f"\U0001F4C2 {filename}"),
-            html.P(f"Uploaded successfully - {len(df)} rows"),
-        ])
-    ], className="mb-2 file-info-card")
-
-
 def layout():
-    """File Upload page layout using direct components"""
-    if not DASH_AVAILABLE:
-        return "File Upload page not available - Dash components missing"
+    """File upload page layout with AI integration"""
+    return html.Div([
+        html.H1("File Upload", className="page-title"),
+        dcc.Upload(
+            id='upload-data',
+            children=html.Div([
+                'Drag and Drop or ',
+                html.A('Select Files')
+            ]),
+            style={
+                'width': '100%',
+                'height': '60px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            multiple=False
+        ),
+        html.Div(id='upload-status'),
+        html.Div(id='column-mapping-modal', style={'display': 'none'}),
+        html.Div(id='mapping-verified-status'),
+        html.Div(id='door-mapping-modal', style={'display': 'none'}),
+    ])
 
-    return dbc.Container([
-        # Page header
-        dbc.Row([
-            dbc.Col([
-                html.H1(
-                    "\U0001F4C1 File Upload Manager",
-                    className="text-primary mb-0"
-                ),
-                html.P(
-                    "Upload and validate CSV, JSON, and Excel files",
-                    className="text-secondary mb-4",
-                ),
+
+@callback(
+    [Output('column-mapping-modal', 'children'),
+     Output('column-mapping-modal', 'style'),
+     Output('upload-status', 'children')],
+    Input('upload-data', 'contents'),
+    [State('upload-data', 'filename'),
+     State('user-session', 'data')],
+    prevent_initial_call=True
+)
+def process_upload_with_existing_ai(contents, filename, user_session):
+    """Use your existing AI plugin for file processing"""
+    if not contents or not filename:
+        return [], {'display': 'none'}, ""
+
+    try:
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            headers = df.columns.tolist()
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp:
+                df.to_csv(tmp.name, index=False)
+                temp_path = tmp.name
+
+            try:
+                from plugins.ai_classification.plugin import AIClassificationPlugin
+
+                ai_plugin = AIClassificationPlugin()
+                ai_plugin.start()
+
+                user_id = user_session.get('user_id', 'default_client') if user_session else 'default_client'
+                session_id = str(uuid.uuid4())
+
+                processing_result = ai_plugin.process_csv_file(temp_path, session_id, user_id)
+
+                if processing_result.get('success'):
+                    mapping_result = ai_plugin.map_columns(headers, session_id)
+                    floor_result = ai_plugin.estimate_floors(df.to_dict('records'), session_id)
+
+                    modal_content = render_column_mapping_panel(
+                        header_options=headers,
+                        file_name=filename,
+                        ai_suggestions=mapping_result.get('suggested_mapping', {}),
+                        floor_estimate=floor_result,
+                        user_id=user_id
+                    )
+
+                    status_content = html.Div([
+                        html.Div("✅ File processed with AI analysis", className="alert alert-success"),
+                        html.Div([
+                            html.Ul([
+                                html.Li(f"📊 {len(df)} rows, {len(headers)} columns processed"),
+                                html.Li(f"🤖 AI mapped {len(mapping_result.get('suggested_mapping', {}))} columns"),
+                                html.Li(f"🏢 {floor_result.get('total_floors', 'Unknown')} floors estimated"),
+                            ])
+                        ])
+                    ])
+
+                    return modal_content, {'display': 'block'}, status_content
+                else:
+                    modal_content = render_column_mapping_panel(
+                        header_options=headers,
+                        file_name=filename,
+                        user_id=user_id
+                    )
+
+                    status_content = html.Div([
+                        html.Div("⚠️ File processed (AI analysis unavailable)", className="alert alert-warning")
+                    ])
+
+                    return modal_content, {'display': 'block'}, status_content
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+        else:
+            return [], {'display': 'none'}, html.Div([
+                html.Div("❌ Please upload a CSV file", className="alert alert-danger")
             ])
-        ]),
 
-        # Debug info (remove after testing)
-        dbc.Row([
-            dbc.Col([
-                dbc.Alert([
-                    html.P(f"DASH_AVAILABLE: {DASH_AVAILABLE}"),
-                    html.P(f"UPLOAD_AVAILABLE: {UPLOAD_AVAILABLE}"),
-                    html.P(f"FileProcessor available: {FileProcessor is not None}")
-                ], color="info", className="mb-3")
-            ])
-        ]),
-
-        # File upload section
-        dbc.Row([
-            dbc.Col([
-                create_dual_file_uploader("file-upload-main") if UPLOAD_AVAILABLE
-                else _create_error_alert("File uploader not available")
-            ])
-        ], className="mb-4"),
-
-        # Data storage
-        dcc.Store(id="file-upload-data-store", data={}),
-
-        # File management section
-        dbc.Row([
-            dbc.Col([
-                html.Div(id="file-management-section", className="mt-4")
-            ])
-        ])
-    ], fluid=True, className="p-4")
-
-
-def register_file_upload_callbacks(app, container=None):
-    """Register file upload page callbacks using direct components"""
-    if not DASH_AVAILABLE or not UPLOAD_AVAILABLE:
-        logger.warning("File upload callbacks not registered - components not available")
-        return
-
-    # Register component callbacks
-    register_dual_upload_callbacks(app, "file-upload-main")
-
-    # Page-specific callback for file management
-    @app.callback(
-        Output("file-management-section", "children"),
-        Input("file-upload-data-store", "data"),
-        prevent_initial_call=True,
-    )
-    def update_file_management(data):
-        if not data:
-            return html.Div("No files uploaded yet", className="text-muted")
-
-        files = data.get('files', [])
-        return dbc.Alert(
-            f"Files uploaded: {len(files)}", 
-            color="info" if files else "secondary"
-        )
-
-    # File processing callback
-    @app.callback(
-        [
-            Output("file-upload-main-status", "children"),
-            Output("file-upload-data-store", "data"),
-            Output("file-upload-main-info", "children"),
-        ],
-        Input("file-upload-main", "contents"),
-        State("file-upload-main", "filename"),
-        prevent_initial_call=True,
-    )
-    def process_file_uploads(
-        contents_list: Optional[Union[str, List[str]]],
-        filename_list: Optional[Union[str, List[str]]],
-    ) -> Tuple[html.Div, Dict[str, Any], html.Div]:
-        """Process uploaded files and provide detailed information"""
-
-        if not contents_list:
-            return (
-                html.Div(),
-                {},
-                html.Div(),
-            )
-
-        if isinstance(contents_list, str):
-            contents_list = [contents_list]
-        if isinstance(filename_list, str):
-            filename_list = [filename_list]
-
+    except Exception as e:
+        logger.error(f"Error processing file: {e}")
         try:
-            upload_status = []
-            file_info = []
-            all_data = {"files": []}
+            if 'df' in locals():
+                headers = df.columns.tolist()
+                modal_content = render_column_mapping_panel(
+                    header_options=headers,
+                    file_name=filename
+                )
+                status_content = html.Div([
+                    html.Div("⚠️ File processed with basic analysis", className="alert alert-warning"),
+                    html.Small(f"AI analysis failed: {str(e)}")
+                ])
+                return modal_content, {'display': 'block'}, status_content
+        except Exception:
+            pass
 
-            for i, (contents, filename) in enumerate(zip(contents_list, filename_list)):
-                try:
-                    if FileProcessor:
-                        processed_data = FileProcessor.process_file_content(contents, filename)
-
-                        # FIXED: Proper DataFrame validation
-                        if processed_data is not None and not processed_data.empty:
-                            upload_status.append(_create_success_alert(f"\u2705 {filename} uploaded successfully"))
-                            file_info.append(_create_file_info_card(processed_data, filename))
-                            all_data["files"].append(filename)
-                        else:
-                            upload_status.append(_create_error_alert(f"\u274C Failed to process {filename} - file may be empty or invalid"))
-                    else:
-                        upload_status.append(_create_warning_alert(f"\u26A0\uFE0F FileProcessor not available for {filename}"))
-
-                except Exception as e:
-                    upload_status.append(_create_error_alert(f"\u274C Error processing {filename}: {str(e)}"))
-
-            return (
-                html.Div(upload_status),
-                all_data,
-                html.Div(file_info),
-            )
-
-        except Exception as e:
-            logger.error(f"File upload processing error: {e}")
-            return (
-                _create_error_alert(f"Processing error: {str(e)}"),
-                {},
-                html.Div(),
-            )
+        return [], {'display': 'none'}, html.Div([
+            html.Div("❌ Error processing file", className="alert alert-danger"),
+            html.Small(str(e))
+        ])
