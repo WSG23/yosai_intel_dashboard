@@ -35,7 +35,7 @@ def safe_map_panel():
                 html.P("Interactive security map"),
                 html.P("Real-time monitoring active"),
                 dbc.Progress(value=100, color="success")
-            ], style={"height": "300px", "text-align": "center", "padding": "50px"})
+            ], style={"height": "300px", "textalign": "center", "padding": "50px"})
         ])
     ])
 
