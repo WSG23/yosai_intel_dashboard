@@ -97,7 +97,7 @@ def create_dual_file_uploader(upload_id: str = 'analytics-file-upload') -> html.
         return html.Div(f"Upload component error: {e}", className="text-danger")
 
 
-def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'):
+def register_dual_upload_callbacks(app, upload_id: str = 'upload-data'):
     """Register callbacks for dual upload functionality"""
     try:
         app.clientside_callback(
@@ -180,8 +180,8 @@ def register_dual_upload_callbacks(app, upload_id: str = 'analytics-file-upload'
             Output("door-mapping-modal-data-trigger", "data"),
             Output("door-mapping-modal-trigger", "n_clicks")
         ],
-        [Input(upload_id, "contents")],
-        [State(upload_id, "filename")],
+        [Input('upload-data', "contents")],
+        [State('upload-data', "filename")],
         prevent_initial_call=True
     )
     def trigger_door_mapping_modal(contents, filename):
@@ -376,7 +376,6 @@ def render_column_mapping_panel(header_options, file_name="access_control_data_1
      Output('upload-status', 'children'),
      Output('mapping-verified-status', 'children')],
     [Input('upload-data', 'contents'),
-     Input('close-mapping-modal', 'n_clicks'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks')],
     [State('upload-data', 'filename'),
@@ -388,7 +387,7 @@ def render_column_mapping_panel(header_options, file_name="access_control_data_1
      State('user-id-storage', 'children')],
     prevent_initial_call=True
 )
-def handle_all_upload_modal_actions(upload_contents, close_clicks, cancel_clicks, verify_clicks,
+def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks,
                                   upload_filename, timestamp_col, device_col, user_col,
                                   event_type_col, floor_estimate, user_id):
     """Single callback to handle all upload and modal actions"""
@@ -450,7 +449,7 @@ def handle_all_upload_modal_actions(upload_contents, close_clicks, cancel_clicks
             logger.error(f"Error processing file: {e}")
             error_status = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
             return dash.no_update, {"display": "none"}, error_status, ""
-    elif trigger_id in ['close-mapping-modal', 'cancel-mapping']:
+    elif trigger_id in ['cancel-mapping']:
         return dash.no_update, {"display": "none"}, dash.no_update, ""
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:

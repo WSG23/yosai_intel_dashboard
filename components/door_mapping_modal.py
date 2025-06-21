@@ -379,6 +379,18 @@ def register_door_mapping_clientside_callbacks(app):
         logger.error(f"Error registering door mapping clientside callbacks: {e}")
 
 
+# Close button callback for door mapping modal
+@callback(
+    Output("door-mapping-modal-container", "style"),
+    [Input("door-mapping-modal-close-btn", "n_clicks")],
+    prevent_initial_call=True
+)
+def close_door_mapping_modal(close_clicks):
+    """Close the door mapping modal"""
+    if close_clicks:
+        return {"display": "none"}
+    return dash.no_update
+
 # Export the layout function for consistency with other components
 layout = create_door_mapping_modal
 __all__ = [
