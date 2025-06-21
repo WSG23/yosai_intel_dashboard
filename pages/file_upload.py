@@ -197,12 +197,13 @@ def register_file_upload_callbacks(app, container=None):
                     if FileProcessor:
                         processed_data = FileProcessor.process_file_content(contents, filename)
 
-                        if processed_data:
+                        # FIXED: Proper DataFrame validation
+                        if processed_data is not None and not processed_data.empty:
                             upload_status.append(_create_success_alert(f"\u2705 {filename} uploaded successfully"))
                             file_info.append(_create_file_info_card(processed_data, filename))
                             all_data["files"].append(filename)
                         else:
-                            upload_status.append(_create_error_alert(f"\u274C Failed to process {filename}"))
+                            upload_status.append(_create_error_alert(f"\u274C Failed to process {filename} - file may be empty or invalid"))
                     else:
                         upload_status.append(_create_warning_alert(f"\u26A0\uFE0F FileProcessor not available for {filename}"))
 
