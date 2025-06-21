@@ -280,7 +280,8 @@ def register_door_mapping_modal_callbacks(app):
             Output("door-mapping-current-data-store", "data"),
             [Input("door-mapping-reset-btn", "n_clicks")],
             [State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True
+            prevent_initial_call=True,
+            allow_duplicate=True
         )
         def handle_current_data_updates(reset_clicks, original_data):
             """Handle all updates to current data store"""
@@ -331,9 +332,10 @@ def register_door_mapping_modal_callbacks(app):
             """,
             Output("door-mapping-manual-edits-store", "data"),
             [Input("door-mapping-save-edits-btn", "n_clicks")],
-            [State("door-mapping-manual-edits-store", "data"), 
+            [State("door-mapping-manual-edits-store", "data"),
              State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True
+            prevent_initial_call=True,
+            allow_duplicate=True
         )
 
         # Clear manual edits - FIXED separate clientside callback for reset
