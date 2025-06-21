@@ -320,7 +320,8 @@ def register_door_mapping_modal_callbacks(app):
             Output("door-mapping-current-data-store", "data"),
             [Input("door-mapping-reset-btn", "n_clicks")],
             [State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True
+            prevent_initial_call=True,
+            allow_duplicate=True
         )
         def reset_to_ai_values(n_clicks, original_data):
             """Reset all values to original AI-generated values"""
@@ -337,7 +338,8 @@ def register_door_mapping_modal_callbacks(app):
                 """,
                 Output("door-mapping-manual-edits-store", "data"),
                 [Input("door-mapping-reset-btn", "n_clicks")],
-                prevent_initial_call=True
+                prevent_initial_call=True,
+                allow_duplicate=True
             )
             
             return original_data
