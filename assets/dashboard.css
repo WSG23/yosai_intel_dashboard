@@ -654,3 +654,20 @@ html, body, #root, .dash-app {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* File Upload Cards - Following existing signal-card pattern */
+.file-info-card {
+  margin-bottom: 1rem;
+  background-color: #1e2936;
+  border-radius: 6px;
+  color: var(--color-text-primary);
+}
+
+.file-info-card .card-title {
+  color: var(--color-text-primary);
+}
+
+.file-info-card .card-body {
+  color: var(--color-text-primary);
+}
+

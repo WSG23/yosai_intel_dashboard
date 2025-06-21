@@ -67,19 +67,34 @@ def _create_error_alert(message: str):
     return dbc.Alert(message, color="danger", dismissable=True)
 
 
-def _create_file_info_card(df, filename: str):
-    """Create file info card"""
-    if not DASH_AVAILABLE:
-        return f"File: {filename}, Rows: {len(df)}"
+def _create_file_info_card(df, filename: str) -> html.Div:
+    """Create a file information card"""
+    if not DASH_AVAILABLE or df is None:
+        return html.Div(f"File info for {filename}")
 
     return dbc.Card([
-        dbc.CardHeader(f"\U0001F4C4 File: {filename}"),
         dbc.CardBody([
-            html.P(f"\U0001F4CA Rows: {len(df):,}"),
-            html.P(f"\U0001F4CB Columns: {len(df.columns)}"),
-            html.P(f"\U0001F3F7\uFE0F Column Names: {', '.join(df.columns.tolist())}")
+            html.H5(f"\U0001F4CA {filename}", className="card-title"),
+            html.P([
+                html.Strong("Rows: "), f"{len(df):,}", html.Br(),
+                html.Strong("Columns: "), f"{len(df.columns)}", html.Br(),
+                html.Strong("Memory: "), f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB"
+            ])
         ])
-    ], className="mt-3")
+    ], className="mb-3 file-info-card")
+
+
+def _create_file_management_card(file_id: str, filename: str, df) -> html.Div:
+    """Create a file management card"""
+    if not DASH_AVAILABLE:
+        return html.Div(f"Management for {filename}")
+
+    return dbc.Card([
+        dbc.CardBody([
+            html.H6(f"\U0001F4C2 {filename}"),
+            html.P(f"Uploaded successfully - {len(df)} rows"),
+        ])
+    ], className="mb-2 file-info-card")
 
 
 def layout():
