@@ -51,16 +51,18 @@ def layout():
      Output('column-mapping-modal', 'style'),
      Output('upload-status', 'children')],
     Input('upload-data', 'contents'),
-    [State('upload-data', 'filename'),
-     State('user-session', 'data')],
+    [State('upload-data', 'filename')],  # Removed user-session state
     prevent_initial_call=True
 )
-def process_upload_with_existing_ai(contents, filename, user_session):
+def process_upload_with_existing_ai(contents, filename):  # Removed user_session parameter
     """Use your existing AI plugin for file processing"""
     if not contents or not filename:
         return [], {'display': 'none'}, ""
 
     try:
+        # Generate a session ID if needed
+        user_session = f"session_{uuid.uuid4().hex[:8]}"
+
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
 
@@ -78,7 +80,7 @@ def process_upload_with_existing_ai(contents, filename, user_session):
                 ai_plugin = AIClassificationPlugin()
                 ai_plugin.start()
 
-                user_id = user_session.get('user_id', 'default_client') if user_session else 'default_client'
+                user_id = 'default_client'
                 session_id = str(uuid.uuid4())
 
                 processing_result = ai_plugin.process_csv_file(temp_path, session_id, user_id)
