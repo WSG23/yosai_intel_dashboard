@@ -146,8 +146,8 @@ class DIContainerChecker(ServiceChecker):
                 
         except ImportError:
             # Try alternative import paths
-            from core.container import Container
-            container = Container()
+            from core.di_container import DIContainer
+            container = DIContainer()
             return {
                 'container_type': type(container).__name__,
                 'services_registered': 0,

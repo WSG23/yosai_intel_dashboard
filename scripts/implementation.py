@@ -30,19 +30,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import pandas as pd
 
-# Core imports - Updated to use unified configuration
-try:
-    from config.unified_config import (
-        YosaiConfiguration,
-        ConfigurationManager,
-        Environment,
-    )
-except ImportError:
-    # Fallback to YAML config if unified_config not available
-    from config.yaml_config import ConfigurationManager
-
-    Environment = None
-    YosaiConfiguration = None
+# Core configuration
+from config.yaml_config import get_configuration_manager
 
 from core.protocols import (
     DatabaseProtocol,
@@ -53,7 +42,7 @@ from core.service_registry import (
     get_configured_container,
     EnhancedHealthMonitor as HealthMonitor,
 )
-from core.container import Container
+from core.di_container import DIContainer
 
 # Try to import error handling, use basic if not available
 try:
@@ -232,8 +221,8 @@ class YosaiIntelDashboard:
     ):
         """Initialize enhanced dashboard with comprehensive configuration"""
         self.start_time = datetime.now()
-        self.container: Container = None
-        self.config_manager: ConfigurationManager = None
+        self.container: DIContainer = None
+        self.config_manager: Any = None
         self.error_handler: ErrorHandler = None
         self.performance_monitor: PerformanceMonitor = None
         self.security_service: SecurityService = None
@@ -264,7 +253,7 @@ class YosaiIntelDashboard:
         try:
             print("   🔧 Loading configuration...")
             # 1. ENHANCED CONFIGURATION SYSTEM
-            self.config_manager = ConfigurationManager()
+            self.config_manager = get_configuration_manager()
 
             # Load configuration with appropriate path based on environment
             if environment:
@@ -686,8 +675,7 @@ def run_immediate_action_items():
     print("\n2. Validating unified configuration system...")
 
     try:
-        config_manager = ConfigurationManager()
-        config_manager.load_configuration()
+        config_manager = get_configuration_manager()
         warnings = config_manager.validate_configuration()
 
         if warnings:
@@ -746,10 +734,9 @@ def main():
         try:
             # Test basic configuration loading
             print("📋 Testing configuration...")
-            from config.yaml_config import ConfigurationManager
+            from config.yaml_config import get_configuration_manager
 
-            config_manager = ConfigurationManager()
-            config_manager.load_configuration()
+            config_manager = get_configuration_manager()
             print("✅ Configuration loaded")
 
             # Test container

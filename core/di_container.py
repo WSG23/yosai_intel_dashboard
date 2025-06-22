@@ -1,91 +1,104 @@
-"""Enhanced Dependency Injection Container"""
+"""Unified Dependency Injection Container"""
 
-from typing import Dict, Type, TypeVar, Callable, Any, Optional
-from dataclasses import dataclass
-import inspect
+import logging
+from typing import Dict, Any, Callable, Optional, TypeVar, List
+from contextlib import contextmanager
 import threading
 
-
-T = TypeVar("T")
-
-
-@dataclass
-class ServiceRegistration:
-    """Service registration configuration"""
-
-    service_class: Type
-    singleton: bool = True
-    factory: Optional[Callable] = None
-    dependencies: Optional[list] = None
+T = TypeVar('T')
+logger = logging.getLogger(__name__)
 
 
 class DIContainer:
-    """Enhanced thread-safe dependency injection container"""
+    """Thread-safe dependency injection container with lifecycle hooks"""
 
-    def __init__(self) -> None:
-        self._services: Dict[str, ServiceRegistration] = {}
+    def __init__(self, name: str = "default") -> None:
+        self.name = name
+        self._services: Dict[str, Callable] = {}
         self._instances: Dict[str, Any] = {}
+        self._singletons: Dict[str, Any] = {}
+        self._dependencies: Dict[str, List[str]] = {}
         self._lock = threading.RLock()
+        self._lifecycle_hooks: Dict[str, List[Callable]] = {
+            'before_create': [],
+            'after_create': [],
+            'before_destroy': [],
+            'after_destroy': []
+        }
 
-    def register(
-        self,
-        interface: Type[T],
-        implementation: Type[T],
-        singleton: bool = True,
-        factory: Optional[Callable] = None,
-    ) -> None:
+    def register(self, name: str, factory: Callable, *, singleton: bool = False, dependencies: Optional[List[str]] = None) -> None:
         """Register a service with the container"""
-
         with self._lock:
-            service_name = interface.__name__
-            self._services[service_name] = ServiceRegistration(
-                service_class=implementation,
-                singleton=singleton,
-                factory=factory,
-                dependencies=self._get_dependencies(implementation),
-            )
+            self._services[name] = factory
+            self._dependencies[name] = dependencies or []
+            if singleton and not dependencies:
+                try:
+                    instance = factory()
+                    self._singletons[name] = instance
+                    self._run_hooks('after_create', name, instance)
+                except Exception as exc:
+                    logger.error("Failed to create singleton %s: %s", name, exc)
 
-    def resolve(self, interface: Type[T]) -> T:
-        """Resolve a service instance"""
-
+    def register_instance(self, name: str, instance: Any) -> None:
         with self._lock:
-            service_name = interface.__name__
+            self._instances[name] = instance
 
-            if service_name not in self._services:
-                raise ValueError(f"Service {service_name} not registered")
+    def get(self, name: str) -> Any:
+        with self._lock:
+            if name in self._instances:
+                return self._instances[name]
+            if name in self._singletons:
+                return self._singletons[name]
+            if name in self._services:
+                return self._create_instance(name)
+            raise ValueError(f"Service not registered: {name}")
 
-            registration = self._services[service_name]
+    def get_optional(self, name: str) -> Optional[Any]:
+        try:
+            return self.get(name)
+        except ValueError:
+            return None
 
-            if registration.singleton and service_name in self._instances:
-                return self._instances[service_name]  # type: ignore[return-value]
+    def has(self, name: str) -> bool:
+        return name in self._services or name in self._instances or name in self._singletons
 
-            instance = self._create_instance(registration)
+    def _create_instance(self, name: str) -> Any:
+        factory = self._services[name]
+        deps = {dep: self.get(dep) for dep in self._dependencies.get(name, [])}
+        self._run_hooks('before_create', name, None)
+        instance = factory(**deps)
+        if name in self._singletons:
+            self._singletons[name] = instance
+        self._run_hooks('after_create', name, instance)
+        return instance
 
-            if registration.singleton:
-                self._instances[service_name] = instance
+    def add_lifecycle_hook(self, event: str, callback: Callable) -> None:
+        if event in self._lifecycle_hooks:
+            self._lifecycle_hooks[event].append(callback)
 
-            return instance
+    def _run_hooks(self, event: str, name: str, instance: Any) -> None:
+        for hook in self._lifecycle_hooks.get(event, []):
+            try:
+                hook(name, instance)
+            except Exception as exc:
+                logger.warning("Lifecycle hook failed for %s: %s", event, exc)
 
-    def _create_instance(self, registration: ServiceRegistration) -> Any:
-        """Create service instance with dependency injection"""
-
-        if registration.factory:
-            return registration.factory()
-
-        if registration.dependencies:
-            deps = [self.resolve(dep_type) for dep_type in registration.dependencies]
-            return registration.service_class(*deps)
-
-        return registration.service_class()
-
-    def _get_dependencies(self, service_class: Type) -> list:
-        """Extract constructor dependencies from type hints"""
-
-        sig = inspect.signature(service_class.__init__)
-        dependencies = []
-        for param_name, param in sig.parameters.items():
-            if param_name != "self" and param.annotation != inspect.Parameter.empty:
-                dependencies.append(param.annotation)
-
-        return dependencies
-
+    def health_check(self) -> Dict[str, Any]:
+        with self._lock:
+            status = {
+                'container': self.name,
+                'services_registered': len(self._services),
+                'instances_created': len(self._instances),
+                'singletons_created': len(self._singletons),
+                'services': {}
+            }
+            for name in self._services:
+                try:
+                    instance = self.get_optional(name)
+                    status['services'][name] = {
+                        'status': 'healthy' if instance else 'unavailable',
+                        'type': type(instance).__name__ if instance else 'None'
+                    }
+                except Exception as exc:
+                    status['services'][name] = {'status': 'error', 'error': str(exc)}
+            return status
