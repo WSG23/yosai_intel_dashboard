@@ -18,19 +18,26 @@ class CallbackRegistry:
         self.registered_callbacks = {}
         self.clientside_callbacks = {}
         
-    def register_callback(self,
-                         outputs,
-                         inputs: List,
+    def register_callback(self, 
+                         outputs, 
+                         inputs: List, 
                          states: List = None,
                          prevent_initial_call: bool = True,
-                         callback_id: str = None):
+                         callback_id: str = None,
+                         allow_duplicate: bool = False):
         """Decorator to register callbacks"""
         def decorator(func: Callable):
             if callback_id and callback_id in self.registered_callbacks:
                 logger.warning(f"Callback {callback_id} already registered, skipping")
                 return func
-                
+
             try:
+                # Handle allow_duplicate for Output objects
+                if allow_duplicate and hasattr(outputs, '__iter__'):
+                    for output in outputs if isinstance(outputs, list) else [outputs]:
+                        if hasattr(output, 'allow_duplicate'):
+                            output.allow_duplicate = True
+
                 @self.app.callback(
                     outputs,
                     inputs,
