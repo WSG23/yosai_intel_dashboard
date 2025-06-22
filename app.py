@@ -43,10 +43,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_full_dashboard():
+def create_full_dashboard() -> "Dash":
     """Create the complete dashboard application with centralized callbacks"""
     try:
-        from dash import Dash
+        from dash.dash import Dash
         import dash_bootstrap_components as dbc
 
         class YosaiDash(Dash):
@@ -206,7 +206,7 @@ def main() -> None:
 # -------------------------------------------------------------------------
 # WSGI helpers
 
-def get_app() -> Optional[Any]:
+def get_app() -> Optional["Dash"]:
     """Return the Dash app instance for WSGI servers."""
     try:
         app = create_full_dashboard()
