@@ -50,12 +50,10 @@ def register_page_callbacks(page_name: str, app: Any, container: Any = None) -> 
         except Exception as e:
             logger.error(f"Failed to register analytics callbacks: {e}")
     
-    elif page_name == 'file_upload' and page_module and hasattr(page_module, 'register_file_upload_callbacks'):
-        try:
-            page_module.register_file_upload_callbacks(app, container)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to register file upload callbacks: {e}")
+    # Skip file_upload callbacks since they're now handled by centralized system
+    elif page_name == 'file_upload':
+        logger.info("File upload callbacks handled by centralized system")
+        return True
 
     elif page_name == 'login' and page_module and hasattr(page_module, 'register_login_callbacks'):
         try:
