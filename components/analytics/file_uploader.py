@@ -4,6 +4,7 @@ Dual Upload Box Component with Tailwind styling and working callbacks
 from dash import html, dcc, callback, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 import logging
+from datetime import datetime
 import pandas as pd
 import base64
 import io
@@ -351,6 +352,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 'data': df.to_dict('records')
             }
 
+
             if AI_AVAILABLE and session_id:
                 try:
                     persistent_data = {
@@ -366,6 +368,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                     logger.info(f"Data persisted for session {session_id}")
                 except Exception as e:
                     logger.error(f"Failed to persist data: {e}")
+
 
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
