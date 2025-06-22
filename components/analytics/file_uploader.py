@@ -411,6 +411,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
             session_id = processed_data.get('session_id') if processed_data else None
+            processed_store = processed_data if processed_data else {}
             if not session_id:
                 error_msg = html.Div("❌ Session expired. Please re-upload your file.", className="alert alert-error")
                 return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
@@ -427,6 +428,24 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                     logger.info(f"Column mapping confirmed: {mapping}")
                 except Exception as e:
                     logger.error(f"Failed to confirm mapping: {e}")
+
+            # Store user column selections for door mapping
+            try:
+                column_selections = {
+                    'timestamp': timestamp_col,
+                    'device_name': device_col,
+                    'user_id': user_col,
+                    'event_type': event_type_col
+                }
+                column_selections = {k: v for k, v in column_selections.items() if v is not None}
+
+                processed_store.update({
+                    'user_column_selections': column_selections
+                })
+
+                logger.info(f"Stored user column selections: {column_selections}")
+            except Exception as e:
+                logger.error(f"Failed to store column selections: {e}")
             success_msg = html.Div([
                 html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
                 html.Div([
@@ -447,7 +466,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 no_update, no_update, no_update, no_update, no_update,
                 no_update,
                 success_msg,
-                no_update, no_update,
+                no_update, processed_store,
                 {"display": "inline-block"},
                 {"display": "inline-block"}
             ]
@@ -463,11 +482,16 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
     [Input('open-door-mapping', 'n_clicks'),
      Input('skip-door-mapping', 'n_clicks')],
     [State('processed-data-store', 'data'),
-     State('column-mapping-store', 'data')],
+     State('uploaded-file-store', 'data'),
+     State('timestamp-dropdown', 'value'),
+     State('device-column-dropdown', 'value'),
+     State('user-id-dropdown', 'value'),
+     State('event-type-dropdown', 'value')],
     prevent_initial_call=True
 )
-def handle_door_mapping(open_clicks, skip_clicks, processed_data, mapping_data):
-    """Handle door mapping modal with real CSV data"""
+def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
+                       timestamp_col, device_col, user_col, event_col):
+    """Handle door mapping modal with comprehensive column detection"""
     ctx = callback_context
     if not ctx.triggered:
         return [], {'display': 'none'}
@@ -480,75 +504,144 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, mapping_data):
     if trigger_id == 'open-door-mapping':
         try:
             if not processed_data or 'data' not in processed_data:
-                error_modal = html.Div([
-                    html.Div([
-                        html.H3("❌ No Data Available"),
-                        html.P("Please upload and process a file first."),
-                        html.Button("Close", id="close-error-modal", className="btn btn-secondary")
-                    ], className="modal-content p-6 bg-white rounded")
-                ], className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center")
+                error_modal = create_error_modal("No Data Available", "Please upload and process a file first.")
                 return error_modal, {'display': 'block'}
 
-            # Extract device/door data from processed CSV
+            # Extract CSV data
             csv_data = processed_data['data']
-            ai_suggestions = processed_data.get('ai_suggestions', {})
+            if not csv_data:
+                error_modal = create_error_modal("Empty Data", "The uploaded file contains no data rows.")
+                return error_modal, {'display': 'block'}
 
-            # Get the device/door column from AI suggestions or user mapping
-            device_column = ai_suggestions.get('device_name') or ai_suggestions.get('location')
+            # Get all available columns
+            available_columns = list(csv_data[0].keys()) if csv_data else []
+            logger.info(f"Available columns: {available_columns}")
 
-            if not device_column:
-                # Check if user manually mapped it
-                # For now, try common column names
-                possible_columns = ['door', 'device', 'location', 'door_id', 'device_id', 'area']
-                for col in possible_columns:
-                    if col in (csv_data[0].keys() if csv_data else []):
-                        device_column = col
+            # ENHANCED COLUMN DETECTION - Try multiple sources
+            device_column = None
+
+            # 1. First priority: User-selected device column
+            if device_col and device_col in available_columns:
+                device_column = device_col
+                logger.info(f"Using user-selected device column: {device_column}")
+
+            # 2. Second priority: AI suggestions
+            elif processed_data.get('ai_suggestions'):
+                ai_suggestions = processed_data['ai_suggestions']
+                # Try various AI suggestion fields
+                for field_name in ['device_name', 'location', 'door', 'device']:
+                    if field_name in ai_suggestions and ai_suggestions[field_name] in available_columns:
+                        device_column = ai_suggestions[field_name]
+                        logger.info(f"Using AI suggested column: {device_column}")
                         break
 
-            if not device_column or not csv_data:
-                error_modal = html.Div([
-                    html.Div([
-                        html.H3("❌ No Door/Device Column Found"),
-                        html.P("Please ensure your file has a column containing door or device identifiers."),
-                        html.Button("Close", id="close-error-modal", className="btn btn-secondary")
-                    ], className="modal-content p-6 bg-white rounded")
-                ], className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center")
+            # 3. Third priority: Smart pattern matching
+            if not device_column:
+                # Comprehensive list of possible device/door column names
+                device_patterns = [
+                    'door_id', 'device_id', 'door', 'device', 'location', 'area',
+                    'door_name', 'device_name', 'access_point', 'reader',
+                    'entrance', 'exit', 'gate', 'portal', 'checkpoint',
+                    'room', 'office', 'zone', 'sector', 'terminal',
+                    'doorid', 'deviceid', 'reader_id', 'readerid',
+                    'access_device', 'card_reader', 'panel'
+                ]
+
+                # First try exact matches
+                for pattern in device_patterns:
+                    if pattern in available_columns:
+                        device_column = pattern
+                        logger.info(f"Found exact match for device column: {device_column}")
+                        break
+
+                # Then try partial matches (case-insensitive)
+                if not device_column:
+                    for col in available_columns:
+                        col_lower = col.lower()
+                        for pattern in device_patterns:
+                            if pattern in col_lower or col_lower in pattern:
+                                device_column = col
+                                logger.info(f"Found partial match for device column: {device_column}")
+                                break
+                        if device_column:
+                            break
+
+            # 4. Last resort: Use any column that might contain identifiers
+            if not device_column and available_columns:
+                for col in available_columns:
+                    if col.lower() in ['timestamp', 'time', 'date', 'user', 'employee', 'badge', 'id', 'event', 'result', 'status']:
+                        continue
+
+                    unique_values = set()
+                    for row in csv_data[:100]:
+                        if col in row and row[col]:
+                            unique_values.add(str(row[col]).strip())
+                        if len(unique_values) > 5:
+                            device_column = col
+                            logger.info(f"Using fallback device column with diverse values: {device_column}")
+                            break
+                    if device_column:
+                        break
+
+                # Ultimate fallback: use first non-timestamp column
+                if not device_column:
+                    for col in available_columns:
+                        if col.lower() not in ['timestamp', 'time', 'date'] and col != timestamp_col:
+                            device_column = col
+                            logger.info(f"Using ultimate fallback column: {device_column}")
+                            break
+
+            if not device_column:
+                columns_list = "', '".join(available_columns)
+                error_modal = create_error_modal(
+                    "No Device Column Found",
+                    f"Could not identify a device/door column. Available columns: '{columns_list}'. Please ensure your file has a column containing door or device identifiers."
+                )
                 return error_modal, {'display': 'block'}
 
-            # Extract unique doors/devices
+            # Extract unique devices from the identified column
             unique_devices = set()
             for row in csv_data:
                 if device_column in row and row[device_column]:
-                    unique_devices.add(str(row[device_column]).strip())
+                    device_value = str(row[device_column]).strip()
+                    if device_value and device_value.lower() not in ['', 'null', 'none', 'n/a']:
+                        unique_devices.add(device_value)
 
             unique_devices = sorted(list(unique_devices))
 
             if not unique_devices:
-                error_modal = html.Div([
-                    html.Div([
-                        html.H3("❌ No Devices Found"),
-                        html.P(f"No valid entries found in column '{device_column}'."),
-                        html.Button("Close", id="close-error-modal", className="btn btn-secondary")
-                    ], className="modal-content p-6 bg-white rounded")
-                ], className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center")
+                error_modal = create_error_modal(
+                    "No Valid Devices Found",
+                    f"No valid entries found in column '{device_column}'. Please check your data."
+                )
                 return error_modal, {'display': 'block'}
 
-            # Create door mapping modal with real data
+            logger.info(f"Found {len(unique_devices)} unique devices in column '{device_column}'")
+
             door_mapping_modal = create_door_mapping_modal_with_data(unique_devices, device_column)
             return door_mapping_modal, {'display': 'block'}
 
         except Exception as e:
             logger.error(f"Error creating door mapping modal: {e}")
-            error_modal = html.Div([
-                html.Div([
-                    html.H3("❌ Error"),
-                    html.P(f"Error creating door mapping: {str(e)}"),
-                    html.Button("Close", id="close-error-modal", className="btn btn-secondary")
-                ], className="modal-content p-6 bg-white rounded")
-            ], className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center")
+            error_modal = create_error_modal("Error", f"Error creating door mapping: {str(e)}")
             return error_modal, {'display': 'block'}
 
     return [], {'display': 'none'}
+
+
+def create_error_modal(title, message):
+    """Create a simple error modal"""
+    return html.Div([
+        html.Div([
+            html.Div([
+                html.H3(f"❌ {title}", className="text-lg font-semibold text-red-600 mb-3"),
+                html.P(message, className="text-gray-700 mb-4"),
+                html.Button("Close",
+                           id="close-error-modal",
+                           className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600")
+            ], className="bg-white p-6 rounded-lg max-w-md")
+        ], className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4")
+    ])
 
 
 def create_door_mapping_modal_with_data(devices, device_column):
@@ -876,6 +969,37 @@ def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_stor
             return error_msg, {'display': 'none'}
 
     return no_update, no_update
+
+
+@callback(
+    Output('upload-info', 'children'),
+    [Input('processed-data-store', 'data')],
+    prevent_initial_call=True
+)
+def show_debug_info(processed_data):
+    """Show debug information about available columns"""
+    if not processed_data or 'data' not in processed_data:
+        return ""
+
+    csv_data = processed_data['data']
+    if not csv_data:
+        return ""
+
+    available_columns = list(csv_data[0].keys())
+    ai_suggestions = processed_data.get('ai_suggestions', {})
+
+    debug_info = html.Div([
+        html.Details([
+            html.Summary("🔍 Debug: Available Columns", className="cursor-pointer text-sm text-gray-600"),
+            html.Div([
+                html.P(f"Available columns: {', '.join(available_columns)}", className="text-xs text-gray-500 mt-2"),
+                html.P(f"AI suggestions: {ai_suggestions}", className="text-xs text-gray-500"),
+                html.P(f"Sample row: {dict(list(csv_data[0].items())[:3])}...", className="text-xs text-gray-500")
+            ], className="mt-2 p-2 bg-gray-50 rounded text-xs")
+        ])
+    ], className="mt-2")
+
+    return debug_info
 
 
 # Export the layout function
