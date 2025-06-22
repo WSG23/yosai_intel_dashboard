@@ -1,1 +1,1 @@
-# services package
+# AI Classification Services Package

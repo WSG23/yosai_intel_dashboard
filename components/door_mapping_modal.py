@@ -2,7 +2,8 @@
 Door Mapping Modal Component for Device Attribute Assignment
 Integrates with Yōsai Intel Dashboard modular architecture
 """
-from dash import html, dcc, Input, Output, State, callback_context
+from dash import html, dcc, Input, Output, State
+from dash import callback_context
 import dash
 import dash_bootstrap_components as dbc
 from typing import Any, List, Dict, Optional
