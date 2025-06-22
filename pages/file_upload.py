@@ -136,7 +136,10 @@ def layout():
         # Data stores for the workflow
         dcc.Store(id='uploaded-file-store'),
         dcc.Store(id='processed-data-store'),
-        dcc.Store(id='column-mapping-store')
+        dcc.Store(id='column-mapping-store'),
+        dcc.Store(id='door-mapping-store'),
+        dcc.Store(id='floor-estimate-store'),
+        dcc.Store(id='door-mapping-modal-data-trigger'),
     ])
 
 
