@@ -14,7 +14,7 @@ def layout():
         # Page header
         html.Div([
             html.H1("\U0001F3EF File Upload & Processing", className="page-title"),
-            html.P("Upload CSV, JSON, and Excel files for security analytics processing", 
+            html.P("Upload CSV, JSON, and Excel files for security analytics processing",
                    className="page-subtitle")
         ], className="page-header"),
         
@@ -100,7 +100,8 @@ def layout():
                         
                         # Floor estimate
                         html.Div([
-                            html.Label("Number of Floors", className="form-label"),
+                            html.Label("Floor Estimate", className="form-label"),
+                            html.Small("AI Confidence: 85%", id="floor-confidence", className="form-help-text"),
                             dcc.Input(
                                 id="floor-estimate-input",
                                 type="number",
@@ -108,8 +109,7 @@ def layout():
                                 min=1,
                                 max=100,
                                 className="form-input"
-                            ),
-                            html.Small("AI Confidence: 85%", id="floor-confidence", className="form-help-text")
+                            )
                         ], className="form-field"),
                         
                         # Hidden storage
@@ -133,7 +133,7 @@ def layout():
         # Door mapping modal (initially hidden) 
         html.Div(id='door-mapping-modal', style={'display': 'none'}),
         
-        # Data stores for the workflow
+        # Data stores for the workflow - THESE WERE MISSING
         dcc.Store(id='uploaded-file-store'),
         dcc.Store(id='processed-data-store'),
         dcc.Store(id='column-mapping-store'),

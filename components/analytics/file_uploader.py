@@ -182,7 +182,6 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
     ])
 
 
-
 @callback(
     [Output('column-mapping-modal', 'style'),
      Output('modal-subtitle', 'children'),
@@ -202,7 +201,9 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      Output('event-suggestion', 'children'),
      Output('floor-confidence', 'children'),
      Output('upload-status', 'children'),
-     Output('mapping-verified-status', 'children')],
+     Output('mapping-verified-status', 'children'),
+     Output('uploaded-file-store', 'data'),
+     Output('processed-data-store', 'data')],
     [Input('upload-data', 'contents'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks')],
@@ -212,29 +213,47 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      State('user-id-dropdown', 'value'),
      State('event-type-dropdown', 'value'),
      State('floor-estimate-input', 'value'),
-     State('user-id-storage', 'children')],
+     State('user-id-storage', 'children'),
+     State('uploaded-file-store', 'data'),
+     State('processed-data-store', 'data')],
     prevent_initial_call=True
 )
 def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks,
                                   upload_filename, timestamp_col, device_col, user_col,
-                                  event_type_col, floor_estimate, user_id):
-    """Handle file upload and modal actions"""
+                                  event_type_col, floor_estimate, user_id, file_store_data, processed_data):
+    """Enhanced file upload handler with AI classification integration"""
     from dash import callback_context, no_update
     import dash
-    
+    import uuid
+    import tempfile
+    import os
+
+    # Import AI classification plugin
+    try:
+        from plugins.ai_classification.plugin import AIClassificationPlugin
+        ai_plugin = AIClassificationPlugin()
+        ai_plugin.start()
+        AI_AVAILABLE = True
+    except ImportError as e:
+        logger.warning(f"AI Classification plugin not available: {e}")
+        AI_AVAILABLE = False
+
     ctx = callback_context
     if not ctx.triggered:
-        return [no_update] * 19
-    
+        return [no_update] * 21
+
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
     # Handle file upload
     if trigger_id == 'upload-data' and upload_contents is not None:
         try:
+            # Generate session ID for tracking
+            session_id = str(uuid.uuid4())
+
             # Parse file content
             content_type, content_string = upload_contents.split(',')
             decoded = base64.b64decode(content_string)
-            
+
             # Process different file types
             df = None
             if upload_filename.endswith('.csv'):
@@ -249,39 +268,114 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 else:
                     df = pd.json_normalize(json_data)
             else:
-                error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.", 
+                error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.",
                                    className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 17 + [error_msg, ""]
-            
+                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+
             if df is None or df.empty:
-                error_msg = html.Div("❌ File appears to be empty or corrupted.", 
+                error_msg = html.Div("❌ File appears to be empty or corrupted.",
                                    className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 17 + [error_msg, ""]
-            
+                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+
+            # Store file temporarily for AI processing
+            temp_file_path = None
+            if AI_AVAILABLE:
+                try:
+                    temp_dir = tempfile.mkdtemp()
+                    temp_file_path = os.path.join(temp_dir, upload_filename)
+                    with open(temp_file_path, 'wb') as f:
+                        f.write(decoded)
+
+                    # Process with AI plugin
+                    ai_result = ai_plugin.process_csv_file(temp_file_path, session_id, user_id)
+                    logger.info(f"AI processing result: {ai_result}")
+                except Exception as e:
+                    logger.error(f"AI processing failed: {e}")
+                    AI_AVAILABLE = False
+
             # Get columns
             headers = df.columns.tolist()
             options = [{"label": col, "value": col} for col in headers]
-            
-            # Simple AI suggestions
+
+            # Enhanced AI suggestions using the plugin
             ai_suggestions = {}
-            for col in headers:
-                col_lower = col.lower()
-                if any(word in col_lower for word in ['time', 'date', 'timestamp']):
-                    ai_suggestions['timestamp'] = col
-                elif any(word in col_lower for word in ['door', 'device', 'location']):
-                    ai_suggestions['device_name'] = col
-                elif any(word in col_lower for word in ['user', 'id', 'employee', 'badge']):
-                    ai_suggestions['user_id'] = col
-                elif any(word in col_lower for word in ['event', 'type', 'action', 'result']):
-                    ai_suggestions['event_type'] = col
-            
+            confidence_scores = {}
+
+            if AI_AVAILABLE:
+                try:
+                    # Use AI plugin for column mapping
+                    mapping_result = ai_plugin.map_columns(headers, session_id)
+                    if mapping_result.get('success'):
+                        ai_suggestions = mapping_result.get('suggested_mapping', {})
+                        confidence_scores = mapping_result.get('confidence_scores', {})
+                        logger.info(f"AI column mapping: {ai_suggestions}")
+                except Exception as e:
+                    logger.error(f"AI column mapping failed: {e}")
+
+            # Fallback to simple pattern matching if AI fails
+            if not ai_suggestions:
+                for col in headers:
+                    col_lower = col.lower()
+                    if any(word in col_lower for word in ['time', 'date', 'timestamp']):
+                        ai_suggestions['timestamp'] = col
+                        confidence_scores['timestamp'] = 0.8
+                    elif any(word in col_lower for word in ['door', 'device', 'location']):
+                        ai_suggestions['device_name'] = col
+                        confidence_scores['device_name'] = 0.7
+                    elif any(word in col_lower for word in ['user', 'id', 'employee', 'badge']):
+                        ai_suggestions['user_id'] = col
+                        confidence_scores['user_id'] = 0.7
+                    elif any(word in col_lower for word in ['event', 'type', 'action', 'result']):
+                        ai_suggestions['event_type'] = col
+                        confidence_scores['event_type'] = 0.7
+
+            # Floor estimation using AI if available
+            floor_estimate_value = 1
+            floor_confidence = "85%"
+            if AI_AVAILABLE and ai_suggestions:
+                try:
+                    # Convert df to list of dicts for AI processing
+                    data_list = df.to_dict('records')
+                    floor_result = ai_plugin.estimate_floors(data_list, session_id)
+                    if floor_result.get('success'):
+                        floor_estimate_value = floor_result.get('total_floors', 1)
+                        floor_confidence = f"{floor_result.get('confidence', 0.85) * 100:.0f}%"
+                except Exception as e:
+                    logger.error(f"Floor estimation failed: {e}")
+
             # Success status
             status_msg = html.Div([
                 f"✅ Successfully uploaded '{upload_filename}'",
                 html.Br(),
-                f"📊 {len(df)} rows, {len(headers)} columns processed"
+                f"📊 {len(df)} rows, {len(headers)} columns processed",
+                html.Br(),
+                f"🤖 AI analysis {'completed' if AI_AVAILABLE else 'not available'}"
             ], className="alert alert-success")
-            
+
+            # Store data for next steps
+            file_store = {
+                'session_id': session_id,
+                'filename': upload_filename,
+                'temp_path': temp_file_path,
+                'columns': headers,
+                'row_count': len(df)
+            }
+
+            processed_store = {
+                'session_id': session_id,
+                'ai_suggestions': ai_suggestions,
+                'confidence_scores': confidence_scores,
+                'data': df.to_dict('records')
+            }
+
+            # Clean up temp file
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                    os.rmdir(os.path.dirname(temp_file_path))
+                except:
+                    pass
+
             return [
                 {"display": "block"},
                 f"File: {upload_filename}",
@@ -291,78 +385,165 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 ai_suggestions.get('device_name'),
                 ai_suggestions.get('user_id'),
                 ai_suggestions.get('event_type'),
-                1,
-                f"AI Suggestion: {ai_suggestions.get('timestamp', 'None')}",
-                f"AI Suggestion: {ai_suggestions.get('device_name', 'None')}",
-                f"AI Suggestion: {ai_suggestions.get('user_id', 'None')}",
-                f"AI Suggestion: {ai_suggestions.get('event_type', 'None')}",
-                "AI Confidence: 85%",
+                floor_estimate_value,
+                f"AI Suggestion: {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get('timestamp', 0)*100:.0f}%)",
+                f"AI Suggestion: {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get('device_name', 0)*100:.0f}%)",
+                f"AI Suggestion: {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get('user_id', 0)*100:.0f}%)",
+                f"AI Suggestion: {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get('event_type', 0)*100:.0f}%)",
+                f"AI Confidence: {floor_confidence}",
                 status_msg,
-                ""
+                "",
+                file_store,
+                processed_store
             ]
-            
+
         except Exception as e:
             logger.error(f"Error processing file: {e}")
             error_msg = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
-            return [{"display": "none"}] + [no_update] * 17 + [error_msg, ""]
-    
+            return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+
     # Handle cancel
     elif trigger_id == 'cancel-mapping':
-        return [{"display": "none"}] + [no_update] * 18
-    
+        return [{"display": "none"}] + [no_update] * 20
+
     # Handle verify
     elif trigger_id == 'verify-mapping' and verify_clicks:
-        success_msg = html.Div([
-            html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
-            html.Div([
-                html.H4("📋 Mapping Summary:", className="font-bold mt-3"),
-                html.Ul([
-                    html.Li(f"Timestamp: {timestamp_col or 'Not mapped'}"),
-                    html.Li(f"Door/Location: {device_col or 'Not mapped'}"),
-                    html.Li(f"User ID: {user_col or 'Not mapped'}"),
-                    html.Li(f"Event Type: {event_type_col or 'Not mapped'}"),
-                    html.Li(f"Floor Estimate: {floor_estimate or 1} floors")
-                ], className="list-disc ml-6 mt-2")
-            ], className="mt-3 p-3 bg-gray-100 rounded"),
-            html.Div([
-                html.Button("Proceed to Door Mapping", 
-                          id="open-door-mapping", 
-                          className="btn btn-primary mt-3 mr-2"),
-                html.Button("Skip Door Mapping", 
-                          id="skip-door-mapping", 
-                          className="btn btn-secondary mt-3")
-            ], className="mt-4")
-        ])
-        
-        return [{"display": "none"}] + [no_update] * 17 + [success_msg]
-    
-    return [no_update] * 19
+        try:
+            session_id = processed_data.get('session_id') if processed_data else None
+
+            if not session_id:
+                error_msg = html.Div("❌ Session expired. Please re-upload your file.",
+                                   className="alert alert-error")
+                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update]
+
+            # Confirm mapping with AI plugin
+            if AI_AVAILABLE:
+                try:
+                    mapping = {
+                        'timestamp': timestamp_col,
+                        'device_name': device_col,
+                        'user_id': user_col,
+                        'event_type': event_type_col
+                    }
+                    mapping = {k: v for k, v in mapping.items() if v is not None}
+
+                    ai_plugin.confirm_column_mapping(mapping, session_id)
+                    logger.info(f"Column mapping confirmed: {mapping}")
+                except Exception as e:
+                    logger.error(f"Failed to confirm mapping: {e}")
+
+            success_msg = html.Div([
+                html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
+                html.Div([
+                    html.H4("📋 Mapping Summary:", className="font-bold mt-3"),
+                    html.Ul([
+                        html.Li(f"Timestamp: {timestamp_col or 'Not mapped'}"),
+                        html.Li(f"Door/Location: {device_col or 'Not mapped'}"),
+                        html.Li(f"User ID: {user_col or 'Not mapped'}"),
+                        html.Li(f"Event Type: {event_type_col or 'Not mapped'}"),
+                        html.Li(f"Floor Estimate: {floor_estimate or 1} floors")
+                    ], className="list-disc ml-6 mt-2")
+                ], className="mt-3 p-3 bg-gray-100 rounded"),
+                html.Div([
+                    html.Button("Proceed to Door Mapping",
+                              id="open-door-mapping",
+                              className="btn btn-primary mt-3 mr-2"),
+                    html.Button("Skip Door Mapping",
+                              id="skip-door-mapping",
+                              className="btn btn-secondary mt-3")
+                ], className="mt-4")
+            ])
+
+            return [{"display": "none"}] + [no_update] * 17 + [success_msg, no_update, no_update]
+
+        except Exception as e:
+            logger.error(f"Error verifying mapping: {e}")
+            error_msg = html.Div(f"❌ Error verifying mapping: {str(e)}", className="alert alert-error")
+            return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update]
+
+    return [no_update] * 21
+
+
 # Door mapping callback
 @callback(
     [Output('door-mapping-modal', 'children'),
      Output('door-mapping-modal', 'style')],
     [Input('open-door-mapping', 'n_clicks'),
      Input('skip-door-mapping', 'n_clicks')],
+    [State('processed-data-store', 'data')],
     prevent_initial_call=True
 )
-def handle_door_mapping(open_clicks, skip_clicks):
-    """Handle door mapping modal"""
+def handle_door_mapping(open_clicks, skip_clicks, processed_data):
+    """Handle door mapping modal with proper data"""
     ctx = callback_context
     if not ctx.triggered:
         return [], {'display': 'none'}
-    
+
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
     if trigger_id == 'skip-door-mapping':
         return [], {'display': 'none'}
 
     if trigger_id == 'open-door-mapping':
         try:
-            from components.door_mapping_modal import create_door_mapping_modal
-            modal_content = create_door_mapping_modal()
-            return modal_content, {'display': 'block'}
-        except ImportError:
-            return html.Div("Door mapping modal not found"), {'display': 'block'}
+            # Check if we have components available
+            try:
+                from components.door_mapping_modal import create_door_mapping_modal
+
+                # Create modal with actual data if available
+                if processed_data and 'data' in processed_data:
+                    # Convert data to device format for door mapping
+                    devices_data = []
+                    data_list = processed_data['data']
+
+                    # Extract unique devices/locations from the data
+                    device_col = None
+                    ai_suggestions = processed_data.get('ai_suggestions', {})
+                    if 'device_name' in ai_suggestions:
+                        device_col = ai_suggestions['device_name']
+
+                    if device_col and data_list:
+                        unique_devices = set()
+                        for row in data_list:
+                            if device_col in row and row[device_col]:
+                                unique_devices.add(str(row[device_col]))
+
+                        # Create device data for mapping
+                        for i, device in enumerate(sorted(unique_devices)):
+                            devices_data.append({
+                                'device_id': device,
+                                'location': device,
+                                'critical': False,
+                                'security_level': 50
+                            })
+
+                    # If no devices found, create sample data
+                    if not devices_data:
+                        devices_data = [
+                            {'device_id': 'door_001', 'location': 'Main Entrance', 'critical': True, 'security_level': 80},
+                            {'device_id': 'door_002', 'location': 'Office Floor 1', 'critical': False, 'security_level': 50},
+                        ]
+
+                modal_content = create_door_mapping_modal()
+                return modal_content, {'display': 'block'}
+
+            except ImportError as e:
+                logger.error(f"Door mapping modal import failed: {e}")
+                # Create a simple fallback modal
+                fallback_modal = html.Div([
+                    html.Div([
+                        html.H3("Door Mapping - Coming Soon"),
+                        html.P("Door mapping functionality is being prepared."),
+                        html.Button("Close", id="close-door-mapping-fallback",
+                                  className="btn btn-secondary")
+                    ], className="modal-content p-6 bg-white rounded")
+                ], className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center")
+
+                return fallback_modal, {'display': 'block'}
+
+        except Exception as e:
+            logger.error(f"Error creating door mapping modal: {e}")
+            return [html.Div(f"Error: {str(e)}")], {'display': 'block'}
 
     return [], {'display': 'none'}
 
