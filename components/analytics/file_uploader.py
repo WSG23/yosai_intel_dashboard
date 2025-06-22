@@ -182,8 +182,10 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
     ])
 
 
+
+
 @callback(
-    [Output('column-mapping-modal', 'children'),  # return modal content instead of style
+    [Output('column-mapping-modal-overlay', 'style'),
      Output('modal-subtitle', 'children'),
      Output('column-count-text', 'children'),
      Output('timestamp-dropdown', 'options'),
@@ -203,7 +205,9 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      Output('upload-status', 'children'),
      Output('mapping-verified-status', 'children'),
      Output('uploaded-file-store', 'data'),
-     Output('processed-data-store', 'data')],
+     Output('processed-data-store', 'data'),
+     Output('open-door-mapping', 'style'),
+     Output('skip-door-mapping', 'style')],
     [Input('upload-data', 'contents'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks')],
@@ -216,8 +220,7 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      State('user-id-storage', 'children'),
      State('uploaded-file-store', 'data'),
      State('processed-data-store', 'data')],
-    prevent_initial_call=True
-)
+    prevent_initial_call=True)
 def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks,
                                   upload_filename, timestamp_col, device_col, user_col,
                                   event_type_col, floor_estimate, user_id, file_store_data, processed_data):
@@ -227,8 +230,8 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
     import uuid
     import tempfile
     import os
+    from datetime import datetime
 
-    # Import AI classification plugin
     try:
         from plugins.ai_classification.plugin import AIClassificationPlugin
         ai_plugin = AIClassificationPlugin()
@@ -240,21 +243,16 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
     ctx = callback_context
     if not ctx.triggered:
-        return [None] + [no_update] * 20  # Return None for modal children when no trigger
+        return [{"display": "none"}] + [no_update] * 22
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Handle file upload
     if trigger_id == 'upload-data' and upload_contents is not None:
         try:
-            # Generate session ID for tracking
             session_id = str(uuid.uuid4())
-
-            # Parse file content
             content_type, content_string = upload_contents.split(',')
             decoded = base64.b64decode(content_string)
 
-            # Process different file types
             df = None
             if upload_filename.endswith('.csv'):
                 df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
@@ -268,16 +266,13 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 else:
                     df = pd.json_normalize(json_data)
             else:
-                error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.",
-                                   className="alert alert-error")
-                return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
+                error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.", className="alert alert-error")
+                return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
             if df is None or df.empty:
-                error_msg = html.Div("❌ File appears to be empty or corrupted.",
-                                   className="alert alert-error")
-                return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
+                error_msg = html.Div("❌ File appears to be empty or corrupted.", className="alert alert-error")
+                return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
-            # Store file temporarily for AI processing
             temp_file_path = None
             if AI_AVAILABLE:
                 try:
@@ -285,25 +280,18 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                     temp_file_path = os.path.join(temp_dir, upload_filename)
                     with open(temp_file_path, 'wb') as f:
                         f.write(decoded)
-
-                    # Process with AI plugin
                     ai_result = ai_plugin.process_csv_file(temp_file_path, session_id, user_id)
                     logger.info(f"AI processing result: {ai_result}")
                 except Exception as e:
                     logger.error(f"AI processing failed: {e}")
                     AI_AVAILABLE = False
 
-            # Get columns
             headers = df.columns.tolist()
             options = [{"label": col, "value": col} for col in headers]
-
-            # Enhanced AI suggestions using the plugin
             ai_suggestions = {}
             confidence_scores = {}
-
             if AI_AVAILABLE:
                 try:
-                    # Use AI plugin for column mapping
                     mapping_result = ai_plugin.map_columns(headers, session_id)
                     if mapping_result.get('success'):
                         ai_suggestions = mapping_result.get('suggested_mapping', {})
@@ -312,7 +300,6 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 except Exception as e:
                     logger.error(f"AI column mapping failed: {e}")
 
-            # Fallback to simple pattern matching if AI fails
             if not ai_suggestions:
                 for col in headers:
                     col_lower = col.lower()
@@ -329,12 +316,10 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                         ai_suggestions['event_type'] = col
                         confidence_scores['event_type'] = 0.7
 
-            # Floor estimation using AI if available
             floor_estimate_value = 1
             floor_confidence = "85%"
             if AI_AVAILABLE and ai_suggestions:
                 try:
-                    # Convert df to list of dicts for AI processing
                     data_list = df.to_dict('records')
                     floor_result = ai_plugin.estimate_floors(data_list, session_id)
                     if floor_result.get('success'):
@@ -343,7 +328,6 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 except Exception as e:
                     logger.error(f"Floor estimation failed: {e}")
 
-            # Success status
             status_msg = html.Div([
                 f"✅ Successfully uploaded '{upload_filename}'",
                 html.Br(),
@@ -352,7 +336,6 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 f"🤖 AI analysis {'completed' if AI_AVAILABLE else 'not available'}"
             ], className="alert alert-success")
 
-            # Store data for next steps
             file_store = {
                 'session_id': session_id,
                 'filename': upload_filename,
@@ -368,7 +351,22 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 'data': df.to_dict('records')
             }
 
-            # Clean up temp file
+            if AI_AVAILABLE and session_id:
+                try:
+                    persistent_data = {
+                        'filename': upload_filename,
+                        'headers': headers,
+                        'row_count': len(df),
+                        'ai_suggestions': ai_suggestions,
+                        'confidence_scores': confidence_scores,
+                        'upload_timestamp': datetime.now().isoformat(),
+                        'processed_data': df.head(1000).to_dict('records')
+                    }
+                    ai_plugin.csv_repository.store_processed_data(session_id, persistent_data)
+                    logger.info(f"Data persisted for session {session_id}")
+                except Exception as e:
+                    logger.error(f"Failed to persist data: {e}")
+
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
@@ -376,112 +374,8 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 except:
                     pass
 
-            # CREATE THE ACTUAL MODAL CONTENT HERE
-            modal_content = html.Div([
-                # Modal overlay
-                html.Div([
-                    html.Div([
-                        # Modal header
-                        html.Div([
-                            html.H2("Verify AI Column Mapping", className="modal__title"),
-                            html.P(f"File: {upload_filename}", className="modal__subtitle"),
-                            html.Button("×", id="close-mapping-modal", className="modal__close")
-                        ], className="modal__header"),
-
-                        # Modal body
-                        html.Div([
-                            # Instructions
-                            html.Div([
-                                html.P("🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
-                                       className="form-instructions-text"),
-                                html.P(f"📊 Detected {len(headers)} columns in your file",
-                                       className="form-instructions-subtext")
-                            ], className="form-instructions"),
-
-                            html.Hr(className="form-separator"),
-
-                            # Column mapping dropdowns
-                            html.Div([
-                                html.Div([
-                                    html.Label("Timestamp Column *", className="form-label form-label--required"),
-                                    html.Small(f"AI Suggestion: {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get('timestamp', 0)*100:.0f}%)", className="form-help-text"),
-                                    dcc.Dropdown(
-                                        id="timestamp-dropdown",
-                                        options=options,
-                                        value=ai_suggestions.get('timestamp'),
-                                        placeholder="Select a column...",
-                                        className="form-select"
-                                    )
-                                ], className="form-field"),
-
-                                html.Div([
-                                    html.Label("Device/Door Column", className="form-label"),
-                                    html.Small(f"AI Suggestion: {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get('device_name', 0)*100:.0f}%)", className="form-help-text"),
-                                    dcc.Dropdown(
-                                        id="device-column-dropdown",
-                                        options=options,
-                                        value=ai_suggestions.get('device_name'),
-                                        placeholder="Select a column...",
-                                        className="form-select"
-                                    )
-                                ], className="form-field"),
-
-                                html.Div([
-                                    html.Label("User ID Column", className="form-label"),
-                                    html.Small(f"AI Suggestion: {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get('user_id', 0)*100:.0f}%)", className="form-help-text"),
-                                    dcc.Dropdown(
-                                        id="user-id-dropdown",
-                                        options=options,
-                                        value=ai_suggestions.get('user_id'),
-                                        placeholder="Select a column...",
-                                        className="form-select"
-                                    )
-                                ], className="form-field"),
-
-                                html.Div([
-                                    html.Label("Event Type Column", className="form-label"),
-                                    html.Small(f"AI Suggestion: {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get('event_type', 0)*100:.0f}%)", className="form-help-text"),
-                                    dcc.Dropdown(
-                                        id="event-type-dropdown",
-                                        options=options,
-                                        value=ai_suggestions.get('event_type'),
-                                        placeholder="Select a column...",
-                                        className="form-select"
-                                    )
-                                ], className="form-field"),
-
-                                html.Div([
-                                    html.Label("Floor Estimate", className="form-label"),
-                                    html.Small(f"AI Confidence: {floor_confidence}", className="form-help-text"),
-                                    dcc.Input(
-                                        id="floor-estimate-input",
-                                        type="number",
-                                        value=floor_estimate_value,
-                                        min=1,
-                                        max=100,
-                                        className="form-input"
-                                    )
-                                ], className="form-field"),
-
-                                # Hidden storage
-                                html.Div(id="user-id-storage", children="default", style={"display": "none"})
-
-                            ], className="modal__body-content"),
-
-                        ], className="modal__body"),
-
-                        # Modal footer
-                        html.Div([
-                            html.Button("Cancel", id="cancel-mapping", className="btn btn-secondary"),
-                            html.Button("✅ Verify & Learn", id="verify-mapping", className="btn btn-primary")
-                        ], className="modal__footer")
-
-                    ], className="modal modal--xl")
-                ], className="modal-overlay", style={"display": "block"})  # Show the modal
-            ])
-
             return [
-                modal_content,  # Show modal with content
+                {"display": "block"},
                 f"File: {upload_filename}",
                 f"📊 Detected {len(headers)} columns in your file",
                 options, options, options, options,
@@ -498,29 +392,25 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 status_msg,
                 "",
                 file_store,
-                processed_store
+                processed_store,
+                {"display": "none"},
+                {"display": "none"}
             ]
 
         except Exception as e:
             logger.error(f"Error processing file: {e}")
             error_msg = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
-            return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
+            return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
-    # Handle cancel
     elif trigger_id == 'cancel-mapping':
-        return [None] + [no_update] * 20  # Hide modal by returning None
+        return [{"display": "none"}] + [no_update] * 22
 
-    # Handle verify
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
             session_id = processed_data.get('session_id') if processed_data else None
-
             if not session_id:
-                error_msg = html.Div("❌ Session expired. Please re-upload your file.",
-                                   className="alert alert-error")
-                return [None] + [no_update] * 18 + [error_msg, no_update]
-
-            # Confirm mapping with AI plugin
+                error_msg = html.Div("❌ Session expired. Please re-upload your file.", className="alert alert-error")
+                return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
             if AI_AVAILABLE:
                 try:
                     mapping = {
@@ -530,12 +420,10 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                         'event_type': event_type_col
                     }
                     mapping = {k: v for k, v in mapping.items() if v is not None}
-
                     ai_plugin.confirm_column_mapping(mapping, session_id)
                     logger.info(f"Column mapping confirmed: {mapping}")
                 except Exception as e:
                     logger.error(f"Failed to confirm mapping: {e}")
-
             success_msg = html.Div([
                 html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
                 html.Div([
@@ -547,27 +435,24 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                         html.Li(f"Event Type: {event_type_col or 'Not mapped'}"),
                         html.Li(f"Floor Estimate: {floor_estimate or 1} floors")
                     ], className="list-disc ml-6 mt-2")
-                ], className="mt-3 p-3 bg-gray-100 rounded"),
-                html.Div([
-                    html.Button("Proceed to Door Mapping",
-                              id="open-door-mapping",
-                              className="btn btn-primary mt-3 mr-2"),
-                    html.Button("Skip Door Mapping",
-                              id="skip-door-mapping",
-                              className="btn btn-secondary mt-3")
-                ], className="mt-4")
+                ], className="mt-3 p-3 bg-gray-100 rounded")
             ])
-
-            return [None] + [no_update] * 17 + [success_msg, no_update, no_update]
-
+            return [
+                {"display": "none"},
+                no_update, no_update, no_update, no_update, no_update, no_update,
+                no_update, no_update, no_update, no_update, no_update,
+                no_update, no_update, no_update, no_update, no_update,
+                no_update,
+                success_msg,
+                no_update, no_update,
+                {"display": "inline-block"},
+                {"display": "inline-block"}
+            ]
         except Exception as e:
             logger.error(f"Error verifying mapping: {e}")
             error_msg = html.Div(f"❌ Error verifying mapping: {str(e)}", className="alert alert-error")
-            return [None] + [no_update] * 18 + [error_msg, no_update]
-
-    return [None] + [no_update] * 20  # Default: hide modal
-
-
+            return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
+    return [{"display": "none"}] + [no_update] * 22
 # Door mapping callback
 @callback(
     [Output('door-mapping-modal', 'children'),
