@@ -505,9 +505,9 @@ def handle_door_mapping(open_clicks, skip_clicks):
 
     if open_clicks:
         try:
-            from door_mapping_modal import render_door_mapping_modal
+            from components.door_mapping_modal import create_door_mapping_modal
 
-            modal_content = render_door_mapping_modal()
+            modal_content = create_door_mapping_modal()
             return modal_content, {'display': 'block'}
 
         except ImportError:

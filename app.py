@@ -43,16 +43,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_full_dashboard() -> Optional[Any]:
-    """Create full dashboard with your modular architecture"""
+def create_full_dashboard():
+    """Create the complete dashboard application with centralized callbacks"""
     try:
         import dash
         import dash_bootstrap_components as dbc
-        from dash import html, dcc
 
-        # Step 1: Load JSON plugin first
+        # Load JSON plugin first
         from core.json_serialization_plugin import JsonSerializationPlugin
-        
+
         json_plugin = JsonSerializationPlugin()
         json_plugin.load(None, {
             'enabled': True,
@@ -61,7 +60,7 @@ def create_full_dashboard() -> Optional[Any]:
         })
         json_plugin.configure({})
         json_plugin.start()
-        
+
         logger.info("✅ JSON Serialization Plugin loaded")
 
         # Step 2: Create Dash app
@@ -69,71 +68,69 @@ def create_full_dashboard() -> Optional[Any]:
             __name__,
             external_stylesheets=[
                 dbc.themes.BOOTSTRAP,
-                "/assets/dashboard.css"  # Your custom CSS
+                "/assets/dashboard.css"
             ],
             suppress_callback_exceptions=True,
             assets_folder="assets"
         )
         app.title = "🏯 Yōsai Intel Dashboard"
-        
+
         # Apply JSON plugin to app
         json_plugin.apply_to_app(app)
 
-        # Step 3: Initialize your modular components
+        # Step 3: Initialize centralized callback registry
+        from core.callback_registry import CallbackRegistry
+        callback_registry = CallbackRegistry(app)
+
+        # Step 4: Initialize component managers
         from core.component_registry import ComponentRegistry
         from core.layout_manager import LayoutManager
-        from core.callback_manager import CallbackManager
         from core.container import Container
-        from components.settings_modal import (
-            create_settings_modal,
-            register_settings_modal_callbacks,
-        )
-        from components.door_mapping_modal import (
-            create_door_mapping_modal,
-            register_door_mapping_modal_callbacks,
-            register_door_mapping_clientside_callbacks,
-        )
+
+        # Import component creation functions
+        from components.settings_modal import create_settings_modal
+        from components.door_mapping_modal import create_door_mapping_modal, DoorMappingCallbackManager
 
         # Create container for dependency injection
         container = Container()
-        
+
         # Create your modular managers
         component_registry = ComponentRegistry()
         layout_manager = LayoutManager(component_registry)
-        callback_manager = CallbackManager(app, component_registry, layout_manager, container)
 
-        # Step 4: Create main layout using your layout manager
+        # Step 5: Create main layout
         main_layout = layout_manager.create_main_layout()
 
         if hasattr(main_layout, "children") and isinstance(main_layout.children, list):
-            # Insert settings modal after navbar
+            # Insert modals after navbar
             main_layout.children.insert(2, create_settings_modal())
-            # Insert door mapping modal after settings modal
             main_layout.children.insert(3, create_door_mapping_modal())
 
         app.layout = main_layout
 
-        # Step 5: Register all callbacks using your callback manager
-        callback_manager.register_all_callbacks()
-        register_settings_modal_callbacks(app)
-        register_door_mapping_modal_callbacks(app)
-        register_door_mapping_clientside_callbacks(app)
+        # Step 6: Register all callbacks through centralized registry
+
+        # Register door mapping callbacks
+        door_mapping_manager = DoorMappingCallbackManager(callback_registry)
+        door_mapping_manager.register_all()
+
+        # Register other component callbacks here...
+        # settings_manager = SettingsCallbackManager(callback_registry)
+        # settings_manager.register_all()
 
         # Store references in app
         app._yosai_json_plugin = json_plugin
         app._yosai_container = container
         app._component_registry = component_registry
         app._layout_manager = layout_manager
-        app._callback_manager = callback_manager
+        app._callback_registry = callback_registry
 
-        logger.info("✅ Full dashboard created with modular architecture")
+        logger.info("✅ Full dashboard created with centralized callback management")
         return app
 
     except Exception as e:
         logger.error(f"Failed to create full dashboard: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+        raise
 
 
 def main() -> None:
