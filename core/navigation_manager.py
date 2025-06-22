@@ -23,7 +23,7 @@ class NavigationCallbackManager:
     def _register_page_routing(self):
         """Register main page routing callback"""
         @self.registry.register_callback(
-            outputs=[Output("page-content", "children")],
+            outputs=Output("page-content", "children"),  # Single output, not list
             inputs=[Input("url", "pathname")],
             prevent_initial_call=False,
             callback_id="main_page_routing"
@@ -58,9 +58,9 @@ class NavigationCallbackManager:
 
     def _register_navbar_callbacks(self):
         """Register navbar-related callbacks"""
-        # Live time update
+        # Live time update - single output, so don't use list wrapper
         @self.registry.register_callback(
-            outputs=[Output("live-time", "children")],
+            outputs=Output("live-time", "children"),  # Single output, not a list
             inputs=[Input("url", "pathname")],
             callback_id="navbar_live_time"
         )
@@ -74,9 +74,9 @@ class NavigationCallbackManager:
                 logger.error(f"Error updating live time: {e}")
                 return "Live: --:--:--"
 
-        # Page context update
+        # Page context update - single output, so don't use list wrapper
         @self.registry.register_callback(
-            outputs=[Output("page-context", "children")],
+            outputs=Output("page-context", "children"),  # Single output, not a list
             inputs=[Input("url", "pathname")],
             callback_id="navbar_page_context"
         )
@@ -88,7 +88,7 @@ class NavigationCallbackManager:
                 "/file-upload": "File Upload – Data Management",
                 "/export": "Export – Report Generation",
                 "/settings": "Settings – System Configuration",
-                "/login": "Login – Authentication",
+                "/login": "Login – Authentication"
             }
             return page_contexts.get(pathname, "Dashboard – Main Operations")
 

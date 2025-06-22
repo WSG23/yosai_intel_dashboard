@@ -155,7 +155,7 @@ class DoorMappingCallbackManager:
     def _register_modal_visibility(self):
         """Register modal visibility callbacks"""
         @self.registry.register_callback(
-            outputs=[Output("door-mapping-modal-overlay", "className")],
+            outputs=Output("door-mapping-modal-overlay", "className"),  # Single output
             inputs=[
                 Input("door-mapping-modal-trigger", "n_clicks"),
                 Input("door-mapping-modal-close-btn", "n_clicks"),
@@ -180,7 +180,7 @@ class DoorMappingCallbackManager:
     def _register_data_updates(self):
         """Register data update callbacks"""
         @self.registry.register_callback(
-            outputs=[Output("door-mapping-current-data-store", "data")],
+            outputs=Output("door-mapping-current-data-store", "data"),  # Single output
             inputs=[
                 Input("door-mapping-modal-data-trigger", "data"),
                 Input("door-mapping-reset-btn", "n_clicks")
