@@ -2,7 +2,7 @@
 Door Mapping Modal Component for Device Attribute Assignment
 Integrates with Yōsai Intel Dashboard modular architecture
 """
-from dash import html, dcc, clientside_callback, Input, Output, State, callback_context
+from dash import html, dcc, Input, Output, State, callback_context
 import dash
 import dash_bootstrap_components as dbc
 from typing import Any, List, Dict, Optional
@@ -38,155 +38,86 @@ def create_door_mapping_modal() -> html.Div:
                             html.H2("Device Attribute Assignment", 
                                    className="text-white text-xl font-semibold mb-1"),
                             html.P("Review and adjust values before final upload.", 
-                                  className="text-gray-400 text-sm")
+                                   className="text-gray-400 text-sm")
                         ], className="flex-1"),
-                        html.Button([
-                            html.I(className="fas fa-times")
-                        ], 
-                        id="door-mapping-modal-close-btn",
-                        className="text-gray-400 hover:text-white text-xl bg-transparent border-0 p-0")
-                    ], className="flex items-start justify-between mb-4"),
-
-                    # Modal body - main content area
+                        html.Button("×", 
+                                   id="door-mapping-modal-close-btn",
+                                   className="text-white hover:text-gray-300 text-2xl font-bold")
+                    ], className="flex items-center justify-between p-6 border-b border-gray-700"),
+                    
+                    # Modal body
                     html.Div([
-                        # Left panel - Summary info
-                        html.Div([
-                            html.Div([
-                                html.Div([
-                                    html.Strong("Upload Summary: ", className="text-gray-300"),
-                                    html.Span(id="door-mapping-row-count", 
-                                             children="0 rows detected",
-                                             className="text-gray-200")
-                                ], className="mb-2"),
-                                html.Div([
-                                    html.Strong("Data Source: ", className="text-gray-300"),
-                                    html.Span(id="door-mapping-data-source",
-                                             children="Parsed from AI model v2.3",
-                                             className="text-gray-200")
-                                ], className="mb-2"),
-                                html.Div([
-                                    html.Strong("Profile: ", className="text-gray-300"),
-                                    html.Span(id="door-mapping-client-profile",
-                                             children="Auto-detected profile",
-                                             className="text-gray-200")
-                                ], className="mb-2"),
-                                
-                                # Action buttons
-                                html.Div([
-                                    dbc.Button("Save Manual Edits", 
-                                             id="door-mapping-save-edits-btn",
-                                             color="primary", 
-                                             size="sm",
-                                             className="me-2 mb-2"),
-                                    dbc.Button("Reset to AI Values", 
-                                             id="door-mapping-reset-btn",
-                                             color="secondary", 
-                                             size="sm",
-                                             className="mb-2"),
-                                    dbc.Button("Apply & Upload", 
-                                             id="door-mapping-apply-btn",
-                                             color="success", 
-                                             size="sm",
-                                             className="w-100")
-                                ], className="mt-4")
-                            ])
-                        ], className="bg-gray-800 p-4 rounded-md w-1/4 text-sm"),
-
-                        # Right panel - Device mapping table
-                        html.Div([
-                            html.Div([
-                                # Table container with scroll
-                                html.Div(id="door-mapping-table-container", 
-                                        className="overflow-y-auto", 
-                                        style={"height": "500px"})
-                            ])
-                        ], className="w-3/4 ml-4")
-
-                    ], className="flex gap-4"),
-
-                    # Hidden storage for manual edits tracking
-                    dcc.Store(id="door-mapping-manual-edits-store", data={}),
-                    dcc.Store(id="door-mapping-original-data-store", data={}),
-                    dcc.Store(id="door-mapping-current-data-store", data={}),
-                    dcc.Store(id="door-mapping-modal-data-trigger", data=None)
-
-                ], className="bg-gray-900 rounded-xl shadow-xl p-6 flex flex-col",
-                   style={"width": "90%", "maxWidth": "1200px"}),
-            ], 
-            className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden",
-            id="door-mapping-modal-overlay",
-            style={"zIndex": "9999"})
-        ], id="door-mapping-modal-container")
-
+                        html.Div(id="door-mapping-table-container"),
+                        html.Div(id="door-mapping-row-count", className="text-sm text-gray-400 mt-2")
+                    ], className="p-6 max-h-96 overflow-y-auto"),
+                    
+                    # Modal footer
+                    html.Div([
+                        html.Button("Reset", 
+                                   id="door-mapping-reset-btn",
+                                   className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 mr-2"),
+                        html.Button("Save Changes", 
+                                   id="door-mapping-save-btn",
+                                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700")
+                    ], className="flex justify-end p-6 border-t border-gray-700")
+                ], className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-screen overflow-hidden")
+            ], className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden",
+               id="door-mapping-modal-overlay"),
+            
+            # Data stores
+            dcc.Store(id="door-mapping-modal-data-trigger"),
+            dcc.Store(id="door-mapping-original-data-store"),
+            dcc.Store(id="door-mapping-current-data-store"),
+            dcc.Store(id="door-mapping-manual-edits-store", data={})
+        ])
+        
         return modal_content
-
+        
     except Exception as e:
         logger.error(f"Error creating door mapping modal: {e}")
-        return html.Div(f"Door mapping modal error: {e}", className="text-danger")
+        return html.Div(f"Error creating door mapping modal: {str(e)}")
 
 
-def create_device_mapping_table(devices_data: List[Dict[str, Any]]) -> html.Div:
-    """Create the device mapping table with toggles and sliders"""
-    
+def create_device_mapping_table(devices_data: List[Dict]) -> html.Table:
+    """Create the device mapping table"""
     if not devices_data:
-        return html.Div("No device data available", className="text-gray-400 text-center p-4")
+        return html.Div("No devices data available", className="text-gray-400")
     
     # Table header
     table_header = html.Thead([
         html.Tr([
-            html.Th("Device", className="p-2 text-left text-gray-300"),
-            html.Th("Entry", className="p-2 text-center text-gray-300"),
-            html.Th("Exit", className="p-2 text-center text-gray-300"),
-            html.Th("Elevator", className="p-2 text-center text-gray-300"),
-            html.Th("Stairwell", className="p-2 text-center text-gray-300"),
-            html.Th("Fire Escape", className="p-2 text-center text-gray-300"),
-            html.Th("Other", className="p-2 text-center text-gray-300"),
-            html.Th("Security Level", className="p-2 text-center text-gray-300"),
-        ], className="sticky top-0 bg-gray-800")
-    ], className="sticky top-0 bg-gray-800")
+            html.Th("Device ID", className="p-3 text-left font-medium text-gray-300"),
+            html.Th("Location", className="p-3 text-left font-medium text-gray-300"),
+            html.Th("Critical", className="p-3 text-center font-medium text-gray-300"),
+            html.Th("Security Level", className="p-3 text-center font-medium text-gray-300")
+        ])
+    ], className="bg-gray-700")
     
     # Table rows
     table_rows = []
     for i, device in enumerate(devices_data):
-        device_id = device.get('door_id', f"device_{i}")
-        confidence = device.get('confidence', 0)
-        
-        # Confidence badge
-        confidence_badge = ""
-        if confidence > 0:
-            confidence_badge = html.Span(
-                f"{confidence}% match",
-                className="ml-2 text-xs bg-blue-600 text-white rounded-full px-2 py-0.5"
-            )
+        device_id = device.get('device_id', f'device_{i}')
+        location = device.get('location', 'Unknown')
+        is_critical = device.get('critical', False)
+        security_level = device.get('security_level', 50)
         
         row = html.Tr([
-            # Device name with confidence badge
+            html.Td(device_id, className="p-3 text-gray-300"),
+            html.Td(location, className="p-3 text-gray-300"),
             html.Td([
-                html.Span(device.get('name', device_id)),
-                confidence_badge
-            ], className="p-2"),
-            
-            # Toggle switches for each attribute
-            html.Td(create_toggle_switch(f"{device_id}-entry", device.get('entry', False)), 
-                   className="p-2 text-center"),
-            html.Td(create_toggle_switch(f"{device_id}-exit", device.get('exit', False)), 
-                   className="p-2 text-center"),
-            html.Td(create_toggle_switch(f"{device_id}-elevator", device.get('elevator', False)), 
-                   className="p-2 text-center"),
-            html.Td(create_toggle_switch(f"{device_id}-stairwell", device.get('stairwell', False)), 
-                   className="p-2 text-center"),
-            html.Td(create_toggle_switch(f"{device_id}-fire_escape", device.get('fire_escape', False)), 
-                   className="p-2 text-center"),
-            html.Td(create_toggle_switch(f"{device_id}-other", device.get('other', False)), 
-                   className="p-2 text-center"),
-            
-            # Security level slider
+                dbc.Switch(
+                    id=f"critical-switch-{device_id}",
+                    value=is_critical,
+                    className="justify-center"
+                )
+            ], className="p-3 text-center"),
             html.Td([
                 dcc.Slider(
-                    id=f"{device_id}-security-slider",
+                    id=f"security-slider-{device_id}",
                     min=0,
                     max=100,
-                    value=device.get('security_level', 50),
+                    step=10,
+                    value=security_level,
                     marks={0: {'label': 'Low', 'style': {'color': '#10B981'}},
                            100: {'label': 'High', 'style': {'color': '#EF4444'}}},
                     tooltip={"placement": "bottom", "always_visible": True},
@@ -208,59 +139,57 @@ def create_device_mapping_table(devices_data: List[Dict[str, Any]]) -> html.Div:
     return table
 
 
-def create_toggle_switch(switch_id: str, checked: bool = False) -> dbc.Switch:
-    """Create a custom toggle switch component"""
-    return dbc.Switch(
-        id=switch_id,
-        value=checked,
-        className="door-mapping-toggle-switch",
-        style={"transform": "scale(0.8)"}
-    )
-
-
-def register_door_mapping_modal_callbacks(app):
-    """Register callbacks for door mapping modal functionality"""
-
-    if not DASH_AVAILABLE:
-        return
-
-    try:
-        # Toggle modal visibility
-        @app.callback(
-            Output("door-mapping-modal-overlay", "className"),
-            [
+class DoorMappingCallbackManager:
+    """Callback manager for door mapping modal"""
+    
+    def __init__(self, callback_registry):
+        self.registry = callback_registry
+        
+    def register_all(self):
+        """Register all door mapping callbacks"""
+        self._register_modal_visibility()
+        self._register_data_updates()
+        self._register_table_updates()
+        self._register_clientside_callbacks()
+        
+    def _register_modal_visibility(self):
+        """Register modal visibility callbacks"""
+        @self.registry.register_callback(
+            outputs=[Output("door-mapping-modal-overlay", "className")],
+            inputs=[
                 Input("door-mapping-modal-trigger", "n_clicks"),
                 Input("door-mapping-modal-close-btn", "n_clicks"),
-                Input("door-mapping-modal-overlay", "n_clicks"),
+                Input("door-mapping-modal-overlay", "n_clicks")
             ],
-            [State("door-mapping-modal-overlay", "className")],
-            prevent_initial_call=True,
+            states=[State("door-mapping-modal-overlay", "className")],
+            callback_id="door_mapping_modal_visibility"
         )
-        def toggle_door_mapping_modal(open_clicks, close_clicks, overlay_clicks, current_class):
-            """Toggle the door mapping modal visibility"""
+        def toggle_modal_visibility(open_clicks, close_clicks, overlay_clicks, current_class):
+            """Toggle door mapping modal visibility"""
             ctx = callback_context
             if not ctx.triggered:
                 raise dash.exceptions.PreventUpdate
 
             triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
+            
             if triggered_id == "door-mapping-modal-trigger":
                 return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
             else:
                 return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden"
-
-        # CONSOLIDATED: Handle all current data store updates
-        @app.callback(
-            Output("door-mapping-current-data-store", "data"),
-            [
+    
+    def _register_data_updates(self):
+        """Register data update callbacks"""
+        @self.registry.register_callback(
+            outputs=[Output("door-mapping-current-data-store", "data")],
+            inputs=[
                 Input("door-mapping-modal-data-trigger", "data"),
                 Input("door-mapping-reset-btn", "n_clicks")
             ],
-            [State("door-mapping-original-data-store", "data")],
-            prevent_initial_call=True
+            states=[State("door-mapping-original-data-store", "data")],
+            callback_id="door_mapping_data_updates"
         )
-        def handle_current_data_updates(modal_data, reset_clicks, original_data):
-            """Handle all updates to current data store - CONSOLIDATED to avoid duplicates"""
+        def handle_data_updates(modal_data, reset_clicks, original_data):
+            """Handle current data store updates"""
             ctx = callback_context
             if not ctx.triggered:
                 raise dash.exceptions.PreventUpdate
@@ -268,30 +197,27 @@ def register_door_mapping_modal_callbacks(app):
             triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
             if triggered_id == "door-mapping-modal-data-trigger":
-                # New data uploaded
                 if modal_data:
-                    devices_data = modal_data.get('devices', [])
-                    return devices_data
-
+                    return modal_data.get('devices', [])
             elif triggered_id == "door-mapping-reset-btn":
-                # Reset to original data
                 if reset_clicks and original_data:
                     return original_data
 
             raise dash.exceptions.PreventUpdate
-
-        # Update modal content when data is uploaded
-        @app.callback(
-            [
+    
+    def _register_table_updates(self):
+        """Register table update callbacks"""
+        @self.registry.register_callback(
+            outputs=[
                 Output("door-mapping-table-container", "children"),
                 Output("door-mapping-row-count", "children"),
                 Output("door-mapping-original-data-store", "data")
             ],
-            [Input("door-mapping-modal-data-trigger", "data")],
-            prevent_initial_call=True
+            inputs=[Input("door-mapping-modal-data-trigger", "data")],
+            callback_id="door_mapping_table_updates"
         )
-        def update_modal_content(modal_data):
-            """Update modal content when new data is provided"""
+        def update_table_content(modal_data):
+            """Update table content when new data is provided"""
             if not modal_data:
                 raise dash.exceptions.PreventUpdate
 
@@ -302,23 +228,11 @@ def register_door_mapping_modal_callbacks(app):
             row_count_text = f"{row_count} rows detected"
 
             return table, row_count_text, devices_data
-
-        logger.info("Door mapping modal callbacks registered successfully")
-
-    except Exception as e:
-        logger.error(f"Error registering door mapping modal callbacks: {e}")
-
-
-# SEPARATE clientside callbacks - register them at module level, not in function
-def register_door_mapping_clientside_callbacks(app):
-    """Register clientside callbacks separately to avoid conflicts"""
-
-    if not DASH_AVAILABLE:
-        return
-
-    try:
-        # CONSOLIDATED: Handle all manual edits store updates
-        app.clientside_callback(
+    
+    def _register_clientside_callbacks(self):
+        """Register clientside callbacks"""
+        # Handle manual edits tracking
+        self.registry.register_clientside_callback(
             """
             function(save_clicks, reset_clicks, current_edits, original_data) {
                 const ctx = window.dash_clientside.callback_context;
@@ -327,76 +241,27 @@ def register_door_mapping_clientside_callbacks(app):
                 }
 
                 const triggered_id = ctx.triggered[0].prop_id.split('.')[0];
-
-                if (triggered_id === 'door-mapping-save-edits-btn' && save_clicks) {
-                    // Save manual edits
-                    const manual_edits = {};
-                    const form_elements = document.querySelectorAll('[id*="-entry"], [id*="-exit"], [id*="-elevator"], [id*="-stairwell"], [id*="-fire_escape"], [id*="-other"], [id*="-security-slider"]');
-
-                    form_elements.forEach(element => {
-                        const device_id = element.id.split('-')[0];
-                        const attribute = element.id.split('-').slice(1).join('_');
-
-                        if (!manual_edits[device_id]) {
-                            manual_edits[device_id] = {};
-                        }
-
-                        if (element.type === 'range') {
-                            manual_edits[device_id][attribute] = parseInt(element.value);
-                        } else {
-                            manual_edits[device_id][attribute] = element.checked;
-                        }
-                    });
-
-                    // Store in localStorage for persistence
-                    localStorage.setItem('yosai_door_mapping_manual_edits', JSON.stringify(manual_edits));
-                    return manual_edits;
-
-                } else if (triggered_id === 'door-mapping-reset-btn' && reset_clicks) {
-                    // Clear manual edits
-                    localStorage.removeItem('yosai_door_mapping_manual_edits');
+                
+                if (triggered_id === 'door-mapping-save-btn') {
+                    // Handle save logic here
+                    return current_edits || {};
+                } else if (triggered_id === 'door-mapping-reset-btn') {
+                    // Clear edits on reset
                     return {};
                 }
-
+                
                 return window.dash_clientside.no_update;
             }
             """,
-            Output("door-mapping-manual-edits-store", "data"),
-            [
-                Input("door-mapping-save-edits-btn", "n_clicks"),
+            outputs=[Output("door-mapping-manual-edits-store", "data")],
+            inputs=[
+                Input("door-mapping-save-btn", "n_clicks"),
                 Input("door-mapping-reset-btn", "n_clicks")
             ],
-            [
+            states=[
                 State("door-mapping-manual-edits-store", "data"),
                 State("door-mapping-original-data-store", "data")
             ],
-            prevent_initial_call=True
+            callback_id="door_mapping_manual_edits_tracking"
         )
 
-        logger.info("Door mapping clientside callbacks registered successfully")
-
-    except Exception as e:
-        logger.error(f"Error registering door mapping clientside callbacks: {e}")
-
-
-# Close button callback for door mapping modal
-@callback(
-    Output("door-mapping-modal-container", "style"),
-    [Input("door-mapping-modal-close-btn", "n_clicks")],
-    prevent_initial_call=True
-)
-def close_door_mapping_modal(close_clicks):
-    """Close the door mapping modal"""
-    if close_clicks:
-        return {"display": "none"}
-    return dash.no_update
-
-# Export the layout function for consistency with other components
-layout = create_door_mapping_modal
-__all__ = [
-    "create_door_mapping_modal",
-    "register_door_mapping_modal_callbacks",
-    "register_door_mapping_clientside_callbacks",
-    "layout",
-    "create_device_mapping_table",
-]
