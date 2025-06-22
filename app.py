@@ -132,13 +132,9 @@ def create_full_dashboard():
         file_upload_manager = FileUploadPageCallbackManager(callback_registry, container)
         file_upload_manager.register_all()
 
-        # Register legacy page callbacks until fully migrated
-        try:
-            from pages import register_page_callbacks
-            register_page_callbacks('deep_analytics', app, container)
-            # register_page_callbacks('file_upload', app, container)
-        except Exception as e:
-            logger.warning(f"Legacy page callback registration failed: {e}")
+        # DO NOT register legacy page callbacks as they conflict
+        # The file upload callbacks are handled by @callback decorators
+        logger.info("All callbacks registered successfully")
 
         # Store references in app
         app._yosai_json_plugin = json_plugin

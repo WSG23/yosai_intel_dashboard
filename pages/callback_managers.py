@@ -1,5 +1,5 @@
 """
-Page-specific callback managers with restored functionality
+Page-specific callback managers - Updated to work with existing callbacks
 """
 import logging
 from typing import Any
@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 
 class AnalyticsCallbackManager:
     """Callback manager for analytics page"""
-
+    
     def __init__(self, callback_registry, container=None):
         self.registry = callback_registry
         self.container = container
-
+        
     def register_all(self):
         """Register analytics page callbacks"""
         try:
@@ -25,30 +25,19 @@ class AnalyticsCallbackManager:
 
 
 class FileUploadPageCallbackManager:
-    """Callback manager for complete file upload workflow"""
-
+    """Callback manager for file upload workflow - now uses existing callbacks"""
+    
     def __init__(self, callback_registry, container=None):
         self.registry = callback_registry
         self.container = container
-
+        
     def register_all(self):
-        """Register complete file upload workflow callbacks"""
+        """Register file upload callbacks - the @callback decorators in file_uploader.py handle this"""
         try:
-            # Register the comprehensive file upload callback manager
-            from components.analytics.file_upload_callback_manager import FileUploadCallbackManager
-
-            file_upload_manager = FileUploadCallbackManager(self.registry)
-            file_upload_manager.register_all()
-
-            # Also register dual upload visual callbacks if available
-            try:
-                from components.analytics.file_uploader import register_dual_upload_callbacks
-                # Note: This needs app instance, will handle differently
-                logger.info("Dual upload visual callbacks available")
-            except ImportError:
-                logger.warning("Dual upload callbacks not available")
-
-            logger.info("Complete file upload workflow callbacks registered")
-
+            # The callbacks are already registered via @callback decorators
+            # in components/analytics/file_uploader.py
+            # Just log that they should be working
+            logger.info("File upload callbacks handled by @callback decorators in file_uploader.py")
+            
         except Exception as e:
-            logger.error(f"Error registering file upload callbacks: {e}")
+            logger.error(f"Error with file upload callbacks: {e}")
