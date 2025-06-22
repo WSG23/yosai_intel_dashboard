@@ -2,7 +2,7 @@
 from importlib import import_module
 
 # Lazy modules pointing to new location
-_yaml = import_module('core.plugins.config.yaml_config')
+from . import yaml_config as _yaml
 _database = import_module('core.plugins.config.database_manager')
 _cache = import_module('core.plugins.config.cache_manager')
 

@@ -96,7 +96,8 @@ def create_full_dashboard():
         # Step 4: Initialize component managers
         from core.component_registry import ComponentRegistry
         from core.layout_manager import LayoutManager
-        from core.container import Container
+        from config.yaml_config import get_configuration_manager
+        from core.service_registry import get_configured_container
 
         # Import component creation functions
         from components.settings_modal import create_settings_modal
@@ -106,7 +107,8 @@ def create_full_dashboard():
         from core.navigation_manager import NavigationCallbackManager
 
         # Create container for dependency injection
-        container = Container()
+        config_manager = get_configuration_manager()
+        container = get_configured_container(config_manager)
 
         # Create your modular managers
         component_registry = ComponentRegistry()

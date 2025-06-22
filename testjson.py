@@ -17,10 +17,10 @@ def test_plugin_directly():
     try:
         # Import the fixed plugin
         from core.json_serialization_plugin import JsonSerializationPlugin, JsonSerializationConfig
-        from core.container import Container
+        from core.di_container import DIContainer
         
         # Create plugin and container
-        container = Container()
+        container = DIContainer()
         plugin = JsonSerializationPlugin()
         
         config = {

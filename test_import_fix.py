@@ -24,8 +24,8 @@ def test_imports():
         print(f"   ✅ Plugin metadata: {metadata.name} v{metadata.version}")
         
         print("4. Testing container import...")
-        from core.container import Container
-        container = Container()
+        from core.di_container import DIContainer
+        container = DIContainer()
         print("   ✅ Container imported and created")
         
         print("5. Testing plugin load...")
@@ -64,8 +64,8 @@ def test_basic_serialization():
         plugin = JsonSerializationPlugin()
         config = {'enabled': True, 'fallback_to_repr': True}
         
-        from core.container import Container
-        container = Container()
+        from core.di_container import DIContainer
+        container = DIContainer()
         
         plugin.load(container, config)
         plugin.start()  # This applies global JSON patches

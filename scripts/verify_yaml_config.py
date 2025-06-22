@@ -21,9 +21,9 @@ def test_basic_imports() -> Tuple[bool, str]:
             CacheConfig,
             SecurityConfig
         )
-        from core.service_registry import configure_container_with_yaml
+        from core.service_registry import configure_container
         from core.app_factory import create_application
-        from core.container import Container
+        from core.di_container import DIContainer
         
         return True, "All imports successful"
     except ImportError as e:
@@ -210,16 +210,16 @@ def test_dependency_injection_integration() -> Tuple[bool, str]:
     """Test integration with dependency injection container"""
     try:
         from config.yaml_config import ConfigurationManager
-        from core.service_registry import configure_container_with_yaml
-        from core.container import Container
+        from core.service_registry import configure_container
+        from core.di_container import DIContainer
         
         # Create configuration
         config_manager = ConfigurationManager()
         config_manager.load_configuration(None)
         
         # Create container and configure it
-        container = Container()
-        configure_container_with_yaml(container)
+        container = DIContainer()
+        configure_container(container)
         
         # Verify configuration objects are registered
         required_services = [

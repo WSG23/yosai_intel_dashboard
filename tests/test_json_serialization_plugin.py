@@ -13,14 +13,14 @@ from plugins.builtin.json_serialization_plugin import (
     JsonSerializationService, JsonCallbackService
 )
 from core.plugins.manager import PluginManager
-from core.container import Container
+from core.di_container import DIContainer
 
 class TestJsonSerializationPlugin(unittest.TestCase):
     """Test the JSON Serialization Plugin"""
     
     def setUp(self):
         self.plugin = JsonSerializationPlugin()
-        self.container = Container()
+        self.container = DIContainer()
         self.config = {
             'enabled': True,
             'max_dataframe_rows': 5,

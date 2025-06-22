@@ -1166,9 +1166,9 @@ def test_basic_imports() -> Tuple[bool, str]:
         missing_modules.append("core.app_factory (create_application_for_testing)")
     
     try:
-        from core.container import Container
+        from core.di_container import DIContainer
     except ImportError:
-        missing_modules.append("core.container")
+        missing_modules.append("core.di_container")
     
     if missing_modules:
         return False, f"Missing modules: {', '.join(missing_modules)}"
@@ -1317,16 +1317,16 @@ def test_dependency_injection_integration() -> Tuple[bool, str]:
     """Test integration with dependency injection container"""
     try:
         from config.yaml_config import ConfigurationManager
-        from core.service_registry import configure_container_with_yaml
-        from core.container import Container
+        from core.service_registry import configure_container
+        from core.di_container import DIContainer
         
         # Create configuration
         config_manager = ConfigurationManager()
         config_manager.load_configuration(None)
         
         # Create container and configure it
-        container = Container()
-        configure_container_with_yaml(container, config_manager)
+        container = DIContainer()
+        configure_container(container, config_manager)
         
         # Verify configuration objects are registered
         required_services = [
