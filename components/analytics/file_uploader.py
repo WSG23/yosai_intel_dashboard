@@ -183,7 +183,7 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
 
 
 @callback(
-    [Output('column-mapping-modal', 'style'),
+    [Output('column-mapping-modal', 'children'),  # return modal content instead of style
      Output('modal-subtitle', 'children'),
      Output('column-count-text', 'children'),
      Output('timestamp-dropdown', 'options'),
@@ -240,7 +240,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
     ctx = callback_context
     if not ctx.triggered:
-        return [no_update] * 21
+        return [None] + [no_update] * 20  # Return None for modal children when no trigger
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -270,12 +270,12 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
             else:
                 error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.",
                                    className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+                return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
 
             if df is None or df.empty:
                 error_msg = html.Div("❌ File appears to be empty or corrupted.",
                                    className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+                return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
 
             # Store file temporarily for AI processing
             temp_file_path = None
@@ -376,8 +376,112 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 except:
                     pass
 
+            # CREATE THE ACTUAL MODAL CONTENT HERE
+            modal_content = html.Div([
+                # Modal overlay
+                html.Div([
+                    html.Div([
+                        # Modal header
+                        html.Div([
+                            html.H2("Verify AI Column Mapping", className="modal__title"),
+                            html.P(f"File: {upload_filename}", className="modal__subtitle"),
+                            html.Button("×", id="close-mapping-modal", className="modal__close")
+                        ], className="modal__header"),
+
+                        # Modal body
+                        html.Div([
+                            # Instructions
+                            html.Div([
+                                html.P("🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
+                                       className="form-instructions-text"),
+                                html.P(f"📊 Detected {len(headers)} columns in your file",
+                                       className="form-instructions-subtext")
+                            ], className="form-instructions"),
+
+                            html.Hr(className="form-separator"),
+
+                            # Column mapping dropdowns
+                            html.Div([
+                                html.Div([
+                                    html.Label("Timestamp Column *", className="form-label form-label--required"),
+                                    html.Small(f"AI Suggestion: {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get('timestamp', 0)*100:.0f}%)", className="form-help-text"),
+                                    dcc.Dropdown(
+                                        id="timestamp-dropdown",
+                                        options=options,
+                                        value=ai_suggestions.get('timestamp'),
+                                        placeholder="Select a column...",
+                                        className="form-select"
+                                    )
+                                ], className="form-field"),
+
+                                html.Div([
+                                    html.Label("Device/Door Column", className="form-label"),
+                                    html.Small(f"AI Suggestion: {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get('device_name', 0)*100:.0f}%)", className="form-help-text"),
+                                    dcc.Dropdown(
+                                        id="device-column-dropdown",
+                                        options=options,
+                                        value=ai_suggestions.get('device_name'),
+                                        placeholder="Select a column...",
+                                        className="form-select"
+                                    )
+                                ], className="form-field"),
+
+                                html.Div([
+                                    html.Label("User ID Column", className="form-label"),
+                                    html.Small(f"AI Suggestion: {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get('user_id', 0)*100:.0f}%)", className="form-help-text"),
+                                    dcc.Dropdown(
+                                        id="user-id-dropdown",
+                                        options=options,
+                                        value=ai_suggestions.get('user_id'),
+                                        placeholder="Select a column...",
+                                        className="form-select"
+                                    )
+                                ], className="form-field"),
+
+                                html.Div([
+                                    html.Label("Event Type Column", className="form-label"),
+                                    html.Small(f"AI Suggestion: {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get('event_type', 0)*100:.0f}%)", className="form-help-text"),
+                                    dcc.Dropdown(
+                                        id="event-type-dropdown",
+                                        options=options,
+                                        value=ai_suggestions.get('event_type'),
+                                        placeholder="Select a column...",
+                                        className="form-select"
+                                    )
+                                ], className="form-field"),
+
+                                html.Div([
+                                    html.Label("Floor Estimate", className="form-label"),
+                                    html.Small(f"AI Confidence: {floor_confidence}", className="form-help-text"),
+                                    dcc.Input(
+                                        id="floor-estimate-input",
+                                        type="number",
+                                        value=floor_estimate_value,
+                                        min=1,
+                                        max=100,
+                                        className="form-input"
+                                    )
+                                ], className="form-field"),
+
+                                # Hidden storage
+                                html.Div(id="user-id-storage", children="default", style={"display": "none"})
+
+                            ], className="modal__body-content"),
+
+                        ], className="modal__body"),
+
+                        # Modal footer
+                        html.Div([
+                            html.Button("Cancel", id="cancel-mapping", className="btn btn-secondary"),
+                            html.Button("✅ Verify & Learn", id="verify-mapping", className="btn btn-primary")
+                        ], className="modal__footer")
+
+                    ], className="modal modal--xl")
+                ], className="modal-overlay", style={"display": "block"})  # Show the modal
+            ])
+
             return [
-                {"display": "block"},
+                modal_content,  # Show modal with content
                 f"File: {upload_filename}",
                 f"📊 Detected {len(headers)} columns in your file",
                 options, options, options, options,
@@ -400,11 +504,11 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
         except Exception as e:
             logger.error(f"Error processing file: {e}")
             error_msg = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
-            return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update, {}, {}]
+            return [None] + [no_update] * 18 + [error_msg, no_update, {}, {}]
 
     # Handle cancel
     elif trigger_id == 'cancel-mapping':
-        return [{"display": "none"}] + [no_update] * 20
+        return [None] + [no_update] * 20  # Hide modal by returning None
 
     # Handle verify
     elif trigger_id == 'verify-mapping' and verify_clicks:
@@ -414,7 +518,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
             if not session_id:
                 error_msg = html.Div("❌ Session expired. Please re-upload your file.",
                                    className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update]
+                return [None] + [no_update] * 18 + [error_msg, no_update]
 
             # Confirm mapping with AI plugin
             if AI_AVAILABLE:
@@ -454,14 +558,14 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 ], className="mt-4")
             ])
 
-            return [{"display": "none"}] + [no_update] * 17 + [success_msg, no_update, no_update]
+            return [None] + [no_update] * 17 + [success_msg, no_update, no_update]
 
         except Exception as e:
             logger.error(f"Error verifying mapping: {e}")
             error_msg = html.Div(f"❌ Error verifying mapping: {str(e)}", className="alert alert-error")
-            return [{"display": "none"}] + [no_update] * 19 + [error_msg, no_update]
+            return [None] + [no_update] * 18 + [error_msg, no_update]
 
-    return [no_update] * 21
+    return [None] + [no_update] * 20  # Default: hide modal
 
 
 # Door mapping callback
