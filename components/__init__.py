@@ -22,7 +22,8 @@ except ImportError as e:
     ANALYTICS_AVAILABLE = False
 
 try:
-    from .settings_modal import create_settings_modal, register_settings_modal_callbacks
+    from .settings_modal import create_settings_modal
+    from .settings_callback_manager import SettingsCallbackManager
     SETTINGS_MODAL_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Settings modal component not available: {e}")
@@ -42,7 +43,7 @@ if NAVBAR_AVAILABLE:
 if ANALYTICS_AVAILABLE:
     __all__.append('analytics')
 if SETTINGS_MODAL_AVAILABLE:
-    __all__.extend(['create_settings_modal', 'register_settings_modal_callbacks'])
+    __all__.extend(['create_settings_modal', 'SettingsCallbackManager'])
 
 if DOOR_MAPPING_MODAL_AVAILABLE:
     __all__.extend([

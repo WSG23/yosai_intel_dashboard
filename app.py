@@ -89,7 +89,10 @@ def create_full_dashboard():
 
         # Import component creation functions
         from components.settings_modal import create_settings_modal
+        from components.settings_callback_manager import SettingsCallbackManager
         from components.door_mapping_modal import create_door_mapping_modal, DoorMappingCallbackManager
+        from pages.callback_managers import AnalyticsCallbackManager, FileUploadCallbackManager
+        from core.navigation_manager import NavigationCallbackManager
 
         # Create container for dependency injection
         container = Container()
@@ -110,13 +113,32 @@ def create_full_dashboard():
 
         # Step 6: Register all callbacks through centralized registry
 
+        # Register navigation callbacks (MOST IMPORTANT - this handles page switching)
+        navigation_manager = NavigationCallbackManager(callback_registry, layout_manager)
+        navigation_manager.register_all()
+
+        # Register settings callbacks
+        settings_manager = SettingsCallbackManager(callback_registry)
+        settings_manager.register_all()
+
         # Register door mapping callbacks
         door_mapping_manager = DoorMappingCallbackManager(callback_registry)
         door_mapping_manager.register_all()
 
-        # Register other component callbacks here...
-        # settings_manager = SettingsCallbackManager(callback_registry)
-        # settings_manager.register_all()
+        # Register page-specific callbacks
+        analytics_manager = AnalyticsCallbackManager(callback_registry, container)
+        analytics_manager.register_all()
+
+        file_upload_manager = FileUploadCallbackManager(callback_registry, container)
+        file_upload_manager.register_all()
+
+        # Register legacy page callbacks until fully migrated
+        try:
+            from pages import register_page_callbacks
+            register_page_callbacks('deep_analytics', app, container)
+            register_page_callbacks('file_upload', app, container)
+        except Exception as e:
+            logger.warning(f"Legacy page callback registration failed: {e}")
 
         # Store references in app
         app._yosai_json_plugin = json_plugin
