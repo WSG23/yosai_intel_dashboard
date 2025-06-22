@@ -25,4 +25,3 @@ class AnalyticsCallbackManager:
         except Exception as e:
             logger.error(f"Error registering analytics callbacks: {e}")
 
-# FileUploadPageCallbackManager removed - not needed anymore
