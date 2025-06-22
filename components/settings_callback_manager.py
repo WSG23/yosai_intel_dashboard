@@ -22,7 +22,7 @@ class SettingsCallbackManager:
     def _register_modal_visibility(self):
         """Register settings modal visibility callback"""
         @self.registry.register_callback(
-            outputs=[Output("settings-modal-overlay", "className")],
+            outputs=Output("settings-modal-overlay", "className"),  # Single output
             inputs=[
                 Input("navbar-settings-btn", "n_clicks"),
                 Input("settings-modal-close-btn", "n_clicks"),
@@ -46,7 +46,7 @@ class SettingsCallbackManager:
     def _register_settings_navigation(self):
         """Register settings navigation callbacks"""
         @self.registry.register_callback(
-            outputs=[Output("url", "pathname")],
+            outputs=Output("url", "pathname"),  # Single output
             inputs=[
                 Input("settings-critical-doors", "n_clicks"),
                 Input("settings-event-aliases", "n_clicks"),
@@ -59,7 +59,7 @@ class SettingsCallbackManager:
                 Input("settings-ticket-generation", "n_clicks"),
                 Input("settings-user-management", "n_clicks"),
             ],
-            callback_id="settings_navigation",
+            callback_id="settings_navigation"
         )
         def handle_settings_navigation(*args):
             """Handle settings navigation"""

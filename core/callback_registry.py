@@ -18,9 +18,9 @@ class CallbackRegistry:
         self.registered_callbacks = {}
         self.clientside_callbacks = {}
         
-    def register_callback(self, 
-                         outputs: List,
-                         inputs: List, 
+    def register_callback(self,
+                         outputs,
+                         inputs: List,
                          states: List = None,
                          prevent_initial_call: bool = True,
                          callback_id: str = None):
@@ -52,7 +52,7 @@ class CallbackRegistry:
     
     def register_clientside_callback(self,
                                    clientside_function: str,
-                                   outputs: List,
+                                   outputs,  # Don't specify type - can be single or list
                                    inputs: List,
                                    states: List = None,
                                    callback_id: str = None):
@@ -64,7 +64,7 @@ class CallbackRegistry:
         try:
             self.app.clientside_callback(
                 clientside_function,
-                outputs,
+                outputs,  # Pass as-is
                 inputs,
                 states or []
             )
