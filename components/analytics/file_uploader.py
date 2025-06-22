@@ -8,9 +8,6 @@ import pandas as pd
 import base64
 import io
 import dash
-import uuid
-import tempfile
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -218,8 +215,7 @@ __all__ = [
     "register_dual_upload_callbacks",
     "layout",
     "render_column_mapping_panel",
-    "handle_door_mapping",
-    "handle_all_upload_modal_actions",
+    "handle_door_mapping"
 ]
 
 
@@ -369,126 +365,6 @@ def render_column_mapping_panel(header_options, file_name="access_control_data_1
             ])
         ])
     ])
-
-@callback(
-    [Output('column-mapping-modal', 'children'),
-     Output('column-mapping-modal', 'style'),
-     Output('upload-status', 'children'),
-     Output('mapping-verified-status', 'children')],
-    [Input('upload-data', 'contents'),
-     Input('cancel-mapping', 'n_clicks'),
-     Input('verify-mapping', 'n_clicks')],
-    [State('upload-data', 'filename'),
-     State('timestamp-dropdown', 'value'),
-     State('device-column-dropdown', 'value'),
-     State('user-id', 'value'),
-     State('event-type-dropdown', 'value'),
-     State('floor-estimate-input', 'value'),
-     State('user-id-storage', 'children')],
-    prevent_initial_call=True
-)
-def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks,
-                                  upload_filename, timestamp_col, device_col, user_col,
-                                  event_type_col, floor_estimate, user_id):
-    """Single callback to handle all upload and modal actions"""
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    contents = upload_contents
-    filename = upload_filename
-    if trigger_id == 'upload-data' and contents is not None:
-        try:
-            content_type, content_string = contents.split(',')
-            decoded = base64.b64decode(content_string)
-            if filename.endswith('.csv'):
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-            elif filename.endswith('.xlsx') or filename.endswith('.xls'):
-                df = pd.read_excel(io.BytesIO(decoded))
-            elif filename.endswith('.json'):
-                df = pd.read_json(io.StringIO(decoded.decode('utf-8')))
-            else:
-                raise ValueError("Unsupported file format")
-            headers = df.columns.tolist()
-            ai_suggestions = {}
-            floor_estimate_data = {'total_floors': 1, 'confidence': 0.0}
-            try:
-                from plugins.ai_classification.plugin import AIClassificationPlugin
-                ai_plugin = AIClassificationPlugin()
-                ai_plugin.start()
-                user_id = user_id or 'default_client'
-                session_id = str(uuid.uuid4())
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp:
-                    df.to_csv(tmp.name, index=False)
-                    temp_path = tmp.name
-                processing_result = ai_plugin.process_csv_file(temp_path, session_id, user_id)
-                if processing_result.get('success'):
-                    mapping_result = ai_plugin.map_columns(headers, session_id)
-                    floor_result = ai_plugin.estimate_floors(df.to_dict('records'), session_id)
-                    ai_suggestions = mapping_result.get('suggested_mapping', {})
-                    floor_estimate_data = floor_result
-                os.unlink(temp_path)
-            except Exception as e:
-                logger.warning(f"AI plugin not available: {e}")
-            modal_content = render_column_mapping_panel(
-                header_options=headers,
-                file_name=filename,
-                ai_suggestions=ai_suggestions,
-                floor_estimate=floor_estimate_data,
-                user_id=user_id
-            )
-            status_content = html.Div([
-                html.Div("✅ File uploaded successfully", className="alert alert-success"),
-                html.Div([
-                    html.P(f"📊 {len(df)} rows, {len(headers)} columns processed"),
-                    html.P("🤖 AI analysis complete - please verify the mapping")
-                ])
-            ])
-            return modal_content, {"display": "block"}, status_content, ""
-        except Exception as e:
-            logger.error(f"Error processing file: {e}")
-            error_status = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
-            return dash.no_update, {"display": "none"}, error_status, ""
-    elif trigger_id in ['cancel-mapping']:
-        return dash.no_update, {"display": "none"}, dash.no_update, ""
-    elif trigger_id == 'verify-mapping' and verify_clicks:
-        try:
-            from plugins.ai_classification.plugin import AIClassificationPlugin
-            ai_plugin = AIClassificationPlugin()
-            ai_plugin.start()
-            user_mapping = {
-                'timestamp': timestamp_col,
-                'device_name': device_col,
-                'token_id': user_col,
-                'event_type': event_type_col
-            }
-            ai_plugin.record_correction(
-                device_name=device_col or "unknown",
-                ai_prediction={'suggested_mapping': user_mapping, 'floor_estimate': floor_estimate},
-                user_correction={'confirmed_mapping': user_mapping, 'floors': floor_estimate},
-                client_id=user_id or 'default_client'
-            )
-            success_message = html.Div([
-                html.Div("✅ Mapping verified and learned!", className="alert alert-success"),
-                html.Small(f"Your preferences saved for future uploads. Estimated Floors: {floor_estimate}"),
-                html.Div(style={"marginTop": "1rem", "padding": "1rem", "backgroundColor": "#f8f9fa", "borderRadius": "4px"}, children=[
-                    html.P("Mapping Summary:", style={"fontWeight": "bold", "marginBottom": "0.5rem"}),
-                    html.Ul([
-                        html.Li(f"Timestamp: {timestamp_col or 'Not mapped'}"),
-                        html.Li(f"Door/Location: {device_col or 'Not mapped'}"),
-                        html.Li(f"Token ID: {user_col or 'Not mapped'}"),
-                        html.Li(f"Event Type: {event_type_col or 'Not mapped'}"),
-                        html.Li(f"Floor Estimate: {floor_estimate} floors")
-                    ])
-                ])
-            ])
-            return dash.no_update, {"display": "none"}, dash.no_update, success_message
-        except Exception as e:
-            logger.error(f"Error in verify_and_learn: {e}")
-            error_message = html.Div("❌ Error saving mapping. Please try again.", className="alert alert-error")
-            return dash.no_update, dash.no_update, dash.no_update, error_message
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-
 
 
 @callback(

@@ -27,7 +27,7 @@ class AnalyticsCallbackManager:
             logger.error(f"Error registering analytics callbacks: {e}")
 
 
-class FileUploadCallbackManager:
+class FileUploadPageCallbackManager:
     """Callback manager for file upload page"""
 
     def __init__(self, callback_registry, container=None):
@@ -37,11 +37,13 @@ class FileUploadCallbackManager:
     def register_all(self):
         """Register file upload page callbacks"""
         try:
-            from pages import register_page_callbacks
+            # Use the new centralized file upload callback manager
+            from components.analytics.file_upload_callback_manager import FileUploadCallbackManager
 
-            # Use existing page callback registration for now
-            # TODO: Migrate to centralized registry in future
-            logger.info("File upload callbacks registered through legacy system")
+            file_upload_manager = FileUploadCallbackManager(self.registry)
+            file_upload_manager.register_all()
+
+            logger.info("File upload callbacks registered through centralized system")
 
         except Exception as e:
             logger.error(f"Error registering file upload callbacks: {e}")
