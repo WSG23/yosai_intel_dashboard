@@ -91,7 +91,7 @@ def create_full_dashboard():
         from components.settings_modal import create_settings_modal
         from components.settings_callback_manager import SettingsCallbackManager
         from components.door_mapping_modal import create_door_mapping_modal, DoorMappingCallbackManager
-        from pages.callback_managers import AnalyticsCallbackManager, FileUploadPageCallbackManager
+        from pages.callback_managers import AnalyticsCallbackManager
         from core.navigation_manager import NavigationCallbackManager
 
         # Create container for dependency injection
@@ -128,9 +128,6 @@ def create_full_dashboard():
         # Register page-specific callbacks
         analytics_manager = AnalyticsCallbackManager(callback_registry, container)
         analytics_manager.register_all()
-
-        file_upload_manager = FileUploadPageCallbackManager(callback_registry, container)
-        file_upload_manager.register_all()
 
         # DO NOT register legacy page callbacks as they conflict
         # The file upload callbacks are handled by @callback decorators

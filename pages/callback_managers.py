@@ -24,20 +24,3 @@ class AnalyticsCallbackManager:
             logger.error(f"Error registering analytics callbacks: {e}")
 
 
-class FileUploadPageCallbackManager:
-    """Callback manager for file upload workflow - now uses existing callbacks"""
-    
-    def __init__(self, callback_registry, container=None):
-        self.registry = callback_registry
-        self.container = container
-        
-    def register_all(self):
-        """Register file upload callbacks - the @callback decorators in file_uploader.py handle this"""
-        try:
-            # The callbacks are already registered via @callback decorators
-            # in components/analytics/file_uploader.py
-            # Just log that they should be working
-            logger.info("File upload callbacks handled by @callback decorators in file_uploader.py")
-            
-        except Exception as e:
-            logger.error(f"Error with file upload callbacks: {e}")
