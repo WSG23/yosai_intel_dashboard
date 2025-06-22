@@ -21,7 +21,7 @@ def create_dual_file_uploader(upload_id: str = 'upload-data') -> html.Div:
         return html.Div([
             # Header section
             html.Div([
-                html.H3("\ud83d\udcc1 File Upload Manager", className="upload-section-title"),
+                html.H3("📁 File Upload Manager", className="upload-section-title"),
                 html.P("Upload and validate CSV, JSON, and Excel files", className="upload-section-subtitle")
             ], className="text-center mb-4"),
 
@@ -75,9 +75,9 @@ def create_dual_file_uploader(upload_id: str = 'upload-data') -> html.Div:
                     html.Div("Database Upload", className="upload-box-title"),
                     html.Div("Connect to database", className="upload-box-subtitle"),
                     html.Div([
-                        html.P("\ud83d\udd04 MySQL connections"),
-                        html.P("\ud83d\udd04 PostgreSQL support"),
-                        html.P("\ud83d\udd04 Cloud integrations")
+                        html.P("🔄 MySQL connections"),
+                        html.P("🔄 PostgreSQL support"),
+                        html.P("🔄 Cloud integrations")
                     ], className="upload-supported-types", style={"color": "var(--color-text-tertiary)"})
                 ], className="upload-box upload-box-inactive", id="database-upload-box")
 
@@ -131,9 +131,9 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
             html.Div(className="modal__body", children=[
                 # Instructions
                 html.Div(className="form-instructions", children=[
-                    html.P("\ud83e\udd16 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
+                    html.P("🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
                            className="form-instructions-text"),
-                    html.P(f"\ud83d\udcca Detected {len(header_options)} columns in your file",
+                    html.P(f"📊 Detected {len(header_options)} columns in your file",
                            className="form-instructions-subtext")
                 ]),
 
@@ -304,8 +304,8 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
             status_content = html.Div([
                 html.Div(f"\u2705 Successfully uploaded '{upload_filename}'", className="alert alert-success"),
                 html.Div([
-                    html.P(f"\ud83d\udcca {len(df)} rows, {len(headers)} columns processed"),
-                    html.P("\ud83e\udd16 AI analysis complete - please verify the column mapping below")
+                    html.P(f"📊 {len(df)} rows, {len(headers)} columns processed"),
+                    html.P("🤖 AI analysis complete - please verify the column mapping below")
                 ])
             ])
             
@@ -350,7 +350,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
             success_message = html.Div([
                 html.Div("\u2705 Column mapping verified and learned!", className="alert alert-success"),
                 html.Div([
-                    html.H4("\ud83d\udccb Mapping Summary:", className="font-bold mt-3"),
+                    html.H4("📋 Mapping Summary:", className="font-bold mt-3"),
                     html.Ul([
                         html.Li(f"Timestamp: {timestamp_col or 'Not mapped'}"),
                         html.Li(f"Door/Location: {device_col or 'Not mapped'}"),
@@ -360,7 +360,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                     ], className="list-disc ml-6 mt-2")
                 ], className="mt-3 p-3 bg-gray-100 rounded"),
                 html.Div([
-                    html.P("\ud83d\udd17 Next: Configure door security attributes", className="font-medium"),
+                    html.P("🔗 Next: Configure door security attributes", className="font-medium"),
                     html.Button("Proceed to Door Mapping", 
                               id="open-door-mapping", 
                               className="btn btn-primary mt-3 mr-2"),
