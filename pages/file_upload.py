@@ -1,48 +1,51 @@
 """
-Enhanced File Upload Page with AI Integration
-Uses existing AI plugin for processing
+Enhanced File Upload Page with AI Integration and Dual Loading
 """
-
-from dash import html, dcc, Input, Output, State, callback
-import base64
-import pandas as pd
-import io
-import tempfile
-import os
-import uuid
+from dash import html, dcc
 import logging
-
-from components.analytics.file_uploader import render_column_mapping_panel
+from components.analytics.file_uploader import create_dual_file_uploader
 
 logger = logging.getLogger(__name__)
 
 
 def layout():
-    """File upload page layout with AI integration"""
+    """File upload page layout with dual upload functionality"""
     return html.Div([
-        html.H1("File Upload", className="page-title"),
-        dcc.Upload(
-            id='upload-data',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select Files')
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px'
-            },
-            multiple=False
-        ),
-        html.Div(id='upload-status'),
+        # Page header
+        html.Div([
+            html.H1("\U0001F3EF File Upload & Processing", className="page-title"),
+            html.P(
+                "Upload CSV, JSON, and Excel files for security analytics processing",
+                className="page-subtitle",
+            ),
+        ], className="page-header"),
+        
+        # Main upload interface
+        create_dual_file_uploader('upload-data'),
+        
+        # Status displays
+        html.Div(id='upload-status', className="mt-4"),
+        html.Div(id='upload-info', className="mt-3"),
+        
+        # Column mapping modal (initially hidden)
         html.Div(id='column-mapping-modal', style={'display': 'none'}),
-        html.Div(id='mapping-verified-status'),
+        
+        # Mapping verification status
+        html.Div(id='mapping-verified-status', className="mt-4"),
+        
+        # Door mapping modal (initially hidden) 
         html.Div(id='door-mapping-modal', style={'display': 'none'}),
+        
+        # Data stores for the workflow
+        dcc.Store(id='uploaded-file-store'),
+        dcc.Store(id='processed-data-store'),
+        dcc.Store(id='column-mapping-store')
     ])
 
 
+def register_file_upload_callbacks(app, container=None):
+    """Register file upload page callbacks - legacy support"""
+    # This is for backwards compatibility
+    # The actual callbacks are now handled by the centralized system
+    logger.info("File upload callbacks handled by centralized callback system")
+    return True

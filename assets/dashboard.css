@@ -930,3 +930,230 @@ html, body, #root, .dash-app {
   border: 1px solid var(--color-border);
 }
 
+/* File Upload Styles */
+.dual-upload-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dual-upload-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.upload-box {
+  border: 2px dashed #4a5568;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.upload-box-active {
+  border-color: #4299e1;
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+}
+
+.upload-box-active:hover {
+  border-color: #63b3ed;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+}
+
+.upload-box-inactive {
+  border-color: #4a5568;
+  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+  opacity: 0.7;
+}
+
+.upload-box-processing {
+  border-color: #f6ad55;
+  background: linear-gradient(135deg, #744210 0%, #975a16 100%);
+}
+
+.upload-box-success {
+  border-color: #68d391;
+  background: linear-gradient(135deg, #22543d 0%, #2f855a 100%);
+}
+
+.upload-box-error {
+  border-color: #fc8181;
+  background: linear-gradient(135deg, #742a2a 0%, #9b2c2c 100%);
+}
+
+.upload-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem auto;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.upload-box-active:hover .upload-icon {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.upload-box-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #e2e8f0;
+  margin-bottom: 0.5rem;
+}
+
+.upload-box-subtitle {
+  color: #a0aec0;
+  margin-bottom: 1rem;
+}
+
+.upload-supported-types {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.upload-supported-types p {
+  margin: 0.25rem 0;
+}
+
+.upload-progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border-radius: 12px;
+}
+
+.upload-progress-overlay.show {
+  display: flex;
+}
+
+.upload-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #4299e1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modal styles */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 0.5rem;
+}
+
+.form-dropdown .Select-control {
+  background-color: #2d3748;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  background-color: #2d3748;
+  color: #e2e8f0;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+/* Alert styles */
+.alert {
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.alert-success {
+  background-color: #22543d;
+  border: 1px solid #2f855a;
+  color: #68d391;
+}
+
+.alert-error {
+  background-color: #742a2a;
+  border: 1px solid #9b2c2c;
+  color: #fc8181;
+}
+
+.alert-warning {
+  background-color: #744210;
+  border: 1px solid #975a16;
+  color: #f6ad55;
+}
+
+/* Button styles */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary {
+  background-color: #4299e1;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3182ce;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .dual-upload-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .upload-box {
+    min-height: 200px;
+    padding: 1.5rem;
+  }
+}
