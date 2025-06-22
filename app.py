@@ -129,6 +129,8 @@ def create_full_dashboard():
         analytics_manager = AnalyticsCallbackManager(callback_registry, container)
         analytics_manager.register_all()
 
+        file_upload_manager = FileUploadPageCallbackManager(callback_registry, container)
+        file_upload_manager.register_all()
 
         # DO NOT register legacy page callbacks as they conflict
         # The file upload callbacks are handled by @callback decorators
