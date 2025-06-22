@@ -1,15 +1,38 @@
-"""Compatibility configuration package."""
-from importlib import import_module
+"""Simplified configuration package without plugin indirection."""
 
-# Lazy modules pointing to new location
-from . import yaml_config as _yaml
-_database = import_module('core.plugins.config.database_manager')
-_cache = import_module('core.plugins.config.cache_manager')
+from .yaml_config import (
+    ConfigurationManager,
+    get_configuration_manager,
+    AppConfig,
+    DatabaseConfig,
+    CacheConfig,
+    SecurityConfig,
+    AnalyticsConfig,
+    MonitoringConfig,
+    LoggingConfig,
+)
 
-__all__ = []  # will extend below
+from .database_manager import (
+    DatabaseManager,
+    MockDatabaseConnection,
+    get_database,
+)
 
-# Re-export top-level names from submodules for backward compatibility
-for _mod in (_yaml, _database, _cache):
-    globals().update({k: getattr(_mod, k) for k in getattr(_mod, '__all__', [])})
-    __all__.extend(getattr(_mod, '__all__', []))
+from .cache_manager import MemoryCacheManager, RedisCacheManager
 
+__all__ = [
+    'ConfigurationManager',
+    'get_configuration_manager',
+    'AppConfig',
+    'DatabaseConfig',
+    'CacheConfig',
+    'SecurityConfig',
+    'AnalyticsConfig',
+    'MonitoringConfig',
+    'LoggingConfig',
+    'DatabaseManager',
+    'MockDatabaseConnection',
+    'get_database',
+    'MemoryCacheManager',
+    'RedisCacheManager',
+]
