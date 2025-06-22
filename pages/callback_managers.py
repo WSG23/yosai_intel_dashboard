@@ -1,11 +1,10 @@
 """
-Page-specific callback managers - Updated to work with existing callbacks
+Simplified callback managers
 """
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
 
 class AnalyticsCallbackManager:
     """Callback manager for analytics page"""
@@ -18,9 +17,11 @@ class AnalyticsCallbackManager:
         """Register analytics page callbacks"""
         try:
             from pages import register_page_callbacks
-            register_page_callbacks('deep_analytics', None, self.container)
-            logger.info("Analytics callbacks registered")
+            success = register_page_callbacks('deep_analytics', None, self.container)
+            if success:
+                logger.info("Analytics callbacks registered")
+            else:
+                logger.warning("Analytics callbacks registration failed")
         except Exception as e:
             logger.error(f"Error registering analytics callbacks: {e}")
-
 
