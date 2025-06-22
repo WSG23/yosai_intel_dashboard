@@ -46,8 +46,19 @@ logger = logging.getLogger(__name__)
 def create_full_dashboard():
     """Create the complete dashboard application with centralized callbacks"""
     try:
-        import dash
+        from dash import Dash
         import dash_bootstrap_components as dbc
+
+        class YosaiDash(Dash):
+            """Dash subclass with additional attributes for plugins."""
+
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, **kwargs)
+                self._yosai_json_plugin: Optional[Any] = None
+                self._yosai_container: Optional[Any] = None
+                self._component_registry: Optional[Any] = None
+                self._layout_manager: Optional[Any] = None
+                self._callback_registry: Optional[Any] = None
 
         # Load JSON plugin first
         from core.json_serialization_plugin import JsonSerializationPlugin
@@ -64,7 +75,7 @@ def create_full_dashboard():
         logger.info("✅ JSON Serialization Plugin loaded")
 
         # Step 2: Create Dash app
-        app = dash.Dash(
+        app = YosaiDash(
             __name__,
             external_stylesheets=[
                 dbc.themes.BOOTSTRAP,
@@ -161,6 +172,8 @@ def main() -> None:
             print("❌ Failed to create dashboard application")
             sys.exit(1)
 
+        assert app is not None
+
         # Apply Flask config
         app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY"))
         app.server.config["WTF_CSRF_ENABLED"] = False
@@ -177,7 +190,7 @@ def main() -> None:
         print("\n🚀 Full dashboard starting...")
 
         # Run the application
-        app.run(debug=True, host=host, port=port)
+        app.run_server(debug=True, host=host, port=port)
 
     except KeyboardInterrupt:
         print("\n👋 Dashboard stopped by user")
@@ -195,7 +208,7 @@ def get_app() -> Optional[Any]:
     """Return the Dash app instance for WSGI servers."""
     try:
         app = create_full_dashboard()
-        if app:
+        if app is not None:
             app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY"))
             app.server.config["WTF_CSRF_ENABLED"] = False
         return app
