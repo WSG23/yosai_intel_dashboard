@@ -398,59 +398,41 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
-            session_id = processed_data.get('session_id') if processed_data else None
+            # Save the column mapping
+            column_mapping = {
+                'timestamp': timestamp_col,
+                'device': device_col,
+                'user_id': user_col,
+                'event_type': event_type_col,
+                'floor_estimate': floor_estimate
+            }
 
-            if not session_id:
-                error_msg = html.Div("❌ Session expired. Please re-upload your file.",
-                                   className="alert alert-error")
-                return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
-
-            try:
-                from plugins.ai_classification.plugin import AIClassificationPlugin
-                ai_plugin = AIClassificationPlugin()
-                ai_plugin.start()
-
-                mapping = {
-                    'timestamp': timestamp_col,
-                    'device_name': device_col,
-                    'user_id': user_col,
-                    'event_type': event_type_col
-                }
-                mapping = {k: v for k, v in mapping.items() if v is not None}
-
-                ai_plugin.confirm_column_mapping(mapping, session_id)
-                logger.info(f"Column mapping confirmed: {mapping}")
-            except Exception as e:
-                logger.error(f"Failed to confirm mapping: {e}")
-
+            # Success message
             success_msg = html.Div([
-                html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
-                html.Div([
-                    html.H4("📋 Mapping Summary:", className="font-bold mt-3"),
-                    html.Ul([
-                        html.Li(f"Timestamp: {timestamp_col or 'Not mapped'}"),
-                        html.Li(f"Door/Location: {device_col or 'Not mapped'}"),
-                        html.Li(f"User ID: {user_col or 'Not mapped'}"),
-                        html.Li(f"Event Type: {event_type_col or 'Not mapped'}"),
-                        html.Li(f"Floor Estimate: {floor_estimate or 1} floors")
-                    ], className="list-disc ml-6 mt-2")
-                ], className="mt-3 p-3 bg-gray-100 rounded")
+                html.Div("✅ Column mapping verified successfully!", className="alert alert-success"),
+                html.P("Proceeding to device attribute assignment...", className="text-green-600 mt-2")
             ])
 
-            return [
+            # Show the door mapping buttons
+            door_mapping_style = {"display": "inline-block"}
+            skip_mapping_style = {"display": "inline-block"}
+
+            return (
                 {"display": "none"},
                 no_update, no_update, no_update, no_update, no_update, no_update,
                 no_update, no_update, no_update, no_update, no_update,
-                no_update, no_update, no_update, no_update, no_update,
-                no_update,
+                no_update, no_update, no_update, no_update,
+                no_update, no_update, no_update, no_update,
                 success_msg,
-                no_update, no_update,
-                {"display": "inline-block"},
-                {"display": "inline-block"}
-            ]
+                success_msg,
+                file_store_data or {},
+                processed_data or {},
+                door_mapping_style,
+                skip_mapping_style
+            )
 
         except Exception as e:
-            logger.error(f"Error verifying mapping: {e}")
+            logger.error(f"Error in verify mapping: {e}")
             error_msg = html.Div(f"❌ Error verifying mapping: {str(e)}", className="alert alert-error")
             return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
