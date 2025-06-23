@@ -1,86 +1,73 @@
 """
 Dual Upload Box Component with Tailwind styling and working callbacks
 """
-from dash import html, dcc, callback, Input, Output, State, callback_context
+from dash import html, dcc, callback, Input, Output, State, callback_context, no_update
+import dash
 import dash_bootstrap_components as dbc
-import logging
-from datetime import datetime
-import pandas as pd
 import base64
 import io
-import dash
+import pandas as pd
 import uuid
+import logging
+from datetime import datetime
 import tempfile
 import os
 
 logger = logging.getLogger(__name__)
 
 
-def create_dual_file_uploader(upload_id: str = "upload-data") -> html.Div:
-    """Create dual file uploader that starts with upload interface only"""
+def create_dual_file_uploader(upload_id="upload-data"):
+    """Create a working dual file uploader component"""
     try:
         return html.Div([
-            # Main upload heading
+            # Upload header
             html.Div([
-                html.H2("📁 Upload Your Data", className="upload-heading"),
-                html.P(
-                    "Choose your access control data file to begin analysis",
-                    className="upload-subheading",
-                ),
-            ], className="upload-header"),
+                html.H2("📁 Upload Your Data", className="text-2xl font-bold mb-2"),
+                html.P("Choose your access control data file to begin analysis",
+                       className="text-gray-600 mb-6")
+            ]),
 
-            # Dual upload interface
+            # Main upload area - simplified and working
             html.Div([
-                # File Upload Box (primary)
                 dcc.Upload(
                     id=upload_id,
                     children=html.Div([
-                        html.I(className="fas fa-cloud-upload-alt upload-icon"),
-                        html.Div(
-                            "Drop files here or click to browse",
-                            className="upload-box-title",
-                        ),
-                        html.Div(
-                            "CSV, JSON, Excel files",
-                            className="upload-box-subtitle",
-                        ),
                         html.Div([
-                            html.P("✅ CSV files (.csv)"),
-                            html.P("✅ JSON files (.json)"),
-                            html.P("✅ Excel files (.xlsx, .xls)"),
-                        ], className="upload-supported-types"),
-                    ]),
-                    className="upload-box upload-box-primary",
+                            html.I(className="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-4"),
+                            html.H3("Drop files here or click to browse",
+                                   className="text-lg font-semibold text-gray-700 mb-2"),
+                            html.P("CSV, JSON, Excel files supported",
+                                  className="text-gray-500 mb-4"),
+                            html.Div([
+                                html.Span("✅ CSV files (.csv)", className="block text-sm text-gray-600"),
+                                html.Span("✅ JSON files (.json)", className="block text-sm text-gray-600"),
+                                html.Span("✅ Excel files (.xlsx, .xls)", className="block text-sm text-gray-600")
+                            ])
+                        ], className="text-center")
+                    ], className="border-2 border-dashed border-blue-300 rounded-lg p-8 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"),
                     multiple=False,
                     accept=".csv,.json,.xlsx,.xls",
-                ),
+                    className="w-full"
+                )
+            ], className="mb-6"),
 
-                # Database Upload Box (inactive for now)
+            # Database upload option (inactive)
+            html.Div([
                 html.Div([
-                    html.I(className="fas fa-database upload-icon"),
-                    html.Div("Database Upload", className="upload-box-title"),
-                    html.Div("Connect to database", className="upload-box-subtitle"),
-                    html.Div([
-                        html.P("🔄 MySQL connections"),
-                        html.P("🔄 PostgreSQL support"),
-                        html.P("🔄 Cloud integrations"),
-                    ], className="upload-supported-types", style={"color": "var(--color-text-tertiary)"}),
-                ], className="upload-box upload-box-inactive", id="database-upload-box"),
+                    html.I(className="fas fa-database text-2xl text-gray-400 mb-2"),
+                    html.H4("Database Connection", className="text-md font-medium text-gray-500 mb-1"),
+                    html.P("Coming soon - Direct database connections", className="text-sm text-gray-400")
+                ], className="text-center p-4 border border-gray-200 rounded-lg bg-gray-50")
+            ], className="mb-4")
 
-            ], className="dual-upload-container"),
-
-            # Status and results area (initially empty)
-            html.Div(id=f"{upload_id}-status", className="mt-4"),
-            html.Div(id=f"{upload_id}-info", className="mt-3"),
-
-            # Store for upload state
-            dcc.Store(id=f"{upload_id}-state", data={"status": "idle", "files": []}),
-
-        ], className="dual-upload-wrapper")
+        ], className="max-w-2xl mx-auto")
 
     except Exception as e:
-        logger.error(f"Error creating dual file uploader: {e}")
-        return html.Div(f"Upload component error: {e}", className="text-danger")
+        logger.error(f"Error creating file uploader: {e}")
+        return html.Div([
+            html.H3("Upload Error", className="text-red-600"),
+            html.P(f"Error: {str(e)}", className="text-red-500")
+        ])
 
 
 def render_column_mapping_panel(header_options, file_name="access_control_data.csv",
