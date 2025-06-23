@@ -34,6 +34,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def bootstrap_services():
+    """Bootstrap application services"""
+    try:
+        from core.service_container import configure_services
+        configure_services()
+        print("✅ Services configured")
+    except Exception as e:
+        print(f"⚠️ Service configuration failed: {e}")
+
+
 def create_simple_dashboard():
     """Create a simplified dashboard that works immediately"""
     try:
@@ -248,7 +258,10 @@ def main():
     try:
         print("🚀 Starting Yōsai Intel Dashboard...")
         print("=" * 50)
-        
+
+        # Initialize services
+        bootstrap_services()
+
         # Create simple dashboard
         app = create_simple_dashboard()
         if app is None:

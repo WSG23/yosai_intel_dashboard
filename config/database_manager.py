@@ -1,66 +1,73 @@
-"""Simple database manager and connection helpers."""
-
+"""
+Modular database manager with protocol compliance
+"""
 import os
 import logging
-from typing import Any
-
-from models.base import MockDatabaseConnection as _BaseMockDatabaseConnection
-from .yaml_config import DatabaseConfig
+from typing import Any, Optional
+import pandas as pd
+from dataclasses import dataclass
+from services.protocols import DatabaseProtocol
 
 logger = logging.getLogger(__name__)
 
-class MockDatabaseConnection(_BaseMockDatabaseConnection):
-    """Extension of MockDatabaseConnection with close method."""
-
-    def close(self) -> None:
-        """Close the connection (no-op for mock)."""
-        pass
-
-
-class DatabaseManager:
-    """Factory for creating database connections."""
-
-    @staticmethod
-    def from_environment() -> DatabaseConfig:
-        """Create ``DatabaseConfig`` from environment variables."""
-        return DatabaseConfig(
+@dataclass
+class DatabaseConfig:
+    """Database configuration data class"""
+    type: str = "mock"
+    host: str = "localhost" 
+    port: int = 5432
+    database: str = "yosai_intel"
+    username: str = "postgres"
+    password: str = ""
+    
+    @classmethod
+    def from_env(cls) -> 'DatabaseConfig':
+        """Create config from environment variables"""
+        return cls(
             type=os.getenv("DB_TYPE", "mock"),
             host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", 5432)),
+            port=int(os.getenv("DB_PORT", "5432")),
             database=os.getenv("DB_NAME", "yosai_intel"),
             username=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", ""),
+            password=os.getenv("DB_PASSWORD", "")
         )
 
+class MockDatabaseConnection:
+    """Mock database connection for testing and development"""
+    
+    def execute_query(self, query: str) -> pd.DataFrame:
+        """Execute mock query and return sample data"""
+        # Return realistic sample data
+        sample_data = {
+            'event_id': ['EVT001', 'EVT002', 'EVT003', 'EVT004', 'EVT005'],
+            'timestamp': pd.date_range('2024-01-01', periods=5, freq='H'),
+            'person_id': ['EMP001', 'EMP002', 'EMP001', 'EMP003', 'EMP002'],
+            'door_id': ['DOOR001', 'DOOR002', 'DOOR001', 'DOOR003', 'DOOR002'],
+            'access_result': ['Granted', 'Denied', 'Granted', 'Granted', 'Denied']
+        }
+        return pd.DataFrame(sample_data)
+    
+    def close(self) -> None:
+        """Close connection (no-op for mock)"""
+        pass
+
+class DatabaseManager:
+    """Factory for creating database connections"""
+    
     @staticmethod
-    def create_connection(config: DatabaseConfig) -> Any:
-        """Create a database connection using the provided configuration."""
+    def create_connection(config: DatabaseConfig) -> DatabaseProtocol:
+        """Create database connection based on config"""
         if config.type == "mock":
             return MockDatabaseConnection()
-        logger.warning("Unsupported database type '%s', using mock", config.type)
-        return MockDatabaseConnection()
-
+        else:
+            logger.warning(f"Database type '{config.type}' not implemented, using mock")
+            return MockDatabaseConnection()
+    
     @staticmethod
-    def test_connection(config: DatabaseConfig) -> bool:
-        """Test connectivity for the given configuration."""
-        try:
-            conn = DatabaseManager.create_connection(config)
-            conn.execute_query("SELECT 1")
-            return True
-        except Exception as exc:
-            logger.warning("Database connection failed: %s", exc)
-            return False
+    def from_environment() -> DatabaseProtocol:
+        """Create database connection from environment"""
+        config = DatabaseConfig.from_env()
+        return DatabaseManager.create_connection(config)
 
-
-def get_database() -> Any:
-    """Convenience helper to get a database connection from environment."""
-    config = DatabaseManager.from_environment()
-    return DatabaseManager.create_connection(config)
-
-
-__all__ = [
-    "DatabaseManager",
-    "DatabaseConfig",
-    "MockDatabaseConnection",
-    "get_database",
-]
+# Module exports
+__all__ = ['DatabaseConfig', 'DatabaseManager', 'MockDatabaseConnection']
