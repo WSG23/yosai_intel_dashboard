@@ -207,8 +207,8 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      Output('mapping-verified-status', 'children'),
      Output('uploaded-file-store', 'data'),
      Output('processed-data-store', 'data'),
-     Output('open-door-mapping', 'style'),
-     Output('skip-door-mapping', 'style')],
+    Output('door-mapping-modal-trigger', 'style'),
+    Output('skip-door-mapping', 'style')],
     [Input('upload-data', 'contents'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks')],
@@ -530,9 +530,8 @@ def fallback_floor_estimation(data):
     return 1, "0%"
 # Door mapping callback
 @callback(
-    [Output('door-mapping-modal', 'children'),
-     Output('door-mapping-modal', 'style')],
-    [Input('open-door-mapping', 'n_clicks'),
+    Output('door-mapping-modal-data-trigger', 'data'),
+    [Input('door-mapping-modal-trigger', 'n_clicks'),
      Input('skip-door-mapping', 'n_clicks')],
     [State('processed-data-store', 'data'),
      State('uploaded-file-store', 'data'),
@@ -547,24 +546,22 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
     """Handle door mapping modal with comprehensive column detection"""
     ctx = callback_context
     if not ctx.triggered:
-        return [], {'display': 'none'}
+        return dash.no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if trigger_id == 'skip-door-mapping':
-        return [], {'display': 'none'}
+        return dash.no_update
 
-    if trigger_id == 'open-door-mapping':
+    if trigger_id == 'door-mapping-modal-trigger':
         try:
             if not processed_data or 'data' not in processed_data:
-                error_modal = create_error_modal("No Data Available", "Please upload and process a file first.")
-                return error_modal, {'display': 'block'}
+                return dash.no_update
 
             # Extract CSV data
             csv_data = processed_data['data']
             if not csv_data:
-                error_modal = create_error_modal("Empty Data", "The uploaded file contains no data rows.")
-                return error_modal, {'display': 'block'}
+                return dash.no_update
 
             # Get all available columns
             available_columns = list(csv_data[0].keys()) if csv_data else []
@@ -646,11 +643,7 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
 
             if not device_column:
                 columns_list = "', '".join(available_columns)
-                error_modal = create_error_modal(
-                    "No Device Column Found",
-                    f"Could not identify a device/door column. Available columns: '{columns_list}'. Please ensure your file has a column containing door or device identifiers."
-                )
-                return error_modal, {'display': 'block'}
+                return dash.no_update
 
             # Extract unique devices from the identified column
             unique_devices = set()
@@ -663,23 +656,16 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
             unique_devices = sorted(list(unique_devices))
 
             if not unique_devices:
-                error_modal = create_error_modal(
-                    "No Valid Devices Found",
-                    f"No valid entries found in column '{device_column}'. Please check your data."
-                )
-                return error_modal, {'display': 'block'}
+                return dash.no_update
 
             logger.info(f"Found {len(unique_devices)} unique devices in column '{device_column}'")
 
-            door_mapping_modal = create_door_mapping_modal_with_data(unique_devices, device_column)
-            return door_mapping_modal, {'display': 'block'}
+            return {'devices': unique_devices, 'device_column': device_column}
 
         except Exception as e:
             logger.error(f"Error creating door mapping modal: {e}")
-            error_modal = create_error_modal("Error", f"Error creating door mapping: {str(e)}")
-            return error_modal, {'display': 'block'}
-
-    return [], {'display': 'none'}
+            return dash.no_update
+    return dash.no_update
 
 
 def create_error_modal(title, message):
