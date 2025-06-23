@@ -79,8 +79,13 @@ def create_door_mapping_modal() -> html.Div:
         return html.Div(f"Error creating door mapping modal: {str(e)}")
 
 
-def create_device_mapping_table(devices_data: List[Dict]) -> html.Table:
-    """Create the device mapping table"""
+def create_device_mapping_table(devices_data: List[Any]) -> html.Table:
+    """Create the device mapping table.
+
+    The input may be a list of dictionaries or a list of simple strings
+    representing device IDs. This helper normalizes both formats to avoid
+    runtime errors when the data is provided as plain strings.
+    """
     if not devices_data:
         return html.Div("No devices data available", className="text-gray-400")
     
@@ -97,10 +102,16 @@ def create_device_mapping_table(devices_data: List[Dict]) -> html.Table:
     # Table rows
     table_rows = []
     for i, device in enumerate(devices_data):
-        device_id = device.get('device_id', f'device_{i}')
-        location = device.get('location', 'Unknown')
-        is_critical = device.get('critical', False)
-        security_level = device.get('security_level', 50)
+        if isinstance(device, dict):
+            device_id = device.get('device_id', f'device_{i}')
+            location = device.get('location', 'Unknown')
+            is_critical = device.get('critical', False)
+            security_level = device.get('security_level', 50)
+        else:
+            device_id = str(device)
+            location = 'Unknown'
+            is_critical = False
+            security_level = 50
         
         row = html.Tr([
             html.Td(device_id, className="p-3 text-gray-300"),
