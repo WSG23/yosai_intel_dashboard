@@ -83,3 +83,9 @@ Desktop.ini
 # Backup files
 *.backup
 *.bak
+
+# Secret files (auto-added)
+.env.development
+.env.staging
+*.key
+secrets/
