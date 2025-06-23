@@ -921,7 +921,7 @@ def generate_ai_door_attributes(device_id):
 
 @callback(
     [Output('mapping-verified-status', 'children', allow_duplicate=True),
-     Output('door-mapping-modal', 'style', allow_duplicate=True)],
+     Output('door-mapping-modal-overlay', 'className', allow_duplicate=True)],
     [Input('save-door-mappings', 'n_clicks'),
      Input('cancel-door-mapping', 'n_clicks'),
      Input('close-door-mapping-modal', 'n_clicks')],
@@ -939,15 +939,17 @@ def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_stor
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Close modal on cancel or close
+    hidden_class = "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden"
+
     if trigger_id in ['cancel-door-mapping', 'close-door-mapping-modal']:
-        return no_update, {'display': 'none'}
+        return no_update, hidden_class
 
     # Save door mappings
     if trigger_id == 'save-door-mappings' and save_clicks:
         try:
             if not door_store or not processed_data:
                 error_msg = html.Div("❌ No door mapping data to save", className="alert alert-error")
-                return error_msg, {'display': 'none'}
+                return error_msg, hidden_class
 
             devices = door_store.get('devices', [])
             session_id = processed_data.get('session_id')
@@ -1000,12 +1002,12 @@ def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_stor
                 ], className="mt-4")
             ])
 
-            return success_msg, {'display': 'none'}
+            return success_msg, hidden_class
 
         except Exception as e:
             logger.error(f"Error saving door mappings: {e}")
             error_msg = html.Div(f"❌ Error saving door mappings: {str(e)}", className="alert alert-error")
-            return error_msg, {'display': 'none'}
+            return error_msg, hidden_class
 
     return no_update, no_update
 
