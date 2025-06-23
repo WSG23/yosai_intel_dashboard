@@ -132,8 +132,8 @@ def layout():
         html.Div(id='door-mapping-modal', style={'display': 'none'}),
 
         # Additional required elements for next steps
-        html.Button("Proceed to Door Mapping", 
-                   id="open-door-mapping", 
+        html.Button("Proceed to Door Mapping",
+                   id="door-mapping-modal-trigger",
                    className="btn btn-primary mt-3 mr-2",
                    style={"display": "none"}),
         html.Button("Skip Door Mapping", 
