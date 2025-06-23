@@ -241,46 +241,4 @@ class ModelFactory:
             'anomaly': ModelFactory.create_anomaly_model(db_connection)
         }
 
-# Mock database connection for testing
-class MockDatabaseConnection:
-    """Mock database connection for testing purposes"""
-    
-    def __init__(self):
-        self.sample_data = self._generate_sample_data()
-    
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
-        """Mock query execution that returns sample data"""
-        # Simple query parsing for testing
-        if "access_events" in query.lower():
-            return self.sample_data['access_events']
-        elif "anomaly_detections" in query.lower():
-            return self.sample_data['anomaly_detections']
-        else:
-            return pd.DataFrame()
-    
-    def _generate_sample_data(self) -> Dict[str, pd.DataFrame]:
-        """Generate sample data for testing"""
-        access_events = pd.DataFrame({
-            'event_id': ['E001', 'E002', 'E003'],
-            'timestamp': [datetime.now() - timedelta(hours=i) for i in range(3)],
-            'person_id': ['P001', 'P002', 'P001'],
-            'door_id': ['D001', 'D002', 'D001'],
-            'access_result': ['Granted', 'Denied', 'Granted'],
-            'badge_status': ['Valid', 'Invalid', 'Valid']
-        })
-        
-        anomaly_detections = pd.DataFrame({
-            'anomaly_id': ['A001', 'A002'],
-            'event_id': ['E002', 'E003'],
-            'anomaly_type': ['unusual_time', 'multiple_attempts'],
-            'severity': ['medium', 'high'],
-            'confidence_score': [0.75, 0.95]
-        })
-        
-        return {
-            'access_events': access_events,
-            'anomaly_detections': anomaly_detections
-        }
-
-# Export all classes
-__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory', 'MockDatabaseConnection']
+__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory']

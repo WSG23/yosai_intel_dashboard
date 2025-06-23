@@ -74,28 +74,7 @@ class DashAppFactory:
             # Create DI container with YAML configuration
             container = get_configured_container_with_yaml(config_manager)
 
-            # CRITICAL: Load and start JSON plugin EARLY
-            from core.json_serialization_plugin import JsonSerializationPlugin
-
-            json_plugin = JsonSerializationPlugin()
-            plugin_config = {
-                "enabled": True,
-                "max_dataframe_rows": 1000,
-                "max_string_length": 10000,
-                "include_type_metadata": True,
-                "compress_large_objects": True,
-                "fallback_to_repr": True,
-                "auto_wrap_callbacks": True,
-            }
-
-            # Load, configure, and start the plugin
-            plugin_loaded = json_plugin.load(container, plugin_config)
-            if plugin_loaded:
-                json_plugin.configure(plugin_config)
-                json_plugin.start()  # This applies global JSON patches
-                logger.info("✅ JSON Serialization Plugin loaded and started")
-            else:
-                logger.error("❌ Failed to load JSON plugin")
+            json_plugin = DashAppFactory._init_json_plugin(container)
 
             # Create Dash app with configuration
             # Ensure assets are served from the project-level ``assets`` folder
@@ -179,43 +158,8 @@ class DashAppFactory:
             except Exception as e:
                 logger.warning(f"Could not wrap dash.index with login_required: {e}")
 
-            # Initialize Babel for internationalization
-            if BABEL_AVAILABLE:
-                babel = Babel(server)
-
-                def _select_locale() -> str:
-                    return session.get("lang", "en")
-
-                if hasattr(babel, "localeselector"):
-
-                    @babel.localeselector
-                    def get_locale() -> str:
-                        return _select_locale()
-
-                else:
-                    babel.locale_selector_func = _select_locale
-
-                @server.route("/i18n/<lang>")
-                def set_lang(lang: str):
-                    session["lang"] = lang
-                    return redirect(request.referrer or "/")
-
-            # Add JSON plugin health check endpoint
-            @server.route("/health/json-plugin")
-            def json_plugin_health():
-                """Health check endpoint for JSON plugin"""
-                if hasattr(app, "_yosai_json_plugin"):
-                    health = app._yosai_json_plugin.health_check()
-                    # Use our safe JSON serialization
-                    from flask import Response
-                    import json
-
-                    return Response(json.dumps(health), mimetype="application/json")
-                else:
-                    return Response(
-                        '{"error": "JSON plugin not available"}',
-                        mimetype="application/json",
-                    )
+            DashAppFactory._setup_babel(server)
+            DashAppFactory._register_json_plugin_health(server, app)
 
             logger.info(
                 "✅ Dashboard application created successfully with JSON plugin"
@@ -228,6 +172,70 @@ class DashAppFactory:
         except Exception as e:
             logger.error(f"Failed to create Dash application: {e}")
             return None
+
+    @staticmethod
+    def _init_json_plugin(container: Container):
+        """Load and start the JSON serialization plugin."""
+        from core.json_serialization_plugin import JsonSerializationPlugin
+
+        plugin = JsonSerializationPlugin()
+        config = {
+            "enabled": True,
+            "max_dataframe_rows": 1000,
+            "max_string_length": 10000,
+            "include_type_metadata": True,
+            "compress_large_objects": True,
+            "fallback_to_repr": True,
+            "auto_wrap_callbacks": True,
+        }
+
+        if plugin.load(container, config):
+            plugin.configure(config)
+            plugin.start()
+            logger.info("✅ JSON Serialization Plugin loaded and started")
+        else:
+            logger.error("❌ Failed to load JSON plugin")
+
+        return plugin
+
+    @staticmethod
+    def _setup_babel(server) -> None:
+        """Initialize Flask-Babel on the server if available."""
+        if not BABEL_AVAILABLE:
+            return
+
+        babel = Babel(server)
+
+        def _select_locale() -> str:
+            return session.get("lang", "en")
+
+        if hasattr(babel, "localeselector"):
+
+            @babel.localeselector
+            def get_locale() -> str:  # pragma: no cover - runtime registration
+                return _select_locale()
+
+        else:
+            babel.locale_selector_func = _select_locale
+
+        @server.route("/i18n/<lang>")
+        def set_lang(lang: str):  # pragma: no cover - simple route
+            session["lang"] = lang
+            return redirect(request.referrer or "/")
+
+    @staticmethod
+    def _register_json_plugin_health(server, app) -> None:
+        """Expose JSON plugin health status."""
+
+        @server.route("/health/json-plugin")
+        def json_plugin_health():  # pragma: no cover - simple route
+            if hasattr(app, "_yosai_json_plugin"):
+                health = app._yosai_json_plugin.health_check()
+                from flask import Response
+                import json
+
+                return Response(json.dumps(health), mimetype="application/json")
+            return Response('{"error": "JSON plugin not available"}', mimetype="application/json")
 
     @staticmethod
     def _get_stylesheets(config_manager: 'ConfigurationManager') -> list:
