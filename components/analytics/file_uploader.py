@@ -333,6 +333,12 @@ def handle_file_upload_and_modal(
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
     logger.info(f"Upload callback triggered by: {trigger_id}")
 
+    # Support dcc.Upload components configured with multiple=True
+    if isinstance(upload_contents, list):
+        upload_contents = upload_contents[0]
+    if isinstance(upload_filename, list):
+        upload_filename = upload_filename[0]
+
     # Handle modal close actions
     if trigger_id in ["cancel-mapping", "close-mapping-modal"]:
         logger.info("Closing column mapping modal")
