@@ -339,51 +339,101 @@ def create_upload_page():
 
 
 def main():
-    """Main application entry point"""
+    """Main application entry point with enhanced error handling"""
     try:
+        # Validate environment before starting
+        _validate_environment()
+
         print("🚀 Starting Yōsai Intel Dashboard...")
         print("=" * 50)
 
-        # Initialize services
-        bootstrap_services()
+        # Initialize services with error checking
+        if not bootstrap_services():
+            raise RuntimeError("Service initialization failed")
 
-        # Create simple dashboard
+        # Create dashboard with validation
         app = create_simple_dashboard()
         if app is None:
-            print("❌ Failed to create dashboard")
-            sys.exit(1)
-        
-        # Configure Flask settings
-        app.server.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-        app.server.config["WTF_CSRF_ENABLED"] = os.getenv("WTF_CSRF_ENABLED", "True") == "True"
-        
-        # Get configuration
-        host = os.getenv("HOST", "127.0.0.1")
-        port = int(os.getenv("PORT", "8050"))
-        debug = os.getenv("DEBUG", "True").lower() == "true"
-        
+            raise RuntimeError("Failed to create dashboard application")
+
+        # Configure Flask settings securely
+        from config.unified_config import get_config
+        config = get_config()
+
+        secret_key = config.get('security.secret_key')
+        if secret_key == 'change-me' or len(str(secret_key)) < 32:
+            raise ValueError("SECRET_KEY must be changed from default and be at least 32 characters")
+
+        app.server.config["SECRET_KEY"] = secret_key
+        app.server.config["WTF_CSRF_ENABLED"] = config.get('security.csrf_enabled', True)
+
+        # Get runtime configuration
+        host = config.get('app.host', '127.0.0.1')
+        port = config.get('app.port', 8050)
+        debug = config.get('app.debug', False)
+
+        # Validate network configuration
+        if host not in ['127.0.0.1', 'localhost'] and debug:
+            logger.warning("Debug mode enabled with non-local host - security risk")
+
         # Print startup info
         print(f"🌐 URL: http://{host}:{port}")
         print(f"📊 Analytics: http://{host}:{port}/analytics")
         print(f"📤 Upload: http://{host}:{port}/file-upload")
-        print("✅ Simplified Architecture: ACTIVE")
-        print("✅ Basic Navigation: ENABLED")
+        print("✅ Enhanced Security: ACTIVE")
+        print("✅ Unified Configuration: ACTIVE")
         print("=" * 50)
         print("🚀 Dashboard starting...")
-        
+
         # Run the application
         app.run_server(
             debug=debug,
             host=host,
             port=port
         )
-        
+
+    except ImportError as e:
+        logger.error(f"Missing required dependency: {e}")
+        print(f"❌ Import Error: {e}")
+        print("💡 Run: pip install -r requirements.txt")
+        sys.exit(1)
+    except ValueError as e:
+        logger.error(f"Configuration error: {e}")
+        print(f"❌ Configuration Error: {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        logger.error(f"Application startup error: {e}")
+        print(f"❌ Startup Error: {e}")
+        sys.exit(1)
     except KeyboardInterrupt:
         print("\n👋 Dashboard stopped by user")
+        logger.info("Application stopped by user")
     except Exception as e:
-        logger.error(f"Application error: {e}")
-        print(f"❌ Error: {e}")
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        print(f"❌ Unexpected Error: {e}")
+        print("📋 Check logs for detailed error information")
         sys.exit(1)
+
+
+def _validate_environment():
+    """Validate environment configuration before startup"""
+    required_vars = ['SECRET_KEY']
+    missing_vars = []
+
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+
+    if missing_vars:
+        raise ValueError(f"Required environment variables missing: {', '.join(missing_vars)}")
+
+    # Validate database configuration if not using mock
+    db_type = os.getenv('DB_TYPE', 'mock')
+    if db_type != 'mock':
+        db_required = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
+        db_missing = [var for var in db_required if not os.getenv(var)]
+        if db_missing:
+            raise ValueError(f"Database configuration missing: {', '.join(db_missing)}")
 
 
 if __name__ == "__main__":
