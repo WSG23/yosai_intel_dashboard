@@ -512,57 +512,77 @@ def fallback_floor_estimation(data):
     return 1, "0%"
 
 
-# New callback to show door mapping buttons and run AI preprocessing
+# New callback to prepare AI door mapping data when modal is opened
 @callback(
-    [Output('door-mapping-modal-trigger', 'style', allow_duplicate=True),
-     Output('skip-door-mapping', 'style', allow_duplicate=True),
-     Output('door-mapping-modal-data-trigger', 'data', allow_duplicate=True)],
-    [Input('verify-mapping', 'n_clicks')],
+    Output('door-mapping-modal-data-trigger', 'data'),
+    [Input('door-mapping-modal-trigger', 'n_clicks'),
+     Input('skip-door-mapping', 'n_clicks')],
     [State('processed-data-store', 'data'),
      State('device-column-dropdown', 'value')],
     prevent_initial_call=True
 )
-def show_door_mapping_buttons_with_ai_prep(verify_clicks, processed_data, device_col):
-    """Show door mapping buttons and prepare AI initial mapping"""
-    if not verify_clicks or not processed_data:
-        return dash.no_update, dash.no_update, dash.no_update
+def handle_door_mapping(open_clicks, skip_clicks, processed_data, device_col):
+    """Handle door mapping modal with AI pre-processing"""
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update
 
-    try:
-        csv_data = processed_data.get('data', [])
-        if not csv_data:
-            return dash.no_update, dash.no_update, dash.no_update
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-        device_column = device_col or 'device_id'
-        available_columns = list(csv_data[0].keys()) if csv_data else []
+    if trigger_id == 'skip-door-mapping':
+        logger.info("Door mapping skipped by user")
+        return dash.no_update
 
-        if device_column not in available_columns:
-            for col in available_columns:
-                if any(word in col.lower() for word in ['device', 'door', 'id']):
-                    device_column = col
-                    break
-            else:
-                device_column = available_columns[0] if available_columns else 'device_id'
+    if trigger_id == 'door-mapping-modal-trigger' and open_clicks:
+        try:
+            if not processed_data or 'data' not in processed_data:
+                return dash.no_update
 
-        devices = list({str(row.get(device_column, '')).strip() for row in csv_data if row.get(device_column)})
-        devices = [d for d in devices if d]
+            # Extract CSV data
+            csv_data = processed_data['data']
+            if not csv_data:
+                return dash.no_update
 
-        ai_mapped_devices = []
-        for device_id in devices:
-            ai_attributes = generate_ai_door_attributes(device_id)
-            ai_mapped_devices.append({'device_id': device_id, **ai_attributes})
+            # Get device column
+            available_columns = list(csv_data[0].keys())
+            device_column = device_col
 
-        show_style = {"display": "inline-block", "margin-right": "10px"}
-        modal_data = {
-            'devices': ai_mapped_devices,
-            'column': device_column,
-            'ai_processed': True
-        }
+            if not device_column or device_column not in available_columns:
+                # Fallback detection
+                for col in available_columns:
+                    if any(word in col.lower() for word in ['device', 'door', 'id']):
+                        device_column = col
+                        break
+                else:
+                    device_column = available_columns[0]
 
-        return show_style, show_style, modal_data
+            # Extract unique devices
+            devices = list(set([str(row.get(device_column, '')).strip()
+                              for row in csv_data if row.get(device_column)]))
+            devices = [d for d in devices if d and d != '']
 
-    except Exception as e:
-        logger.error(f"Error in AI door mapping preparation: {e}")
-        return dash.no_update, dash.no_update, dash.no_update
+            # Generate AI mappings for each device
+            ai_mapped_devices = []
+            for device_id in devices:
+                ai_attributes = generate_ai_door_attributes(device_id)
+                ai_mapped_devices.append({
+                    'device_id': device_id,
+                    **ai_attributes
+                })
+
+            logger.info(f"AI processed {len(ai_mapped_devices)} devices for door mapping")
+
+            return {
+                'devices': ai_mapped_devices,
+                'column': device_column,
+                'ai_processed': True
+            }
+
+        except Exception as e:
+            logger.error(f"Error in door mapping preparation: {e}")
+            return dash.no_update
+
+    return dash.no_update
 # Door mapping callback
 @callback(
     Output('door-mapping-modal-overlay', 'className'),
