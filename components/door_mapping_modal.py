@@ -79,12 +79,14 @@ def create_door_mapping_modal() -> html.Div:
         return html.Div(f"Error creating door mapping modal: {str(e)}")
 
 
-def create_device_mapping_table(devices_data: List[Any]) -> html.Table:
+def create_device_mapping_table(devices_data) -> html.Table:
     """Create the device mapping table.
 
     The input may be a list of dictionaries or a list of simple strings
     representing device IDs. This helper normalizes both formats to avoid
-    runtime errors when the data is provided as plain strings.
+    runtime errors when the data is provided as plain strings. When a plain
+    string is provided we fall back to a generic location that includes the
+    device id so the UI remains informative.
     """
     if not devices_data:
         return html.Div("No devices data available", className="text-gray-400")
@@ -109,7 +111,9 @@ def create_device_mapping_table(devices_data: List[Any]) -> html.Table:
             security_level = device.get('security_level', 50)
         else:
             device_id = str(device)
-            location = 'Unknown'
+            # Generic location fallback so the row is informative even when the
+            # source data does not contain location information
+            location = f"Floor 1 - {device_id}"
             is_critical = False
             security_level = 50
         
