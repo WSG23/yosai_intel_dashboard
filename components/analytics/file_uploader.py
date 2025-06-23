@@ -1,17 +1,19 @@
-"""
-Dual Upload Box Component with Tailwind styling and working callbacks
-"""
-from dash import html, dcc, callback, Input, Output, State, callback_context
-import dash_bootstrap_components as dbc
-import logging
-from datetime import datetime
-import pandas as pd
+"""Enhanced File Upload Component with AI Integration"""
+
 import base64
 import io
-import dash
+import logging
 import uuid
 import tempfile
 import os
+import re
+from datetime import datetime
+from collections import Counter
+from typing import Dict, List, Any, Tuple
+
+import pandas as pd
+from dash import html, dcc, Input, Output, State, callback, callback_context, no_update
+from dash.exceptions import PreventUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +185,104 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
     ])
 
 
+def enhanced_pattern_matching(headers: List[str]) -> Tuple[Dict[str, str], Dict[str, float]]:
+    """Enhanced fallback pattern matching for column detection"""
+    ai_suggestions = {}
+    confidence_scores = {}
+
+    # Enhanced patterns for better detection
+    patterns = {
+        'timestamp': [
+            'time', 'date', 'timestamp', 'datetime', 'created', 'occurred',
+            'when', 'logged', 'recorded', 'event_time', 'access_time'
+        ],
+        'device_name': [
+            'door', 'device', 'location', 'area', 'reader', 'panel', 'terminal',
+            'gate', 'entrance', 'exit', 'access_point', 'checkpoint', 'zone'
+        ],
+        'user_id': [
+            'user', 'person', 'employee', 'badge', 'card', 'id', 'worker',
+            'staff', 'visitor', 'holder', 'individual'
+        ],
+        'event_type': [
+            'event', 'action', 'type', 'result', 'status', 'access', 'entry',
+            'exit', 'granted', 'denied', 'outcome'
+        ]
+    }
+
+    for field, keywords in patterns.items():
+        best_match = None
+        best_score = 0
+
+        for header in headers:
+            header_lower = header.lower()
+            for keyword in keywords:
+                if keyword in header_lower:
+                    # Score based on how well the keyword matches
+                    score = len(keyword) / len(header_lower)
+                    if keyword == header_lower:  # Exact match
+                        score = 1.0
+                    elif header_lower.startswith(keyword) or header_lower.endswith(keyword):
+                        score = 0.9
+
+                    if score > best_score:
+                        best_score = score
+                        best_match = header
+
+        if best_match and best_score > 0.3:
+            ai_suggestions[field] = best_match
+            confidence_scores[best_match] = best_score
+
+    return ai_suggestions, confidence_scores
+
+
+def fallback_floor_estimation(data: List[Dict[str, Any]]) -> Tuple[int, str]:
+    """Fallback floor estimation using simple heuristics"""
+    floor_indicators = set()
+
+    # Limit data processing for performance
+    sample_data = data[:100] if len(data) > 100 else data
+
+    for record in sample_data:
+        for value in record.values():
+            if value:
+                text = str(value).lower()
+                # Look for floor patterns
+                patterns = [r'\b(\d+)f\b', r'\bfloor\s*(\d+)', r'\bf(\d+)', r'\b(\d+)fl\b']
+                for pattern in patterns:
+                    matches = re.findall(pattern, text)
+                    for match in matches:
+                        try:
+                            floor_num = int(match)
+                            if 1 <= floor_num <= 50:
+                                floor_indicators.add(floor_num)
+                        except ValueError:
+                            continue
+
+    if floor_indicators:
+        max_floor = max(floor_indicators)
+        confidence = f"{min(90, len(floor_indicators) * 20)}%"
+        return max_floor, confidence
+
+    return 1, "0%"
+
+
+def safe_ai_plugin_init():
+    """Safely initialize AI plugin with error handling"""
+    try:
+        from plugins.ai_classification.plugin import AIClassificationPlugin
+        ai_plugin = AIClassificationPlugin()
+        if ai_plugin.start():
+            return ai_plugin, True
+        else:
+            logger.warning("AI plugin failed to start")
+            return None, False
+    except ImportError as e:
+        logger.warning(f"AI Classification plugin not available: {e}")
+        return None, False
+    except Exception as e:
+        logger.error(f"AI plugin initialization failed: {e}")
+        return None, False
 
 
 @callback(
@@ -224,15 +324,9 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
     prevent_initial_call=True
 )
 def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks,
-                                    upload_filename, timestamp_col, device_col, user_col,
-                                    event_type_col, floor_estimate, user_id, file_store_data, processed_data):
-    """Enhanced file upload handler with auto-filled AI suggestions and efficient processing"""
-    from dash import callback_context, no_update
-    import dash
-    import uuid
-    import tempfile
-    import os
-    from datetime import datetime
+                                  upload_filename, timestamp_col, device_col, user_col,
+                                  event_type_col, floor_estimate, user_id, file_store_data, processed_data):
+    """Enhanced file upload handler with comprehensive error handling"""
 
     ctx = callback_context
     if not ctx.triggered:
@@ -240,48 +334,61 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # Handle file upload
     if trigger_id == 'upload-data' and upload_contents is not None:
         try:
-            session_id = str(uuid.uuid4())
-            content_type, content_string = upload_contents.split(',')
-            decoded = base64.b64decode(content_string)
+            logger.info(f"Processing file upload: {upload_filename}")
 
+            # Generate session ID
+            session_id = str(uuid.uuid4())
+
+            # Parse file content safely
+            try:
+                content_type, content_string = upload_contents.split(',')
+                decoded = base64.b64decode(content_string)
+            except Exception as e:
+                logger.error(f"Failed to decode file content: {e}")
+                error_msg = html.Div("❌ Invalid file format or corrupted data.",
+                                   className="alert alert-error")
+                return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
+
+            # Process file safely
             df = None
-            if upload_filename.endswith('.csv'):
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-            elif upload_filename.endswith(('.xlsx', '.xls')):
-                df = pd.read_excel(io.BytesIO(decoded))
-            elif upload_filename.endswith('.json'):
-                import json
-                json_data = json.loads(decoded.decode('utf-8'))
-                if isinstance(json_data, list):
-                    df = pd.DataFrame(json_data)
+            try:
+                if upload_filename.endswith('.csv'):
+                    df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+                elif upload_filename.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(io.BytesIO(decoded))
+                elif upload_filename.endswith('.json'):
+                    import json
+                    json_data = json.loads(decoded.decode('utf-8'))
+                    if isinstance(json_data, list):
+                        df = pd.DataFrame(json_data)
+                    else:
+                        df = pd.json_normalize(json_data)
                 else:
-                    df = pd.json_normalize(json_data)
-            else:
-                error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.",
+                    error_msg = html.Div("❌ Unsupported file format. Use CSV, JSON, or Excel files.",
+                                       className="alert alert-error")
+                    return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
+            except Exception as e:
+                logger.error(f"Failed to parse file: {e}")
+                error_msg = html.Div(f"❌ Error reading file: {str(e)}",
                                    className="alert alert-error")
                 return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
             if df is None or df.empty:
-                error_msg = html.Div("❌ File appears to be empty or corrupted.",
+                error_msg = html.Div("❌ File appears to be empty or has no valid data.",
                                    className="alert alert-error")
                 return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
 
+            # Get columns
             headers = df.columns.tolist()
             options = [{"label": col, "value": col} for col in headers]
 
-            ai_plugin = None
-            AI_AVAILABLE = False
-            try:
-                from plugins.ai_classification.plugin import AIClassificationPlugin
-                ai_plugin = AIClassificationPlugin()
-                ai_plugin.start()
-                AI_AVAILABLE = True
-                logger.info("AI plugin initialized successfully")
-            except Exception as e:
-                logger.warning(f"AI Classification plugin not available: {e}")
+            # Initialize AI processing with error handling
+            ai_plugin, AI_AVAILABLE = safe_ai_plugin_init()
 
+            # AI Processing
             ai_suggestions = {}
             confidence_scores = {}
             floor_estimate_value = 1
@@ -289,43 +396,65 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
             if AI_AVAILABLE and ai_plugin:
                 try:
+                    logger.info("Starting AI processing...")
+
+                    # Limit data for performance
                     sample_data = df.head(500).to_dict('records')
 
-                    mapping_result = ai_plugin.map_columns(headers, session_id)
-                    if mapping_result.get('success'):
-                        suggested_mapping = mapping_result.get('suggested_mapping', {})
-                        confidence_scores = mapping_result.get('confidence_scores', {})
+                    # Column mapping
+                    try:
+                        mapping_result = ai_plugin.map_columns(headers, session_id)
+                        if mapping_result.get('success'):
+                            suggested_mapping = mapping_result.get('suggested_mapping', {})
+                            confidence_scores = mapping_result.get('confidence_scores', {})
 
-                        for column, field in suggested_mapping.items():
-                            if field == 'timestamp':
-                                ai_suggestions['timestamp'] = column
-                            elif field == 'location':
-                                ai_suggestions['device_name'] = column
-                            elif field == 'user_id':
-                                ai_suggestions['user_id'] = column
-                            elif field == 'access_type':
-                                ai_suggestions['event_type'] = column
+                            # Convert AI field mappings to column suggestions
+                            for column, field in suggested_mapping.items():
+                                if field == 'timestamp':
+                                    ai_suggestions['timestamp'] = column
+                                elif field in ['location', 'door', 'device']:
+                                    ai_suggestions['device_name'] = column
+                                elif field == 'user_id':
+                                    ai_suggestions['user_id'] = column
+                                elif field in ['access_type', 'event']:
+                                    ai_suggestions['event_type'] = column
 
-                        logger.info(f"AI column mapping suggestions: {ai_suggestions}")
+                            logger.info(f"AI column suggestions: {ai_suggestions}")
+                    except Exception as e:
+                        logger.error(f"AI column mapping failed: {e}")
 
-                    floor_result = ai_plugin.estimate_floors(sample_data, session_id)
-                    if floor_result.get('success'):
-                        floor_estimate_value = floor_result.get('total_floors', 1)
-                        floor_confidence = f"{floor_result.get('confidence', 0.0) * 100:.0f}%"
-                        logger.info(f"AI floor estimation: {floor_estimate_value} floors (confidence: {floor_confidence})")
-
+                    # Floor estimation
+                    try:
+                        floor_result = ai_plugin.estimate_floors(sample_data, session_id)
+                        if floor_result.get('success'):
+                            floor_estimate_value = floor_result.get('total_floors', 1)
+                            floor_confidence = f"{floor_result.get('confidence', 0.0) * 100:.0f}%"
+                            logger.info(f"AI floor estimation: {floor_estimate_value} floors ({floor_confidence})")
+                    except Exception as e:
+                        logger.error(f"AI floor estimation failed: {e}")
+                        
                 except Exception as e:
                     logger.error(f"AI processing failed: {e}")
                     AI_AVAILABLE = False
 
+            # Fallback processing if AI fails
             if not ai_suggestions:
-                logger.info("Using fallback pattern matching for column detection")
-                ai_suggestions, confidence_scores = enhanced_pattern_matching(headers)
+                logger.info("Using fallback pattern matching")
+                try:
+                    ai_suggestions, confidence_scores = enhanced_pattern_matching(headers)
+                except Exception as e:
+                    logger.error(f"Pattern matching failed: {e}")
+                    ai_suggestions = {}
+                    confidence_scores = {}
 
-            if floor_estimate_value == 1 and AI_AVAILABLE:
-                logger.info("Using fallback floor estimation")
-                floor_estimate_value, floor_confidence = fallback_floor_estimation(df.to_dict('records'))
+            if floor_estimate_value == 1:
+                try:
+                    floor_estimate_value, floor_confidence = fallback_floor_estimation(df.head(100).to_dict('records'))
+                except Exception as e:
+                    logger.error(f"Fallback floor estimation failed: {e}")
+                    floor_estimate_value, floor_confidence = 1, "0%"
 
+            # Create success message
             status_msg = html.Div([
                 f"✅ Successfully uploaded '{upload_filename}'",
                 html.Br(),
@@ -334,6 +463,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 f"🤖 AI analysis {'completed' if AI_AVAILABLE else 'completed with fallback'}"
             ], className="alert alert-success")
 
+            # Store data
             file_store = {
                 'session_id': session_id,
                 'filename': upload_filename,
@@ -349,7 +479,8 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 'full_row_count': len(df)
             }
 
-            if AI_AVAILABLE and session_id:
+            # Persist data if AI available
+            if AI_AVAILABLE and ai_plugin:
                 try:
                     persistent_data = {
                         'filename': upload_filename,
@@ -365,20 +496,21 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 except Exception as e:
                     logger.error(f"Failed to persist data: {e}")
 
+            # Return results
             return [
-                {"display": "block"},
+                {"display": "block"},  # Show modal
                 f"File: {upload_filename}",
-                f"📊 Detected {len(headers)} columns in your file - AI suggestions auto-filled below",
+                f"📊 Detected {len(headers)} columns - AI suggestions auto-filled",
                 options, options, options, options,
                 ai_suggestions.get('timestamp'),
                 ai_suggestions.get('device_name'),
                 ai_suggestions.get('user_id'),
                 ai_suggestions.get('event_type'),
                 floor_estimate_value,
-                f"✅ Auto-filled: {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
                 f"AI Confidence: {floor_confidence}",
                 status_msg,
                 "",
@@ -387,44 +519,44 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 {"display": "none"},
                 {"display": "none"}
             ]
-
+            
         except Exception as e:
-            logger.error(f"Error processing file: {e}")
-            error_msg = html.Div(f"❌ Error processing file: {str(e)}", className="alert alert-error")
+            logger.error(f"Unexpected error in file upload: {e}", exc_info=True)
+            error_msg = html.Div(f"❌ Unexpected error: {str(e)}", className="alert alert-error")
             return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
-
+    
+    # Handle cancel
     elif trigger_id == 'cancel-mapping':
         return [{"display": "none"}] + [no_update] * 22
-
+    
+    # Handle verify
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
             session_id = processed_data.get('session_id') if processed_data else None
-
+            
             if not session_id:
                 error_msg = html.Div("❌ Session expired. Please re-upload your file.",
                                    className="alert alert-error")
                 return [{"display": "none"}] + [no_update] * 20 + [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}]
-
+            
+            # Confirm mapping
             try:
-                from plugins.ai_classification.plugin import AIClassificationPlugin
-                ai_plugin = AIClassificationPlugin()
-                ai_plugin.start()
-
-                mapping = {
-                    'timestamp': timestamp_col,
-                    'device_name': device_col,
-                    'user_id': user_col,
-                    'event_type': event_type_col
-                }
-                mapping = {k: v for k, v in mapping.items() if v is not None}
-
-                ai_plugin.confirm_column_mapping(mapping, session_id)
-                logger.info(f"Column mapping confirmed: {mapping}")
+                ai_plugin, AI_AVAILABLE = safe_ai_plugin_init()
+                if AI_AVAILABLE:
+                    mapping = {k: v for k, v in {
+                        'timestamp': timestamp_col,
+                        'device_name': device_col,
+                        'user_id': user_col,
+                        'event_type': event_type_col
+                    }.items() if v is not None}
+                    
+                    ai_plugin.confirm_column_mapping(mapping, session_id)
+                    logger.info(f"Column mapping confirmed: {mapping}")
             except Exception as e:
                 logger.error(f"Failed to confirm mapping: {e}")
-
+            
             success_msg = html.Div([
-                html.Div("✅ Column mapping verified and learned!", className="alert alert-success"),
+                html.Div("✅ Column mapping verified!", className="alert alert-success"),
                 html.Div([
                     html.H4("📋 Mapping Summary:", className="font-bold mt-3"),
                     html.Ul([
@@ -436,7 +568,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                     ], className="list-disc ml-6 mt-2")
                 ], className="mt-3 p-3 bg-gray-100 rounded")
             ])
-
+            
             return [
                 {"display": "none"},
                 no_update, no_update, no_update, no_update, no_update, no_update,
@@ -448,7 +580,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 {"display": "inline-block"},
                 {"display": "inline-block"}
             ]
-
+            
         except Exception as e:
             logger.error(f"Error verifying mapping: {e}")
             error_msg = html.Div(f"❌ Error verifying mapping: {str(e)}", className="alert alert-error")
@@ -457,77 +589,6 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
     return [{"display": "none"}] + [no_update] * 22
 
 
-def enhanced_pattern_matching(headers):
-    """Enhanced fallback pattern matching for column detection"""
-    ai_suggestions = {}
-    confidence_scores = {}
-
-    patterns = {
-        'timestamp': [
-            'time', 'date', 'timestamp', 'datetime', 'created', 'occurred',
-            'when', 'logged', 'recorded', 'event_time', 'access_time'
-        ],
-        'device_name': [
-            'door', 'device', 'location', 'area', 'reader', 'panel', 'terminal',
-            'gate', 'entrance', 'exit', 'access_point', 'checkpoint', 'zone'
-        ],
-        'user_id': [
-            'user', 'person', 'employee', 'badge', 'card', 'id', 'worker',
-            'staff', 'visitor', 'holder', 'individual'
-        ],
-        'event_type': [
-            'event', 'action', 'type', 'result', 'status', 'access', 'entry',
-            'exit', 'granted', 'denied', 'outcome'
-        ]
-    }
-
-    for field, keywords in patterns.items():
-        best_match = None
-        best_score = 0
-        for header in headers:
-            header_lower = header.lower()
-            for keyword in keywords:
-                if keyword in header_lower:
-                    score = len(keyword) / len(header_lower)
-                    if keyword == header_lower:
-                        score = 1.0
-                    elif header_lower.startswith(keyword) or header_lower.endswith(keyword):
-                        score = 0.9
-                    if score > best_score:
-                        best_score = score
-                        best_match = header
-        if best_match and best_score > 0.3:
-            ai_suggestions[field] = best_match
-            confidence_scores[best_match] = best_score
-
-    return ai_suggestions, confidence_scores
-
-
-def fallback_floor_estimation(data):
-    """Fallback floor estimation using simple heuristics"""
-    floor_indicators = set()
-    for record in data[:100]:
-        for value in record.values():
-            if value:
-                text = str(value).lower()
-                import re
-                patterns = [r'\b(\d+)f\b', r'\bfloor\s*(\d+)', r'\bf(\d+)', r'\b(\d+)fl\b']
-                for pattern in patterns:
-                    matches = re.findall(pattern, text)
-                    for match in matches:
-                        try:
-                            floor_num = int(match)
-                            if 1 <= floor_num <= 50:
-                                floor_indicators.add(floor_num)
-                        except ValueError:
-                            continue
-
-    if floor_indicators:
-        max_floor = max(floor_indicators)
-        confidence = f"{min(90, len(floor_indicators) * 20)}%"
-        return max_floor, confidence
-
-    return 1, "0%"
 # Door mapping callback
 @callback(
     [Output('door-mapping-modal', 'children'),
