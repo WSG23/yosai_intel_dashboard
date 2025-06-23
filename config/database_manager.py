@@ -5,32 +5,21 @@ import os
 import logging
 from typing import Any, Optional
 import pandas as pd
-from dataclasses import dataclass
 from services.protocols import DatabaseProtocol
+from .yaml_config import DatabaseConfig
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class DatabaseConfig:
-    """Database configuration data class"""
-    type: str = "mock"
-    host: str = "localhost" 
-    port: int = 5432
-    database: str = "yosai_intel"
-    username: str = "postgres"
-    password: str = ""
-    
-    @classmethod
-    def from_env(cls) -> 'DatabaseConfig':
-        """Create config from environment variables"""
-        return cls(
-            type=os.getenv("DB_TYPE", "mock"),
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            database=os.getenv("DB_NAME", "yosai_intel"),
-            username=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "")
-        )
+def _config_from_env() -> DatabaseConfig:
+    """Create ``DatabaseConfig`` from environment variables."""
+    return DatabaseConfig(
+        type=os.getenv("DB_TYPE", "mock"),
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        name=os.getenv("DB_NAME", "yosai_db"),
+        user=os.getenv("DB_USER", "yosai_user"),
+        password=os.getenv("DB_PASSWORD", ""),
+    )
 
 class MockDatabaseConnection:
     """Mock database connection for testing and development"""
@@ -66,7 +55,7 @@ class DatabaseManager:
     @staticmethod
     def from_environment() -> DatabaseProtocol:
         """Create database connection from environment"""
-        config = DatabaseConfig.from_env()
+        config = _config_from_env()
         return DatabaseManager.create_connection(config)
 
 # Module exports
