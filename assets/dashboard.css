@@ -1294,3 +1294,27 @@ html, body, #root, .dash-app {
     margin: 0;
     font-size: 0.875rem;
 }
+
+/* Force button text colors to prevent white-on-white */
+.door-mapping-buttons button,
+#door-mapping-reset-btn,
+#door-mapping-save-btn {
+    color: #ffffff !important;
+}
+
+#door-mapping-reset-btn {
+    background-color: #4b5563 !important;
+}
+
+#door-mapping-save-btn {
+    background-color: #2563eb !important;
+}
+
+/* Ensure all modals are properly centered */
+.modal-overlay,
+.door-mapping-modal-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 1rem !important;
+}
