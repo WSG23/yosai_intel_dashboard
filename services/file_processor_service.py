@@ -5,7 +5,7 @@ import os
 import uuid
 from typing import Dict, Any
 
-from services.interfaces import FileProcessorProtocol
+from services.protocols import FileProcessorProtocol
 
 
 class FileProcessorService(FileProcessorProtocol):
