@@ -99,3 +99,63 @@
 .btn-secondary:hover {
     background-color: #545b62;
 }
+
+/* SIMPLE COLOR FIX - Black text on white backgrounds, white text on dark backgrounds */
+
+* {
+    color: black !important;
+    background-color: white !important;
+}
+
+/* Dark elements should have white text */
+.navbar,
+.navbar-dark,
+.bg-dark,
+[style*="background-color: dark"],
+[style*="background: dark"],
+.card-header {
+    color: white !important;
+    background-color: #343a40 !important;
+}
+
+/* Keep buttons readable */
+.btn-primary {
+    background-color: #007bff !important;
+    color: white !important;
+}
+
+.btn-success {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+.btn-danger {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.btn-warning {
+    background-color: #ffc107 !important;
+    color: black !important;
+}
+
+/* Alert colors */
+.alert-success {
+    background-color: #d4edda !important;
+    color: #155724 !important;
+}
+
+.alert-danger {
+    background-color: #f8d7da !important;
+    color: #721c24 !important;
+}
+
+.alert-warning {
+    background-color: #fff3cd !important;
+    color: #856404 !important;
+}
+
+.alert-info {
+    background-color: #d1ecf1 !important;
+    color: #0c5460 !important;
+}
