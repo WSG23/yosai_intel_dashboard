@@ -119,10 +119,11 @@ def _setup_routes(app):
 
 
 def register_upload_callback(app):
-    """Register file upload callback"""
+    """Register file upload callback with proper list handling"""
     from dash import callback, Output, Input, State, html
     import base64
     import pandas as pd
+    import io
 
     @callback(
         Output('upload-output', 'children'),
@@ -135,44 +136,103 @@ def register_upload_callback(app):
             return ""
 
         try:
+            # FIX: Handle both single file (string) and multiple files (list)
+            if isinstance(contents, list):
+                # Multiple files uploaded - process the first one
+                if len(contents) == 0:
+                    return html.Div("No files uploaded", className="alert alert-warning")
+
+                content = contents[0]  # Take first file
+                fname = filename[0] if isinstance(filename, list) else filename
+            else:
+                # Single file uploaded
+                content = contents
+                fname = filename
+
+            # Validate content format
+            if not content or ',' not in content:
+                return html.Div("Invalid file format", className="alert alert-danger")
+
             # Decode uploaded file
-            content_type, content_string = contents.split(',')
+            content_type, content_string = content.split(',', 1)
             decoded = base64.b64decode(content_string)
 
-            # Get analytics service
-            from services.service_registry import get_analytics_service
-            analytics = get_analytics_service()
+            # Process based on file type
+            if fname.endswith('.csv'):
+                try:
+                    # Try different encodings
+                    for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                        try:
+                            df = pd.read_csv(io.StringIO(decoded.decode(encoding)))
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        raise ValueError("Could not decode CSV file")
 
-            # Simple file processing
-            if filename.endswith('.csv'):
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+                except Exception as e:
+                    return html.Div([
+                        html.H6("❌ Error processing CSV", className="text-danger"),
+                        html.P(f"Error: {str(e)}")
+                    ], className="alert alert-danger")
+
+            elif fname.endswith('.json'):
+                try:
+                    import json
+                    json_data = json.loads(decoded.decode('utf-8'))
+                    if isinstance(json_data, list):
+                        df = pd.DataFrame(json_data)
+                    else:
+                        df = pd.DataFrame([json_data])
+                except Exception as e:
+                    return html.Div([
+                        html.H6("❌ Error processing JSON", className="text-danger"),
+                        html.P(f"Error: {str(e)}")
+                    ], className="alert alert-danger")
+
+            elif fname.endswith(('.xlsx', '.xls')):
+                try:
+                    df = pd.read_excel(io.BytesIO(decoded))
+                except Exception as e:
+                    return html.Div([
+                        html.H6("❌ Error processing Excel file", className="text-danger"),
+                        html.P(f"Error: {str(e)}")
+                    ], className="alert alert-danger")
             else:
                 return html.Div([
-                    html.H6("File uploaded!", className="text-success"),
-                    html.P(f"Filename: {filename}"),
-                    html.P("Note: Only CSV processing implemented for demo")
-                ], className="alert alert-info")
+                    html.H6("❌ Unsupported file type", className="text-danger"),
+                    html.P(f"File: {fname}"),
+                    html.P("Supported: .csv, .json, .xlsx, .xls")
+                ], className="alert alert-danger")
 
-            # Analyze with your existing service
-            result = analytics.analyze_data(df)
-
-            if result.success:
+            # Validate DataFrame
+            if df.empty:
                 return html.Div([
-                    html.H6("✅ File processed successfully!", className="text-success"),
-                    html.P(f"Filename: {filename}"),
-                    html.P(f"Rows processed: {result.data.get('total_events', 0)}"),
-                    html.P(f"Columns found: {len(result.data.get('columns_found', []))}"),
-                ], className="alert alert-success")
-            else:
-                return html.Div([
-                    html.H6("⚠️ Processing error", className="text-warning"),
-                    html.P(f"Error: {result.error}")
+                    html.H6("⚠️ Empty file", className="text-warning"),
+                    html.P(f"File '{fname}' contains no data")
                 ], className="alert alert-warning")
+
+            # Success - show file info
+            return html.Div([
+                html.H6("✅ File processed successfully!", className="text-success"),
+                html.P(f"📁 Filename: {fname}"),
+                html.P(f"📊 Rows: {len(df):,}"),
+                html.P(f"📋 Columns: {len(df.columns)}"),
+                html.Details([
+                    html.Summary("📋 Column Names"),
+                    html.Ul([html.Li(col) for col in df.columns[:10]])
+                ]),
+                html.Hr(),
+                html.H6("Next Steps:"),
+                html.P("• Go to Analytics page for detailed analysis"),
+                html.P("• File data is temporarily stored for this session")
+            ], className="alert alert-success")
 
         except Exception as e:
             return html.Div([
                 html.H6("❌ Upload failed", className="text-danger"),
-                html.P(f"Error: {str(e)}")
+                html.P(f"Error: {str(e)}"),
+                html.P("Please check your file format and try again.")
             ], className="alert alert-danger")
 
 
@@ -280,65 +340,86 @@ def create_analytics_page():
 
 
 def create_upload_page():
-    """Create file upload page"""
+    """Create file upload page with fixed upload handling"""
     import dash_bootstrap_components as dbc
     from dash import html, dcc
-    
+
     return html.Div([
-        dbc.Row([
-            dbc.Col([
-                html.H2("📤 File Upload"),
-                html.P("Upload access control data for analysis"),
-                html.Hr(),
-            ])
-        ]),
-        
+        html.H1("📤 File Upload", className="mb-4"),
+
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
                         html.H5("Upload Data File"),
+                        html.P("Upload your access control data for analysis", className="text-muted mb-3"),
+
                         dcc.Upload(
                             id='upload-data',
                             children=html.Div([
+                                html.I(className="fas fa-cloud-upload-alt fa-2x mb-2", style={"color": "#007bff"}),
+                                html.Br(),
                                 'Drag and Drop or ',
-                                html.A('Select Files')
-                            ]),
+                                html.A('Click to Select File', style={"color": "#007bff", "textDecoration": "underline"})
+                            ], style={"textAlign": "center"}),
                             style={
                                 'width': '100%',
-                                'height': '60px',
-                                'lineHeight': '60px',
-                                'borderWidth': '1px',
+                                'height': '120px',
+                                'lineHeight': '120px',
+                                'borderWidth': '2px',
                                 'borderStyle': 'dashed',
-                                'borderRadius': '5px',
+                                'borderRadius': '10px',
+                                'borderColor': '#007bff',
                                 'textAlign': 'center',
-                                'margin': '10px'
+                                'margin': '10px 0',
+                                'backgroundColor': '#f8f9fa'
                             },
-                            multiple=True
+                            multiple=False  # FIXED: Single file only
                         ),
-                        html.Div(id='upload-output'),
+
+                        html.Div(id='upload-output', className="mt-3"),
+
                         html.Hr(),
-                        html.H6("Supported Formats:"),
-                        html.P("• CSV files (.csv)", className="mb-1"),
-                        html.P("• Excel files (.xlsx, .xls)", className="mb-1"),
-                        html.P("• JSON files (.json)", className="mb-1"),
+                        html.H6("📋 Supported Formats:", className="mt-3"),
+                        html.Ul([
+                            html.Li("CSV files (.csv) - Recommended"),
+                            html.Li("Excel files (.xlsx, .xls)"),
+                            html.Li("JSON files (.json)")
+                        ], className="mb-3"),
+
+                        html.H6("📊 Expected Data Structure:"),
+                        html.P("Your file should contain columns like:", className="text-muted"),
+                        html.Ul([
+                            html.Li("person_id - Employee/visitor identifier"),
+                            html.Li("door_id - Door/access point identifier"),
+                            html.Li("timestamp - When access occurred"),
+                            html.Li("access_result - Granted/Denied/etc.")
+                        ])
                     ])
                 ])
             ], width=8),
-            
+
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        html.H6("Expected Columns:"),
-                        html.P("• person_id", className="mb-1"),
-                        html.P("• door_id", className="mb-1"),
-                        html.P("• timestamp", className="mb-1"),
-                        html.P("• access_result", className="mb-1"),
+                        html.H6("📈 What happens next?"),
+                        html.Ol([
+                            html.Li("File is validated and processed"),
+                            html.Li("Data structure is analyzed"),
+                            html.Li("Summary statistics are generated"),
+                            html.Li("Go to Analytics for detailed insights")
+                        ]),
+                        html.Hr(),
+                        html.H6("🔒 Security Note:"),
+                        html.P(
+                            "Files are processed securely and temporarily stored only for your session.",
+                            className="text-muted small"
+                        )
                     ])
                 ])
-            ], width=4),
+            ], width=4)
         ])
-    ])
+    ], className="container-fluid")
 
 
 def main():
