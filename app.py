@@ -417,15 +417,24 @@ def main():
 
 def _validate_environment():
     """Validate environment configuration before startup"""
-    required_vars = ['SECRET_KEY']
-    missing_vars = []
+    secret_key = os.getenv('SECRET_KEY', '')
 
-    for var in required_vars:
-        if not os.getenv(var):
-            missing_vars.append(var)
+    # For development, be more lenient
+    env = os.getenv('YOSAI_ENV', 'development')
+    if env == 'development':
+        if not secret_key or len(secret_key) < 16:
+            # Generate a temporary secret for development
+            import secrets
+            temp_secret = secrets.token_hex(32)
+            os.environ['SECRET_KEY'] = temp_secret
+            print(f"⚠️ Generated temporary SECRET_KEY for development: {temp_secret[:16]}...")
+    else:
+        # Production requirements are strict
+        if not secret_key or len(secret_key) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters for production")
 
-    if missing_vars:
-        raise ValueError(f"Required environment variables missing: {', '.join(missing_vars)}")
+        if secret_key in ['change-me', 'dev-key-change-me', 'change-me-in-production']:
+            raise ValueError("SECRET_KEY must be changed from default value")
 
     # Validate database configuration if not using mock
     db_type = os.getenv('DB_TYPE', 'mock')
