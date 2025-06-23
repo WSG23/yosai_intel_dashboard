@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Generator
 import pandas as pd
 
-from core.di_container import DIContainer
-from services.interfaces import IAnalyticsService
-from services.analytics_service import AnalyticsService
+from core.dependency_container import ServiceContainer
+from services.service_registry import configure_services
 from models.entities import Person, Door, AccessEvent
 from models.enums import AccessResult, DoorType
 
@@ -24,11 +23,11 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def di_container() -> DIContainer:
+def di_container() -> ServiceContainer:
     """Create DI container for tests"""
 
-    container = DIContainer()
-    container.register(IAnalyticsService, AnalyticsService)
+    container = ServiceContainer()
+    configure_services(container)
     return container
 
 

@@ -56,7 +56,7 @@ def create_full_dashboard() -> "Dash":
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 super().__init__(*args, **kwargs)
                 self._yosai_json_plugin: Optional[Any] = None
-                self._yosai_container: Optional[Any] = None
+                self._container: Optional[Any] = None
                 self._component_registry: Optional[Any] = None
                 self._layout_manager: Optional[Any] = None
                 self._callback_registry: Optional[Any] = None
@@ -97,8 +97,8 @@ def create_full_dashboard() -> "Dash":
         # Step 4: Initialize component managers
         from core.component_registry import ComponentRegistry
         from core.layout_manager import LayoutManager
-        from config.yaml_config import get_configuration_manager
-        from core.service_registry import get_configured_container
+        from core.dependency_container import ServiceContainer
+        from services.service_registry import configure_services
 
         # Import component creation functions
         from components.settings_modal import create_settings_modal
@@ -108,8 +108,8 @@ def create_full_dashboard() -> "Dash":
         from core.navigation_manager import NavigationCallbackManager
 
         # Create container for dependency injection
-        config_manager = get_configuration_manager()
-        container = get_configured_container(config_manager)
+        container = ServiceContainer()
+        configure_services(container)
 
         # Create your modular managers
         component_registry = ComponentRegistry()
@@ -149,7 +149,7 @@ def create_full_dashboard() -> "Dash":
 
         # Store references in app
         app._yosai_json_plugin = json_plugin
-        app._yosai_container = container
+        app._container = container
         app._component_registry = component_registry
         app._layout_manager = layout_manager
         app._callback_registry = callback_registry
