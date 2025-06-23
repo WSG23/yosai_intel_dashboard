@@ -1,57 +1,50 @@
-"""Service protocols and result types"""
-from __future__ import annotations
-
-from dataclasses import dataclass
+"""
+Service protocols for type safety and dependency injection
+"""
 from typing import Protocol, Any, Dict, List, Optional
-
 import pandas as pd
 
-
-@dataclass
-class ServiceResult:
-    """Standard result from service operations."""
-
-    success: bool
-    data: Any = None
-    error: Optional[str] = None
-    warnings: Optional[List[str]] = None
-
-    def __post_init__(self) -> None:
-        if self.warnings is None:
-            self.warnings = []
-
-
 class DatabaseProtocol(Protocol):
-    """Database service protocol."""
-
-    def execute_query(self, query: str) -> pd.DataFrame:
-        """Execute database query and return DataFrame."""
+    """Protocol for database services"""
+    
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
+        """Execute a query and return results as DataFrame"""
         ...
-
-    def close(self) -> None:
-        """Close database connection."""
+    
+    def execute_command(self, command: str, params: Optional[tuple] = None) -> bool:
+        """Execute a command (INSERT, UPDATE, DELETE)"""
         ...
-
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Check database health"""
+        ...
 
 class AnalyticsProtocol(Protocol):
-    """Analytics service protocol."""
-
-    def analyze_access_patterns(self, data: pd.DataFrame) -> Dict[str, Any]:
-        """Analyze access patterns in DataFrame."""
+    """Protocol for analytics services"""
+    
+    def get_summary_stats(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """Get summary statistics"""
         ...
-
-    def detect_anomalies(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Detect anomalies in access events."""
+    
+    def detect_anomalies(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Detect anomalies in data"""
         ...
-
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Check service health"""
+        ...
 
 class FileProcessorProtocol(Protocol):
-    """File processor service protocol."""
-
-    def process_upload(self, content: bytes, filename: str) -> pd.DataFrame:
-        """Process uploaded file content."""
+    """Protocol for file processing services"""
+    
+    def process_file(self, file_content: bytes, filename: str) -> pd.DataFrame:
+        """Process uploaded file"""
         ...
-
-    def validate_data(self, data: pd.DataFrame) -> Dict[str, List[str]]:
-        """Validate processed data structure."""
+    
+    def validate_file(self, filename: str, content: bytes) -> Dict[str, Any]:
+        """Validate file before processing"""
+        ...
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Check service health"""
         ...
