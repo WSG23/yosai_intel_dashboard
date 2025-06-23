@@ -4,16 +4,15 @@ Yōsai Intel Dashboard - Core Package
 FIXED version that removes the f-string syntax error
 """
 
-from .container import Container, get_container, reset_container
+from .service_container import ServiceContainer, get_container
 from .config_manager import ConfigManager
 from .app_factory import create_application
 from .service_registry import get_configured_container
 
 # Export public API
 __all__ = [
-    'Container',
-    'get_container', 
-    'reset_container',
+    'ServiceContainer',
+    'get_container',
     'ConfigManager',
     'create_application',
     'get_configured_container'
@@ -27,8 +26,8 @@ def verify_di_system():
     """Quick verification that DI system is working"""
     try:
         # Test basic functionality
-        container = Container()
-        container.register('test', lambda: "DI Working!")
+        container = ServiceContainer()
+        container.register_factory('test', lambda: "DI Working!")
         result = container.get('test')
         
         # Test configured container - FIXED: Safe service counting
