@@ -55,56 +55,20 @@ def bootstrap_services():
 
 
 def create_simple_dashboard():
-    """Create dashboard with proper CSS loading"""
+    """Create a simplified dashboard that works immediately"""
     try:
-        from dash import Dash, html, dcc
+        import dash
+        from dash import html, dcc
         import dash_bootstrap_components as dbc
         import io
 
-        # External stylesheets - ensure Bootstrap is loaded first
-        external_stylesheets = [
-            dbc.themes.BOOTSTRAP,  # Bootstrap base
-            {
-                'href': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-                'rel': 'stylesheet'
-            }
-        ]
-
-        app = Dash(
+        # Create basic Dash app
+        app = dash.Dash(
             __name__,
-            external_stylesheets=external_stylesheets,
+            external_stylesheets=[dbc.themes.BOOTSTRAP],
             suppress_callback_exceptions=True,
-            assets_folder='assets'  # Ensure assets folder is detected
+            meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
         )
-
-        # Add meta tags for better rendering
-        app.index_string = '''
-        <!DOCTYPE html>
-        <html>
-            <head>
-                {%metas%}
-                <title>Yōsai Intel Dashboard</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                {%favicon%}
-                {%css%}
-                <style>
-                    /* Immediate contrast fix */
-                    body, html, #_dash-app-content {
-                        background-color: white !important;
-                        color: #212529 !important;
-                    }
-                </style>
-            </head>
-            <body>
-                {%app_entry%}
-                <footer>
-                    {%config%}
-                    {%scripts%}
-                    {%renderer%}
-                </footer>
-            </body>
-        </html>
-        '''
 
         app.layout = _create_layout()
         _setup_routes(app)
