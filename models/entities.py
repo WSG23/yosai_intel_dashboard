@@ -6,23 +6,29 @@ Core entity models for the Yōsai Intel system
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
+from utils.result_types import Result, success, failure
 from .enums import DoorType
 
-@dataclass
+@dataclass(frozen=True)
 class Person:
-    """Person/User entity model"""
+    """Immutable Person entity with validation"""
     person_id: str
     name: Optional[str] = None
     employee_id: Optional[str] = None
     department: Optional[str] = None
     clearance_level: int = 1
-    access_groups: List[str] = field(default_factory=list)
+    access_groups: Tuple[str, ...] = field(default_factory=tuple)
     is_visitor: bool = False
     host_person_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     last_active: Optional[datetime] = None
     risk_score: float = 0.0
-    
+
+    def __post_init__(self) -> None:
+        result = self.validate()
+        if result.is_failure():
+            raise ValueError(f"Invalid Person: {result.error}")
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
@@ -38,6 +44,32 @@ class Person:
             'last_active': self.last_active,
             'risk_score': self.risk_score
         }
+
+    def validate(self) -> Result[bool, str]:
+        if not self.person_id or len(self.person_id.strip()) == 0:
+            return failure("person_id cannot be empty")
+        if self.clearance_level < 1 or self.clearance_level > 10:
+            return failure("clearance_level must be between 1 and 10")
+        if self.risk_score < 0.0 or self.risk_score > 1.0:
+            return failure("risk_score must be between 0.0 and 1.0")
+        if self.is_visitor and not self.host_person_id:
+            return failure("visitors must have a host_person_id")
+        return success(True)
+
+    def with_updated_risk_score(self, new_score: float) -> 'Person':
+        return Person(
+            person_id=self.person_id,
+            name=self.name,
+            employee_id=self.employee_id,
+            department=self.department,
+            clearance_level=self.clearance_level,
+            access_groups=self.access_groups,
+            is_visitor=self.is_visitor,
+            host_person_id=self.host_person_id,
+            created_at=self.created_at,
+            last_active=self.last_active,
+            risk_score=new_score,
+        )
 
 @dataclass
 class Door:

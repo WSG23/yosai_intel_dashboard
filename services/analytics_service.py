@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-from .interfaces import IAnalyticsService
+from .interfaces import AnalyticsServiceProtocol
 from models.entities import AccessEvent, Person, Door
 from models.enums import AccessResult, AnomalyType, SeverityLevel
 
@@ -30,7 +30,7 @@ class AnalyticsConfig:
             }
 
 
-class AnalyticsService(IAnalyticsService):
+class AnalyticsService(AnalyticsServiceProtocol):
     """Enhanced analytics service with comprehensive analysis capabilities"""
 
     def __init__(self, config: Optional[AnalyticsConfig] = None) -> None:
