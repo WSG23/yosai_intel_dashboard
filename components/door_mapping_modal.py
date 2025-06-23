@@ -57,14 +57,14 @@ def create_door_mapping_modal() -> html.Div:
                         html.Button(
                             "Reset",
                             id="door-mapping-reset-btn",
-                            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 mr-2",
-                            style={"color": "#ffffff", "backgroundColor": "#4b5563"},
+                            className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-700 mr-2",
+                            style={"color": "#000000", "backgroundColor": "#4b5563"},
                         ),
                         html.Button(
                             "Save Changes",
                             id="door-mapping-save-btn",
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700",
-                            style={"color": "#ffffff", "backgroundColor": "#2563eb"},
+                            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700",
+                            style={"color": "#000000", "backgroundColor": "#2563eb"},
                         ),
                     ], className="flex justify-end p-6 border-t border-gray-700")
                 ], className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-screen overflow-hidden")
