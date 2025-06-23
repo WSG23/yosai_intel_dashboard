@@ -179,12 +179,14 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      Output('mapping-verified-status', 'children'),
      Output('uploaded-file-store', 'data'),
      Output('processed-data-store', 'data'),
+     Output('open-column-mapping', 'style'),
     Output('door-mapping-modal-trigger', 'style'),
     Output('skip-door-mapping', 'style')],
     [Input('upload-data', 'contents'),
      Input('cancel-mapping', 'n_clicks'),
      Input('verify-mapping', 'n_clicks'),
-     Input('close-mapping-modal', 'n_clicks')],
+     Input('close-mapping-modal', 'n_clicks'),
+     Input('open-column-mapping', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('timestamp-dropdown', 'value'),
      State('device-column-dropdown', 'value'),
@@ -197,6 +199,7 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
     prevent_initial_call=True
 )
 def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, close_clicks,
+                                open_clicks,
                                 upload_filename, timestamp_col, device_col,
                                 user_col, event_type_col, floor_estimate, user_id,
                                 file_store_data, processed_data):
@@ -214,6 +217,7 @@ def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, 
         "", "", "", "", "",
         "", "",
         {}, {},
+        {"display": "none"},
         {"display": "none"}, {"display": "none"}
     ]
 
@@ -308,6 +312,7 @@ def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, 
                 "",
                 file_store,
                 processed_store,
+                {"display": "inline-block"},
                 {"display": "none"},
                 {"display": "none"}
             ]
@@ -317,6 +322,46 @@ def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, 
             error_return = default_return.copy()
             error_return[17] = f"❌ Error processing file: {str(e)}"
             return error_return
+
+    elif trigger_id == 'open-column-mapping' and open_clicks:
+        try:
+            if not processed_data or 'data' not in processed_data:
+                logger.warning("No processed data available for mapping")
+                return default_return
+
+            df_records = processed_data.get('data', [])
+            available_columns = processed_data.get('columns', [])
+            ai_suggestions = processed_data.get('ai_suggestions', {})
+            confidence_scores = processed_data.get('confidence_scores', {})
+            floor_est = processed_data.get('floor_estimate', {'total_floors': 1})
+            column_options = [{"label": col, "value": col} for col in available_columns]
+            device_col_suggested = ai_suggestions.get('device_name', available_columns[0] if available_columns else None)
+            upload_filename = file_store_data.get('filename', 'uploaded_file')
+
+            return [
+                {"display": "flex"},
+                f"File: {upload_filename} ({len(df_records)} records, {len(available_columns)} columns)",
+                f"📊 AI has mapped {len(ai_suggestions)} columns automatically",
+                column_options, column_options, column_options, column_options,
+                ai_suggestions.get('timestamp'), ai_suggestions.get('device_name'),
+                ai_suggestions.get('user_id'), ai_suggestions.get('event_type'),
+                floor_est.get('total_floors', 1),
+                f"✅ {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
+                f"AI Confidence: {confidence_scores.get(device_col_suggested, 0.8)*100:.0f}%",
+                no_update,
+                "",
+                file_store_data or {},
+                processed_data or {},
+                {"display": "none"},
+                {"display": "none"},
+                {"display": "none"}
+            ]
+        except Exception as e:
+            logger.error(f"Error preparing mapping modal: {e}")
+            return default_return
 
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
@@ -339,8 +384,9 @@ def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, 
             verified_return[18] = success_msg
             verified_return[19] = file_store_data or {}
             verified_return[20] = processed_data or {}
-            verified_return[21] = {"display": "inline-block"}
+            verified_return[21] = {"display": "none"}
             verified_return[22] = {"display": "inline-block"}
+            verified_return[23] = {"display": "inline-block"}
 
             return verified_return
 
