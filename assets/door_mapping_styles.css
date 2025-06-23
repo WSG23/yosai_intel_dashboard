@@ -127,3 +127,8 @@
     margin-left: 8px !important;
     display: inline-block !important;
 }
+
+/* Center alignment for verify column */
+.verify-column {
+    text-align: center !important;
+}

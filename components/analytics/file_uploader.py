@@ -747,11 +747,11 @@ def create_door_mapping_modal_with_data(devices, device_column):
             # AI Confidence
             html.Td([
                 html.Div([
-                    html.Span(f"{ai_attributes['confidence']}%", 
+                    html.Span(f"{ai_attributes['confidence']}%",
                              className="text-sm font-medium"),
                     html.Div("AI Confidence", className="text-xs text-gray-500")
                 ], className="text-center")
-            ], className="px-4 py-3"),
+            ], className="px-4 py-3 text-center verify-column"),
 
         ], className="border-b hover:bg-gray-50", id=f"device-row-{i}"))
 
@@ -786,7 +786,7 @@ def create_door_mapping_modal_with_data(devices, device_column):
                                     html.Th("Door Type", className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"),
                                     html.Th("Critical", className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"),
                                     html.Th("Security Level", className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"),
-                                    html.Th("AI Confidence", className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"),
+                                    html.Th("AI Confidence", className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider verify-column"),
                                 ])
                             ], className="bg-gray-50"),
 
