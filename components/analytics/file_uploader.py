@@ -227,7 +227,7 @@ def render_column_mapping_panel(
     )
 
 
-@app.callback(
+@callback(
     [
         Output("column-mapping-modal", "style"),
         Output("modal-file-info", "children"),
