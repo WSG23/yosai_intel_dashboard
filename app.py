@@ -61,58 +61,61 @@ def create_simple_dashboard():
         from dash import html, dcc
         import dash_bootstrap_components as dbc
         import io
-        
+
         # Create basic Dash app
         app = dash.Dash(
             __name__,
             external_stylesheets=[dbc.themes.BOOTSTRAP],
             suppress_callback_exceptions=True,
-            meta_tags=[
-                {"name": "viewport", "content": "width=device-width, initial-scale=1"}
-            ]
+            meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
         )
-        
-        # Simple layout
-        app.layout = html.Div([
-            dbc.NavbarSimple(
-                brand="🏯 Yōsai Intel Dashboard",
-                brand_href="/",
-                color="dark",
-                dark=True,
-                children=[
-                    dbc.NavItem(dbc.NavLink("Dashboard", href="/")),
-                    dbc.NavItem(dbc.NavLink("Analytics", href="/analytics")),
-                    dbc.NavItem(dbc.NavLink("Upload", href="/file-upload")),
-                ]
-            ),
-            
-            dcc.Location(id="url", refresh=False),
-            html.Div(id="page-content", className="container mt-4")
-        ])
-        
-        # Simple page routing callback
-        @app.callback(
-            dash.dependencies.Output("page-content", "children"),
-            dash.dependencies.Input("url", "pathname")
-        )
-        def display_page(pathname):
-            if pathname == "/analytics":
-                return create_analytics_page()
-            elif pathname == "/file-upload":
-                return create_upload_page()
-            else:
-                return create_dashboard_page()
 
-        # Register callback for file uploads
+        app.layout = _create_layout()
+        _setup_routes(app)
         register_upload_callback(app)
 
         logger.info("✅ Simple dashboard created successfully")
-
         return app
 
     except Exception as e:
         logger.error(f"Failed to create dashboard: {e}")
         return None
+
+
+def _create_layout():
+    import dash_bootstrap_components as dbc
+    from dash import html, dcc
+
+    return html.Div([
+        dbc.NavbarSimple(
+            brand="🏯 Yōsai Intel Dashboard",
+            brand_href="/",
+            color="dark",
+            dark=True,
+            children=[
+                dbc.NavItem(dbc.NavLink("Dashboard", href="/")),
+                dbc.NavItem(dbc.NavLink("Analytics", href="/analytics")),
+                dbc.NavItem(dbc.NavLink("Upload", href="/file-upload")),
+            ],
+        ),
+        dcc.Location(id="url", refresh=False),
+        html.Div(id="page-content", className="container mt-4"),
+    ])
+
+
+def _setup_routes(app):
+    import dash
+
+    @app.callback(
+        dash.dependencies.Output("page-content", "children"),
+        dash.dependencies.Input("url", "pathname"),
+    )
+    def display_page(pathname):  # pragma: no cover - simple routing
+        if pathname == "/analytics":
+            return create_analytics_page()
+        if pathname == "/file-upload":
+            return create_upload_page()
+        return create_dashboard_page()
 
 
 def register_upload_callback(app):

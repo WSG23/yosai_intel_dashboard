@@ -4,7 +4,7 @@ An AI-powered modular security intelligence dashboard for physical access contro
 
 ## 🏗️ Modular Architecture
 
-This project follows a fully modular architecture for maximum maintainability and testability. See [docs/architecture.md](docs/architecture.md) for an overview diagram:
+This project follows a fully modular architecture for maximum maintainability and testability. See [docs/architecture.md](docs/architecture.md) for an overview diagram. Additional flow diagrams are provided in [docs/data_flow.md](docs/data_flow.md) and [docs/plugin_architecture.md](docs/plugin_architecture.md):
 
 ```
 yosai_intel_dashboard/
@@ -95,7 +95,8 @@ Using Docker Compose:
 docker-compose up -d
 ```
 Docker Compose reads variables from a `.env` file in this directory. Set
-`DB_PASSWORD` there (or export it in your shell) before starting the services.
+`DB_PASSWORD` **and** `SECRET_KEY` there (or export them in your shell) before
+starting the services.
 
 ## 🧪 Testing
 
@@ -156,6 +157,10 @@ HOST=0.0.0.0         # Bind to all interfaces for production
 PORT=8050            # Application port
 SECRET_KEY=your-key  # Change for production
 ```
+
+When `YOSAI_ENV=production` the application will refuse to start unless both
+`DB_PASSWORD` and `SECRET_KEY` are provided via environment variables or Docker
+secrets.
 
 ### Environment Overrides
 

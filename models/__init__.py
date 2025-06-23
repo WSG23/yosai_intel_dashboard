@@ -23,8 +23,8 @@ from .base import (
     AccessEventModel,
     AnomalyDetectionModel,
     ModelFactory,
-    MockDatabaseConnection,
 )
+from config.database_manager import MockDatabaseConnection
 
 # Define exports
 __all__ = [
