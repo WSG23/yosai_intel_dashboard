@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from utils.result_types import Result, success, failure
 from .enums import DoorType
+from .events import AccessEvent
 
 @dataclass(frozen=True)
 class Person:
@@ -130,3 +131,11 @@ class Facility:
             'is_active': self.is_active,
             'created_at': self.created_at
         }
+
+# Re-export AccessEvent for backwards compatibility
+__all__ = [
+    'Person',
+    'Door',
+    'Facility',
+    'AccessEvent',
+]
