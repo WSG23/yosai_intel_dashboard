@@ -37,11 +37,21 @@ logger = logging.getLogger(__name__)
 def bootstrap_services():
     """Bootstrap application services"""
     try:
-        from core.service_container import configure_services
-        configure_services()
+        # Use your existing service registry instead of core.service_container
+        from services.service_registry import register_all_services
+
+        container = register_all_services()
         print("✅ Services configured")
+        try:
+            service_count = len(container.list_services())
+        except AttributeError:
+            # Fallback for containers without list_services
+            service_count = len(getattr(container, "_services", {})) + len(getattr(container, "_factories", {}))
+        print(f"✅ Registered services: {service_count}")
+        return True
     except Exception as e:
         print(f"⚠️ Service configuration failed: {e}")
+        return False
 
 
 def create_simple_dashboard():
@@ -50,6 +60,7 @@ def create_simple_dashboard():
         import dash
         from dash import html, dcc
         import dash_bootstrap_components as dbc
+        import io
         
         # Create basic Dash app
         app = dash.Dash(
@@ -91,20 +102,93 @@ def create_simple_dashboard():
                 return create_upload_page()
             else:
                 return create_dashboard_page()
-        
+
+        # Register callback for file uploads
+        register_upload_callback(app)
+
         logger.info("✅ Simple dashboard created successfully")
+
         return app
-        
+
     except Exception as e:
         logger.error(f"Failed to create dashboard: {e}")
         return None
+
+
+def register_upload_callback(app):
+    """Register file upload callback"""
+    from dash import callback, Output, Input, State, html
+    import base64
+    import pandas as pd
+
+    @callback(
+        Output('upload-output', 'children'),
+        Input('upload-data', 'contents'),
+        State('upload-data', 'filename'),
+        prevent_initial_call=True
+    )
+    def handle_file_upload(contents, filename):
+        if contents is None:
+            return ""
+
+        try:
+            # Decode uploaded file
+            content_type, content_string = contents.split(',')
+            decoded = base64.b64decode(content_string)
+
+            # Get analytics service
+            from services.service_registry import get_analytics_service
+            analytics = get_analytics_service()
+
+            # Simple file processing
+            if filename.endswith('.csv'):
+                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            else:
+                return html.Div([
+                    html.H6("File uploaded!", className="text-success"),
+                    html.P(f"Filename: {filename}"),
+                    html.P("Note: Only CSV processing implemented for demo")
+                ], className="alert alert-info")
+
+            # Analyze with your existing service
+            result = analytics.analyze_data(df)
+
+            if result.success:
+                return html.Div([
+                    html.H6("✅ File processed successfully!", className="text-success"),
+                    html.P(f"Filename: {filename}"),
+                    html.P(f"Rows processed: {result.data.get('total_events', 0)}"),
+                    html.P(f"Columns found: {len(result.data.get('columns_found', []))}"),
+                ], className="alert alert-success")
+            else:
+                return html.Div([
+                    html.H6("⚠️ Processing error", className="text-warning"),
+                    html.P(f"Error: {result.error}")
+                ], className="alert alert-warning")
+
+        except Exception as e:
+            return html.Div([
+                html.H6("❌ Upload failed", className="text-danger"),
+                html.P(f"Error: {str(e)}")
+            ], className="alert alert-danger")
+
 
 
 def create_dashboard_page():
     """Create main dashboard page"""
     import dash_bootstrap_components as dbc
     from dash import html
-    
+
+    # Test service integration
+    try:
+        from services.service_registry import get_analytics_service
+        analytics = get_analytics_service()
+        service_status = "✅ Analytics service ready"
+        if hasattr(analytics, 'analyze_data'):
+            service_status += " (Full functionality)"
+    except Exception as e:
+        service_status = f"⚠️ Analytics: {str(e)[:50]}"
+
     return html.Div([
         dbc.Row([
             dbc.Col([
@@ -113,6 +197,7 @@ def create_dashboard_page():
                         html.H4("🏯 Welcome to Yōsai Intel Dashboard", className="card-title"),
                         html.P("Security intelligence and access control monitoring.", className="card-text"),
                         html.P("Your modular dashboard is now running successfully!", className="text-success"),
+                        html.P(service_status, className="text-info"),
                         dbc.Button("View Analytics", href="/analytics", color="primary", className="me-2"),
                         dbc.Button("Upload Data", href="/file-upload", color="secondary"),
                     ])
