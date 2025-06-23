@@ -10,8 +10,9 @@ import logging
 from pathlib import Path
 from typing import Optional, Any
 
-# ---- CSRF workaround -----------------------------------------------------
-os.environ["WTF_CSRF_ENABLED"] = "False"
+# ---- CSRF setup ---------------------------------------------------------
+# Respect environment variable WTF_CSRF_ENABLED with secure default
+os.environ.setdefault("WTF_CSRF_ENABLED", "True")
 
 # ---- Load environment variables early ------------------------------------
 try:
@@ -28,7 +29,7 @@ except ImportError:
 # Ensure required variables are set for development
 required_vars = {
     "DB_HOST": "localhost",
-    "SECRET_KEY": "dev-secret-change-in-production-12345",
+    "SECRET_KEY": "change-me",
     "YOSAI_ENV": "development",
 }
 for var, default in required_vars.items():
@@ -177,8 +178,8 @@ def main() -> None:
         assert app is not None
 
         # Apply Flask config
-        app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "dev-secret-key-change-in-production"))
-        app.server.config["WTF_CSRF_ENABLED"] = False
+        app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
+        app.server.config.setdefault("WTF_CSRF_ENABLED", os.getenv("WTF_CSRF_ENABLED", "True") == "True")
 
         # Print startup info
         host = os.getenv('HOST', '127.0.0.1')
@@ -192,18 +193,18 @@ def main() -> None:
         print("✅ Auto-routing to Dashboard: ENABLED")
         print("=" * 60)
         print("\n🚀 Full dashboard starting...")
-        print("📍 Opening browser to dashboard automatically...")
+        if os.getenv("AUTO_OPEN_BROWSER", "False").lower() in ("true", "1", "yes"):
+            print("📍 Opening browser to dashboard automatically...")
 
-        # Auto-open browser to dashboard (optional)
-        import webbrowser
-        import threading
+            import webbrowser
+            import threading
 
-        def open_browser():
-            import time
-            time.sleep(1.5)
-            webbrowser.open(f"http://{host}:{port}/")
+            def open_browser():
+                import time
+                time.sleep(1.5)
+                webbrowser.open(f"http://{host}:{port}/")
 
-        threading.Thread(target=open_browser, daemon=True).start()
+            threading.Thread(target=open_browser, daemon=True).start()
 
         # Run the application
         app.run_server(debug=True, host=host, port=port)
@@ -226,7 +227,7 @@ def get_app() -> Optional["Dash"]:
         app = create_full_dashboard()
         if app is not None:
             app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY"))
-            app.server.config["WTF_CSRF_ENABLED"] = False
+            app.server.config.setdefault("WTF_CSRF_ENABLED", os.getenv("WTF_CSRF_ENABLED", "True") == "True")
         return app
     except Exception as e:
         logger.error(f"Error creating WSGI app: {e}")

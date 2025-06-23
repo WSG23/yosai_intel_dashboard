@@ -32,7 +32,7 @@ class TestCSRFConfig:
         config = CSRFConfig.for_development()
         assert config.enabled is False
         assert config.ssl_strict is False
-        assert config.secret_key == 'dev-secret-key-change-in-production'
+        assert config.secret_key == 'change-me'
 
     def test_production_config(self):
         config = CSRFConfig.for_production('production-secret')

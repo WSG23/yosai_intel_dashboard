@@ -54,7 +54,7 @@ class CSRFConfig:
         defaults = {
             'enabled': False,
             'ssl_strict': False,
-            'secret_key': 'dev-secret-key'
+            'secret_key': 'change-me'
         }
         defaults.update(kwargs)
         return cls(**defaults)
@@ -152,7 +152,7 @@ class EnhancedCSRFManager:
         
         # Set secret key if not present
         if not server.config.get('SECRET_KEY'):
-            server.config['SECRET_KEY'] = self.config.secret_key or 'dev-secret-key'
+            server.config['SECRET_KEY'] = self.config.secret_key or 'change-me'
         
         # Configure CSRF based on mode
         if self.mode in [CSRFMode.ENABLED, CSRFMode.PRODUCTION]:
