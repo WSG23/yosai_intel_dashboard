@@ -11,10 +11,10 @@ database:
   port: 5432
   name: "yosai_db"
   user: "yosai_user"
-  password: "dev_password"
+  password: "change-me"
 
 security:
-  secret_key: "dev-secret-key-change-in-production"
+  secret_key: "change-me"
   session_timeout: 3600
 
 analytics:

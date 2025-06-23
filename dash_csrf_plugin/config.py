@@ -84,7 +84,7 @@ class CSRFConfig:
             'enabled': False,
             'ssl_strict': False,
             'check_referer': False,
-            'secret_key': 'dev-secret-key-change-in-production'
+            'secret_key': 'change-me'
         }
         defaults.update(kwargs)
         return cls(**defaults)

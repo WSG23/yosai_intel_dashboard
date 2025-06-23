@@ -402,10 +402,4 @@ def quick_start() -> JsonSerializationPlugin:
     
     return plugin
 
-# Auto-start when imported (can be disabled by setting environment variable)
-if os.getenv('YOSAI_JSON_AUTO_START', 'true').lower() in ('true', '1', 'yes'):
-    try:
-        _global_plugin = quick_start()
-        logger.info("🔥 JSON Serialization Plugin auto-started globally")
-    except Exception as e:
-        logger.warning(f"Failed to auto-start JSON plugin: {e}")
+# Auto-start removed to avoid side effects on import. Use ``quick_start`` explicitly if needed.
