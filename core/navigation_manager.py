@@ -33,25 +33,35 @@ class NavigationCallbackManager:
             try:
                 from pages import get_page_layout
 
-                # Route to appropriate page
-                if pathname == "/" or pathname is None:
+                # Default to dashboard for root path or None
+                if pathname == "/" or pathname is None or pathname == "":
+                    logger.info("Routing to dashboard (default)")
                     return self.layout_manager.create_dashboard_content()
+
                 elif pathname == "/analytics":
+                    logger.info("Routing to analytics page")
                     layout_func = get_page_layout('deep_analytics')
                     if layout_func and callable(layout_func):
                         return layout_func()
                     else:
                         return self._create_error_page("Analytics page not available")
+
                 elif pathname == "/file-upload":
+                    logger.info("Routing to file upload page")
                     layout_func = get_page_layout('file_upload')
                     if layout_func and callable(layout_func):
                         return layout_func()
                     else:
                         return self._create_error_page("File Upload page not available")
+
                 elif pathname and pathname.startswith("/settings"):
+                    logger.info(f"Routing to settings page: {pathname}")
                     return self._handle_settings_pages(pathname)
+
                 else:
+                    logger.warning(f"Unknown route: {pathname}")
                     return self._create_404_page(pathname)
+
             except Exception as e:
                 logger.error(f"Error in page routing for {pathname}: {e}")
                 return self._create_error_page(f"Error loading page: {str(e)}")
