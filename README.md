@@ -10,8 +10,9 @@ This project follows a fully modular architecture for maximum maintainability an
 yosai_intel_dashboard/
 ├── app.py                     # Main application entry point
 ├── config/                    # Configuration management
+│   ├── yaml_config.py         # YAML-based configuration loader
 │   ├── database_manager.py    # Database connections and pooling
-│   └── settings.py           # Application settings
+│   └── app_config.py          # Immutable configuration models
 ├── models/                    # Data models and business entities
 │   ├── base.py               # Base model classes
 │   ├── entities.py           # Core entities (Person, Door, Facility)
