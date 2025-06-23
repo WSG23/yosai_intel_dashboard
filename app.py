@@ -97,8 +97,7 @@ def create_full_dashboard() -> "Dash":
         # Step 4: Initialize component managers
         from core.component_registry import ComponentRegistry
         from core.layout_manager import LayoutManager
-        from core.dependency_container import ServiceContainer
-        from services.service_registry import configure_services
+        from core.simple_container import get_container
 
         # Import component creation functions
         from components.settings_modal import create_settings_modal
@@ -107,9 +106,8 @@ def create_full_dashboard() -> "Dash":
         from pages.callback_managers import AnalyticsCallbackManager
         from core.navigation_manager import NavigationCallbackManager
 
-        # Create container for dependency injection
-        container = ServiceContainer()
-        configure_services(container)
+        # Get global container (bootstrapped separately)
+        container = get_container()
 
         # Create your modular managers
         component_registry = ComponentRegistry()
@@ -163,58 +161,32 @@ def create_full_dashboard() -> "Dash":
 
 
 def main() -> None:
-    """Run the full dashboard with auto-navigation to dashboard"""
+    """Main application entry point"""
     try:
-        print("\n" + "=" * 60)
-        print("🏯 YŌSAI INTEL DASHBOARD - FULL VERSION")
-        print("=" * 60)
+        from core.bootstrap import bootstrap_application
+        bootstrap_application()
 
-        # Create full dashboard
         app = create_full_dashboard()
         if app is None:
-            print("❌ Failed to create dashboard application")
+            logger.error("Failed to create dashboard")
             sys.exit(1)
 
-        assert app is not None
+        from config.simple_config import get_config
+        config = get_config()
 
-        # Apply Flask config
-        app.server.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
-        app.server.config.setdefault("WTF_CSRF_ENABLED", os.getenv("WTF_CSRF_ENABLED", "True") == "True")
+        app.server.config["SECRET_KEY"] = config.secret_key
+        app.server.config["WTF_CSRF_ENABLED"] = config.csrf_enabled
 
-        # Print startup info
-        host = os.getenv('HOST', '127.0.0.1')
-        port = int(os.getenv('PORT', '8050'))
-
-        print(f"🌐 URL: http://{host}:{port}")
-        print(f"📊 Analytics: http://{host}:{port}/analytics")
-        print(f"📤 Upload: http://{host}:{port}/file-upload")
-        print("✅ JSON Plugin: ACTIVE")
-        print("✅ Modular Architecture: LOADED")
-        print("✅ Auto-routing to Dashboard: ENABLED")
-        print("=" * 60)
-        print("\n🚀 Full dashboard starting...")
-        if os.getenv("AUTO_OPEN_BROWSER", "False").lower() in ("true", "1", "yes"):
-            print("📍 Opening browser to dashboard automatically...")
-
-            import webbrowser
-            import threading
-
-            def open_browser():
-                import time
-                time.sleep(1.5)
-                webbrowser.open(f"http://{host}:{port}/")
-
-            threading.Thread(target=open_browser, daemon=True).start()
-
-        # Run the application
-        app.run_server(debug=True, host=host, port=port)
+        app.run_server(
+            debug=config.debug,
+            host=config.host,
+            port=config.port
+        )
 
     except KeyboardInterrupt:
-        print("\n👋 Dashboard stopped by user")
-        sys.exit(0)
+        logger.info("Application stopped by user")
     except Exception as e:
-        logger.error(f"Critical error in main: {e}")
-        print(f"❌ Critical error: {e}")
+        logger.error(f"Application error: {e}")
         sys.exit(1)
 
 
