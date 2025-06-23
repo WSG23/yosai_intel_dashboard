@@ -9,149 +9,148 @@ logger = logging.getLogger(__name__)
 
 
 def layout():
-    """Simplified file upload page that definitely works"""
+    """File upload page layout - starts with upload interface only"""
     return html.Div([
         # Page header
         html.Div([
-            html.H1("🏯 File Upload & Processing", className="text-3xl font-bold mb-4"),
+            html.H1("🏯 File Upload & Processing", className="page-title"),
             html.P("Upload CSV, JSON, and Excel files for security analytics processing",
-                   className="text-lg text-gray-600 mb-8")
-        ], className="text-center mb-8"),
+                   className="page-subtitle")
+        ], className="page-header"),
 
-        # File uploader (this should work)
+        # Main upload interface (this should show first)
         create_dual_file_uploader('upload-data'),
 
-        # Status messages (initially empty)
-        html.Div(id='upload-status', className="mt-6"),
-        html.Div(id='upload-info', className="mt-4"),
+        # Status displays (initially empty)
+        html.Div(id='upload-status', className="mt-4"),
+        html.Div(id='upload-info', className="mt-3"),
 
-        # Column mapping modal (hidden initially)
+        # Column mapping modal (INITIALLY HIDDEN - only shows after file upload)
         html.Div([
             html.Div([
                 html.Div([
                     # Modal header
                     html.Div([
-                        html.H2("🤖 Verify AI Column Mapping", className="text-xl font-bold"),
-                        html.P("", id="modal-subtitle", className="text-gray-600"),
-                        html.Button("✕", id="close-mapping-modal",
-                                   className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl")
-                    ], className="relative mb-6"),
+                        html.H2("Verify AI Column Mapping", className="modal__title"),
+                        html.P("", id="modal-subtitle", className="modal__subtitle"),
+                        html.Button("×", id="close-mapping-modal", className="modal__close")
+                    ], className="modal__header"),
 
                     # Modal body
                     html.Div([
-                        html.P("🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
-                               className="mb-4 text-blue-600"),
-                        html.P("📊 Column mapping required", id="column-count-text", className="mb-6 text-gray-600"),
-
-                        # Column dropdowns
+                        # Instructions
                         html.Div([
-                            # Timestamp column
+                            html.P("🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
+                                   className="form-instructions-text"),
+                            html.P("📊 Column mapping required",
+                                   id="column-count-text", className="form-instructions-subtext")
+                        ], className="form-instructions"),
+
+                        html.Hr(className="form-separator"),
+
+                        # Column mapping dropdowns
+                        html.Div([
                             html.Div([
-                                html.Label("Timestamp Column *", className="block font-medium mb-2"),
-                                html.Small("AI Suggestion: ", id="timestamp-suggestion", className="text-green-600 text-sm"),
+                                html.Label("Timestamp Column *", className="form-label form-label--required"),
+                                html.Small("AI Suggestion: ", id="timestamp-suggestion", className="form-help-text"),
                                 dcc.Dropdown(
                                     id="timestamp-dropdown",
                                     options=[],
-                                    placeholder="Select timestamp column...",
-                                    className="mb-4"
+                                    placeholder="Select a column...",
+                                    className="form-select"
                                 )
-                            ], className="mb-4"),
+                            ], className="form-field"),
 
-                            # Device column
                             html.Div([
-                                html.Label("Device/Door Column", className="block font-medium mb-2"),
-                                html.Small("AI Suggestion: ", id="device-suggestion", className="text-green-600 text-sm"),
+                                html.Label("Device/Door Column", className="form-label"),
+                                html.Small("AI Suggestion: ", id="device-suggestion", className="form-help-text"),
                                 dcc.Dropdown(
                                     id="device-column-dropdown",
                                     options=[],
-                                    placeholder="Select device column...",
-                                    className="mb-4"
+                                    placeholder="Select a column...",
+                                    className="form-select"
                                 )
-                            ], className="mb-4"),
+                            ], className="form-field"),
 
-                            # User ID column
                             html.Div([
-                                html.Label("User ID Column", className="block font-medium mb-2"),
-                                html.Small("AI Suggestion: ", id="user-suggestion", className="text-green-600 text-sm"),
+                                html.Label("User ID Column", className="form-label"),
+                                html.Small("AI Suggestion: ", id="user-suggestion", className="form-help-text"),
                                 dcc.Dropdown(
                                     id="user-id-dropdown",
                                     options=[],
-                                    placeholder="Select user ID column...",
-                                    className="mb-4"
+                                    placeholder="Select a column...",
+                                    className="form-select"
                                 )
-                            ], className="mb-4"),
+                            ], className="form-field"),
 
-                            # Event type column
                             html.Div([
-                                html.Label("Event Type Column", className="block font-medium mb-2"),
-                                html.Small("AI Suggestion: ", id="event-suggestion", className="text-green-600 text-sm"),
+                                html.Label("Event Type Column", className="form-label"),
+                                html.Small("AI Suggestion: ", id="event-suggestion", className="form-help-text"),
                                 dcc.Dropdown(
                                     id="event-type-dropdown",
                                     options=[],
-                                    placeholder="Select event type column...",
-                                    className="mb-4"
+                                    placeholder="Select a column...",
+                                    className="form-select"
                                 )
-                            ], className="mb-4"),
+                            ], className="form-field"),
 
-                            # Floor estimate
                             html.Div([
-                                html.Label("Floor Estimate", className="block font-medium mb-2"),
-                                dcc.Input(
-                                    id="floor-estimate-input",
-                                    type="number",
-                                    value=1,
-                                    min=1,
-                                    max=100,
-                                    className="w-full p-2 border rounded"
-                                ),
-                                html.Small("AI Confidence: ", id="floor-confidence", className="text-green-600 text-sm")
-                            ], className="mb-6"),
+                                html.Label("Floor Estimate", className="form-label"),
+                                html.Div([
+                                    dcc.Input(
+                                        id="floor-estimate-input",
+                                        type="number",
+                                        value=1,
+                                        min=1,
+                                        max=100,
+                                        className="form-input"
+                                    ),
+                                    html.Small("AI Confidence: ", id="floor-confidence", className="form-help-text")
+                                ])
+                            ], className="form-field"),
 
-                        ], className="space-y-4"),
+                            # Hidden storage for user ID
+                            html.Div(id="user-id-storage", children="default", style={"display": "none"})
+                        ]),
 
-                    ], className="mb-6"),
+                    ], className="modal__body-content"),
 
                     # Modal footer
                     html.Div([
-                        html.Button("Cancel", id="cancel-mapping",
-                                   className="px-4 py-2 mr-2 bg-gray-500 text-white rounded hover:bg-gray-600"),
-                        html.Button("✅ Verify & Learn", id="verify-mapping",
-                                   className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600")
-                    ], className="flex justify-end")
+                        html.Button("Cancel", id="cancel-mapping", className="btn btn-secondary"),
+                        html.Button("✅ Verify & Learn", id="verify-mapping", className="btn btn-primary")
+                    ], className="modal__footer")
 
-                ], className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto")
-            ], className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
-               style={"display": "none"}, id="column-mapping-modal-overlay")
-        ]),
+                ], className="modal modal--xl")
+            ], className="modal-overlay",
+               style={"display": "none"},  # CRITICAL: Initially hidden
+               id="column-mapping-modal-overlay")
+        ], id='column-mapping-modal'),
 
-        # Results area
-        html.Div(id='mapping-verified-status', className="mt-6"),
+        # Mapping verification status (initially empty)
+        html.Div(id='mapping-verified-status', className="mt-4"),
 
-        # Next step buttons (hidden initially)
-        html.Div([
-            html.Button("Proceed to Door Mapping", id="door-mapping-modal-trigger",
-                       className="px-6 py-2 mr-2 bg-green-500 text-white rounded hover:bg-green-600",
-                       style={"display": "none"}),
-            html.Button("Skip Door Mapping", id="skip-door-mapping",
-                       className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600",
-                       style={"display": "none"})
-        ], className="mt-4"),
-
-        # Door mapping modal placeholder
+        # Door mapping modal (initially hidden) 
         html.Div(id='door-mapping-modal', style={'display': 'none'}),
 
-        # Data stores
+        # Next step buttons (initially hidden)
+        html.Button("Proceed to Door Mapping",
+                   id="door-mapping-modal-trigger",
+                   className="btn btn-primary mt-3 mr-2",
+                   style={"display": "none"}),
+        html.Button("Skip Door Mapping", 
+                   id="skip-door-mapping", 
+                   className="btn btn-secondary mt-3",
+                   style={"display": "none"}),
+
+        # Data stores for the workflow
         dcc.Store(id='uploaded-file-store', data={}),
         dcc.Store(id='processed-data-store', data={}),
         dcc.Store(id='column-mapping-store', data={}),
         dcc.Store(id='door-mapping-store', data={}),
         dcc.Store(id='floor-estimate-store', data={}),
         dcc.Store(id='door-mapping-modal-data-trigger', data={}),
-
-        # Hidden user ID storage
-        html.Div(id="user-id-storage", children="default", style={"display": "none"})
-
-    ], className="container mx-auto px-4 py-8")
+    ])
 
 
 def register_file_upload_callbacks(app, container=None):
