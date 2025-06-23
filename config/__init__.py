@@ -15,7 +15,6 @@ from .yaml_config import (
 from .database_manager import (
     DatabaseManager,
     MockDatabaseConnection,
-    get_database,
 )
 
 from .cache_manager import MemoryCacheManager, RedisCacheManager
@@ -32,7 +31,6 @@ __all__ = [
     'LoggingConfig',
     'DatabaseManager',
     'MockDatabaseConnection',
-    'get_database',
     'MemoryCacheManager',
     'RedisCacheManager',
 ]
