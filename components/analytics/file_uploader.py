@@ -510,22 +510,69 @@ def fallback_floor_estimation(data):
         return max_floor, confidence
 
     return 1, "0%"
-# Door mapping callback
+
+
+# New callback to show door mapping buttons and run AI preprocessing
 @callback(
-    Output('door-mapping-modal-data-trigger', 'data'),
-    [Input('door-mapping-modal-trigger', 'n_clicks'),
-     Input('skip-door-mapping', 'n_clicks')],
+    [Output('door-mapping-modal-trigger', 'style', allow_duplicate=True),
+     Output('skip-door-mapping', 'style', allow_duplicate=True),
+     Output('door-mapping-modal-data-trigger', 'data', allow_duplicate=True)],
+    [Input('verify-mapping', 'n_clicks')],
     [State('processed-data-store', 'data'),
-     State('uploaded-file-store', 'data'),
-     State('timestamp-dropdown', 'value'),
-     State('device-column-dropdown', 'value'),
-     State('user-id-dropdown', 'value'),
-     State('event-type-dropdown', 'value')],
+     State('device-column-dropdown', 'value')],
     prevent_initial_call=True
 )
-def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
-                       timestamp_col, device_col, user_col, event_col):
-    """Handle door mapping modal with comprehensive column detection"""
+def show_door_mapping_buttons_with_ai_prep(verify_clicks, processed_data, device_col):
+    """Show door mapping buttons and prepare AI initial mapping"""
+    if not verify_clicks or not processed_data:
+        return dash.no_update, dash.no_update, dash.no_update
+
+    try:
+        csv_data = processed_data.get('data', [])
+        if not csv_data:
+            return dash.no_update, dash.no_update, dash.no_update
+
+        device_column = device_col or 'device_id'
+        available_columns = list(csv_data[0].keys()) if csv_data else []
+
+        if device_column not in available_columns:
+            for col in available_columns:
+                if any(word in col.lower() for word in ['device', 'door', 'id']):
+                    device_column = col
+                    break
+            else:
+                device_column = available_columns[0] if available_columns else 'device_id'
+
+        devices = list({str(row.get(device_column, '')).strip() for row in csv_data if row.get(device_column)})
+        devices = [d for d in devices if d]
+
+        ai_mapped_devices = []
+        for device_id in devices:
+            ai_attributes = generate_ai_door_attributes(device_id)
+            ai_mapped_devices.append({'device_id': device_id, **ai_attributes})
+
+        show_style = {"display": "inline-block", "margin-right": "10px"}
+        modal_data = {
+            'devices': ai_mapped_devices,
+            'column': device_column,
+            'ai_processed': True
+        }
+
+        return show_style, show_style, modal_data
+
+    except Exception as e:
+        logger.error(f"Error in AI door mapping preparation: {e}")
+        return dash.no_update, dash.no_update, dash.no_update
+# Door mapping callback
+@callback(
+    Output('door-mapping-modal-overlay', 'className'),
+    [Input('door-mapping-modal-trigger', 'n_clicks'),
+     Input('skip-door-mapping', 'n_clicks')],
+    [State('door-mapping-modal-data-trigger', 'data')],
+    prevent_initial_call=True
+)
+def handle_door_mapping_buttons(open_clicks, skip_clicks, modal_data):
+    """Handle door mapping and skip buttons with AI pre-processing"""
     ctx = callback_context
     if not ctx.triggered:
         return dash.no_update
@@ -533,120 +580,16 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, file_data,
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if trigger_id == 'skip-door-mapping':
-        return dash.no_update
+        logger.info("Door mapping skipped by user")
+        return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden"
 
     if trigger_id == 'door-mapping-modal-trigger':
-        try:
-            if not processed_data or 'data' not in processed_data:
-                return dash.no_update
-
-            # Extract CSV data
-            csv_data = processed_data['data']
-            if not csv_data:
-                return dash.no_update
-
-            # Get all available columns
-            available_columns = list(csv_data[0].keys()) if csv_data else []
-            logger.info(f"Available columns: {available_columns}")
-
-            # ENHANCED COLUMN DETECTION - Try multiple sources
-            device_column = None
-
-            # 1. First priority: User-selected device column
-            if device_col and device_col in available_columns:
-                device_column = device_col
-                logger.info(f"Using user-selected device column: {device_column}")
-
-            # 2. Second priority: AI suggestions
-            elif processed_data.get('ai_suggestions'):
-                ai_suggestions = processed_data['ai_suggestions']
-                # Try various AI suggestion fields
-                for field_name in ['device_name', 'location', 'door', 'device']:
-                    if field_name in ai_suggestions and ai_suggestions[field_name] in available_columns:
-                        device_column = ai_suggestions[field_name]
-                        logger.info(f"Using AI suggested column: {device_column}")
-                        break
-
-            # 3. Third priority: Smart pattern matching
-            if not device_column:
-                # Comprehensive list of possible device/door column names
-                device_patterns = [
-                    'door_id', 'device_id', 'door', 'device', 'location', 'area',
-                    'door_name', 'device_name', 'access_point', 'reader',
-                    'entrance', 'exit', 'gate', 'portal', 'checkpoint',
-                    'room', 'office', 'zone', 'sector', 'terminal',
-                    'doorid', 'deviceid', 'reader_id', 'readerid',
-                    'access_device', 'card_reader', 'panel'
-                ]
-
-                # First try exact matches
-                for pattern in device_patterns:
-                    if pattern in available_columns:
-                        device_column = pattern
-                        logger.info(f"Found exact match for device column: {device_column}")
-                        break
-
-                # Then try partial matches (case-insensitive)
-                if not device_column:
-                    for col in available_columns:
-                        col_lower = col.lower()
-                        for pattern in device_patterns:
-                            if pattern in col_lower or col_lower in pattern:
-                                device_column = col
-                                logger.info(f"Found partial match for device column: {device_column}")
-                                break
-                        if device_column:
-                            break
-
-            # 4. Last resort: Use any column that might contain identifiers
-            if not device_column and available_columns:
-                for col in available_columns:
-                    if col.lower() in ['timestamp', 'time', 'date', 'user', 'employee', 'badge', 'id', 'event', 'result', 'status']:
-                        continue
-
-                    unique_values = set()
-                    for row in csv_data[:100]:
-                        if col in row and row[col]:
-                            unique_values.add(str(row[col]).strip())
-                        if len(unique_values) > 5:
-                            device_column = col
-                            logger.info(f"Using fallback device column with diverse values: {device_column}")
-                            break
-                    if device_column:
-                        break
-
-                # Ultimate fallback: use first non-timestamp column
-                if not device_column:
-                    for col in available_columns:
-                        if col.lower() not in ['timestamp', 'time', 'date'] and col != timestamp_col:
-                            device_column = col
-                            logger.info(f"Using ultimate fallback column: {device_column}")
-                            break
-
-            if not device_column:
-                columns_list = "', '".join(available_columns)
-                return dash.no_update
-
-            # Extract unique devices from the identified column
-            unique_devices = set()
-            for row in csv_data:
-                if device_column in row and row[device_column]:
-                    device_value = str(row[device_column]).strip()
-                    if device_value and device_value.lower() not in ['', 'null', 'none', 'n/a']:
-                        unique_devices.add(device_value)
-
-            unique_devices = sorted(list(unique_devices))
-
-            if not unique_devices:
-                return dash.no_update
-
-            logger.info(f"Found {len(unique_devices)} unique devices in column '{device_column}'")
-
-            return {'devices': unique_devices, 'device_column': device_column}
-
-        except Exception as e:
-            logger.error(f"Error creating door mapping modal: {e}")
+        if not modal_data or not modal_data.get('ai_processed'):
+            logger.warning("AI mapping not completed yet")
             return dash.no_update
+
+        return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
+
     return dash.no_update
 
 
@@ -817,7 +760,7 @@ def create_door_mapping_modal_with_data(devices, device_column):
                 ], className="flex justify-between items-center p-6 border-t bg-gray-50")
 
             ], className="bg-white rounded-lg max-w-6xl w-full max-h-screen overflow-hidden shadow-xl")
-        ], className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"),
+        ], className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-auto"),
 
         # Hidden store for door mappings
         dcc.Store(id="door-mappings-store", data={"devices": devices, "column": device_column})
