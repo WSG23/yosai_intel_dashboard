@@ -16,80 +16,65 @@ import os
 logger = logging.getLogger(__name__)
 
 
-def create_dual_file_uploader(upload_id: str = 'upload-data') -> html.Div:
-    """Create dual upload box interface with proper IDs"""
+def create_dual_file_uploader(upload_id: str = "upload-data") -> html.Div:
+    """Create dual file uploader that starts with upload interface only"""
     try:
         return html.Div([
-            # Header section
+            # Main upload heading
             html.Div([
-                html.H3("📁 File Upload Manager", className="upload-section-title"),
-                html.P("Upload and validate CSV, JSON, and Excel files", className="upload-section-subtitle")
-            ], className="text-center mb-4"),
+                html.H2("📁 Upload Your Data", className="upload-heading"),
+                html.P(
+                    "Choose your access control data file to begin analysis",
+                    className="upload-subheading",
+                ),
+            ], className="upload-header"),
 
-            # Dual upload container
+            # Dual upload interface
             html.Div([
-                # Left Box - Active File Upload
+                # File Upload Box (primary)
+                dcc.Upload(
+                    id=upload_id,
+                    children=html.Div([
+                        html.I(className="fas fa-cloud-upload-alt upload-icon"),
+                        html.Div(
+                            "Drop files here or click to browse",
+                            className="upload-box-title",
+                        ),
+                        html.Div(
+                            "CSV, JSON, Excel files",
+                            className="upload-box-subtitle",
+                        ),
+                        html.Div([
+                            html.P("✅ CSV files (.csv)"),
+                            html.P("✅ JSON files (.json)"),
+                            html.P("✅ Excel files (.xlsx, .xls)"),
+                        ], className="upload-supported-types"),
+                    ]),
+                    className="upload-box upload-box-primary",
+                    multiple=False,
+                    accept=".csv,.json,.xlsx,.xls",
+                ),
+
+                # Database Upload Box (inactive for now)
                 html.Div([
-                    dcc.Upload(
-                        id=upload_id,  # This should be 'upload-data'
-                        children=html.Div([
-                            # Upload icon
-                            html.Img(
-                                src="/assets/navbar_icons/upload.png",
-                                className="upload-icon",
-                                id=f"{upload_id}-icon"
-                            ),
-
-                            # Title and subtitle
-                            html.Div("File Upload", className="upload-box-title"),
-                            html.Div("Drag & drop or click", className="upload-box-subtitle"),
-
-                            # Supported file types
-                            html.Div([
-                                html.P("\u2705 CSV files (.csv)"),
-                                html.P("\u2705 JSON files (.json)"),
-                                html.P("\u2705 Excel files (.xlsx, .xls)")
-                            ], className="upload-supported-types")
-                        ]),
-                        multiple=False,
-                        accept='.csv,.json,.xlsx,.xls'
-                    ),
-
-                    # Progress overlay
-                    html.Div([
-                        html.Div(className="upload-spinner"),
-                        html.Div("Processing file...", id=f"{upload_id}-progress-text")
-                    ], className="upload-progress-overlay", id=f"{upload_id}-progress")
-                ],
-                id=f"{upload_id}-box",
-                className="upload-box upload-box-active",
-                style={"position": "relative"}),
-
-                # Right Box - Database Upload Placeholder
-                html.Div([
-                    html.Div("Coming Soon", className="upload-tooltip"),
-                    html.Img(
-                        src="/assets/navbar_icons/upload.png",
-                        className="upload-icon",
-                        id="database-upload-icon"
-                    ),
+                    html.I(className="fas fa-database upload-icon"),
                     html.Div("Database Upload", className="upload-box-title"),
                     html.Div("Connect to database", className="upload-box-subtitle"),
                     html.Div([
                         html.P("🔄 MySQL connections"),
                         html.P("🔄 PostgreSQL support"),
-                        html.P("🔄 Cloud integrations")
-                    ], className="upload-supported-types", style={"color": "var(--color-text-tertiary)"})
-                ], className="upload-box upload-box-inactive", id="database-upload-box")
+                        html.P("🔄 Cloud integrations"),
+                    ], className="upload-supported-types", style={"color": "var(--color-text-tertiary)"}),
+                ], className="upload-box upload-box-inactive", id="database-upload-box"),
 
             ], className="dual-upload-container"),
 
-            # Status and results area
+            # Status and results area (initially empty)
             html.Div(id=f"{upload_id}-status", className="mt-4"),
             html.Div(id=f"{upload_id}-info", className="mt-3"),
 
             # Store for upload state
-            dcc.Store(id=f"{upload_id}-state", data={"status": "idle", "files": []})
+            dcc.Store(id=f"{upload_id}-state", data={"status": "idle", "files": []}),
 
         ], className="dual-upload-wrapper")
 
@@ -221,48 +206,48 @@ def render_column_mapping_panel(header_options, file_name="access_control_data.c
      State('floor-estimate-input', 'value'),
      State('user-id-storage', 'children'),
      State('uploaded-file-store', 'data'),
-     State('processed-data-store', 'data')],
+    State('processed-data-store', 'data')],
     prevent_initial_call=True
 )
-def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_clicks, close_clicks,
-                                    upload_filename, timestamp_col, device_col, user_col,
-                                    event_type_col, floor_estimate, user_id, file_store_data, processed_data):
-    """Enhanced file upload handler with working cancel/verify/close buttons"""
+def handle_file_upload_and_modal(upload_contents, cancel_clicks, verify_clicks, close_clicks,
+                                upload_filename, timestamp_col, device_col,
+                                user_col, event_type_col, floor_estimate, user_id,
+                                file_store_data, processed_data):
+    """Handle file upload and modal actions - modal only shows AFTER file processing"""
     from dash import callback_context, no_update
-    import dash
+    import base64
+    import io
+    import pandas as pd
     import uuid
-    import tempfile
-    import os
     from datetime import datetime
+
+    default_return = [
+        {"display": "none"},
+        "", "", [], [], [], [], None, None, None, None, 1,
+        "", "", "", "", "",
+        "", "",
+        {}, {},
+        {"display": "none"}, {"display": "none"}
+    ]
 
     ctx = callback_context
     if not ctx.triggered:
-        return ([{"display": "none"}] +
-                [no_update] * 15 +
-                [""] * 3 +
-                [{}, {}, {"display": "none"}, {"display": "none"}])
+        return default_return
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    logger.info(f"Upload callback triggered by: {trigger_id}")
+    logger.info(f"File upload callback triggered by: {trigger_id}")
 
-    # Handle close/cancel buttons - hide modal immediately
     if trigger_id in ['cancel-mapping', 'close-mapping-modal']:
-        logger.info(f"Handling {trigger_id} - closing modal")
-        return ([{"display": "none"}] +
-                [no_update] * 15 +
-                ["Mapping cancelled"] +
-                [no_update] * 2 +
-                [file_store_data or {}, processed_data or {}, {"display": "none"}, {"display": "none"}])
+        logger.info(f"Closing modal via {trigger_id}")
+        return default_return
 
-    # Handle file upload
     if trigger_id == 'upload-data' and upload_contents is not None:
         try:
-            logger.info(f"Processing file upload: {upload_filename}")
-            session_id = str(uuid.uuid4())
+            logger.info(f"Processing uploaded file: {upload_filename}")
             content_type, content_string = upload_contents.split(',')
             decoded = base64.b64decode(content_string)
+            session_id = str(uuid.uuid4())
 
-            # Process file based on type
             df = None
             if upload_filename.endswith('.csv'):
                 df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
@@ -276,29 +261,25 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 else:
                     df = pd.json_normalize(json_data)
             else:
-                error_msg = "❌ Unsupported file format. Use CSV, JSON, or Excel files."
-                return ([{"display": "none"}] + [no_update] * 17 +
-                        [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}])
+                error_return = default_return.copy()
+                error_return[17] = "❌ Unsupported file format. Use CSV, JSON, or Excel files."
+                return error_return
 
             if df is None or df.empty:
-                error_msg = "❌ File appears to be empty or corrupted."
-                return ([{"display": "none"}] + [no_update] * 17 +
-                        [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}])
+                error_return = default_return.copy()
+                error_return[17] = "❌ File appears to be empty or corrupted."
+                return error_return
 
-            # Get column options and AI suggestions
+            logger.info("Running AI analysis on uploaded file...")
             available_columns = list(df.columns)
             ai_suggestions, confidence_scores = enhanced_pattern_matching(available_columns)
 
-            # Create dropdown options
             column_options = [{"label": col, "value": col} for col in available_columns]
 
-            # Calculate floor estimate
-            device_col = ai_suggestions.get('device_name', available_columns[0])
-            unique_devices = df[device_col].nunique() if device_col in df.columns else 10
+            device_col_suggested = ai_suggestions.get('device_name', available_columns[0])
+            unique_devices = df[device_col_suggested].nunique() if device_col_suggested in df.columns else 10
             floor_estimate_calc = max(1, min(20, unique_devices // 8))
-            floor_confidence = f"AI Confidence: {confidence_scores.get(device_col, 0.7)*100:.0f}%"
 
-            # Store processed data
             file_store = {
                 'filename': upload_filename,
                 'session_id': session_id,
@@ -314,32 +295,29 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 'floor_estimate': {'total_floors': floor_estimate_calc, 'confidence': 0.8}
             }
 
-            status_msg = html.Div([
-                html.P(f"✅ File '{upload_filename}' processed successfully!",
+            upload_status_msg = html.Div([
+                html.P(f"✅ File '{upload_filename}' uploaded and processed successfully!",
                        className="text-green-600 font-medium"),
                 html.P(f"📊 Found {len(df)} records with {len(available_columns)} columns",
                        className="text-gray-600"),
-                html.P("🤖 AI suggestions have been applied. Please verify the mapping.",
+                html.P("🤖 AI analysis complete. Please verify the column mapping below.",
                        className="text-blue-600")
             ])
 
-            # Show modal with AI suggestions
-            modal_style = {"display": "flex"}
-
             return [
-                modal_style,
+                {"display": "flex"},
                 f"File: {upload_filename} ({len(df)} records, {len(available_columns)} columns)",
-                f"📊 Column mapping required for {len(available_columns)} columns",
+                f"📊 AI has mapped {len(ai_suggestions)} columns automatically",
                 column_options, column_options, column_options, column_options,
                 ai_suggestions.get('timestamp'), ai_suggestions.get('device_name'),
                 ai_suggestions.get('user_id'), ai_suggestions.get('event_type'),
                 floor_estimate_calc,
-                f"✅ Auto-filled: {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
-                f"✅ Auto-filled: {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
-                floor_confidence,
-                status_msg,
+                f"✅ {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
+                f"✅ {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
+                f"AI Confidence: {confidence_scores.get(device_col_suggested, 0.8)*100:.0f}%",
+                upload_status_msg,
                 "",
                 file_store,
                 processed_store,
@@ -349,65 +327,45 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
 
         except Exception as e:
             logger.error(f"Error processing file: {e}")
-            error_msg = f"❌ Error processing file: {str(e)}"
-            return ([{"display": "none"}] + [no_update] * 17 +
-                    [error_msg, no_update, {}, {}, {"display": "none"}, {"display": "none"}])
+            error_return = default_return.copy()
+            error_return[17] = f"❌ Error processing file: {str(e)}"
+            return error_return
 
-    # Handle verify mapping
     elif trigger_id == 'verify-mapping' and verify_clicks:
         try:
-            logger.info("Handling verify mapping")
+            logger.info("Verifying column mapping")
 
-            # Validate required columns are selected
             if not timestamp_col:
-                error_msg = "❌ Please select a timestamp column"
-                return ([{"display": "flex"}] + [no_update] * 17 +
-                        [error_msg, no_update, file_store_data or {}, processed_data or {},
-                         {"display": "none"}, {"display": "none"}])
+                error_return = default_return.copy()
+                error_return[17] = "❌ Please select a timestamp column"
+                error_return[0] = {"display": "flex"}
+                return error_return
 
-            # Save the column mapping
-            column_mapping = {
-                'timestamp': timestamp_col,
-                'device': device_col,
-                'user_id': user_col,
-                'event_type': event_type_col,
-                'floor_estimate': floor_estimate
-            }
-
-            # Success message
             success_msg = html.Div([
                 html.Div("✅ Column mapping verified successfully!", className="alert alert-success"),
-                html.P("Proceeding to device attribute assignment...", className="text-green-600 mt-2")
+                html.P("🎯 Ready for device/door mapping...", className="text-green-600 mt-2")
             ])
 
-            # Show the door mapping buttons
-            door_mapping_style = {"display": "inline-block"}
-            skip_mapping_style = {"display": "inline-block"}
+            verified_return = default_return.copy()
+            verified_return[0] = {"display": "none"}
+            verified_return[17] = success_msg
+            verified_return[18] = success_msg
+            verified_return[19] = file_store_data or {}
+            verified_return[20] = processed_data or {}
+            verified_return[21] = {"display": "inline-block"}
+            verified_return[22] = {"display": "inline-block"}
 
-            return (
-                {"display": "none"},  # Hide modal
-                no_update, no_update, no_update, no_update, no_update, no_update,
-                no_update, no_update, no_update, no_update, no_update,
-                no_update, no_update, no_update, no_update,
-                no_update,
-                success_msg,
-                success_msg,
-                file_store_data or {},
-                processed_data or {},
-                door_mapping_style,
-                skip_mapping_style
-            )
+            return verified_return
 
         except Exception as e:
-            logger.error(f"Error in verify mapping: {e}")
-            error_msg = f"❌ Error verifying mapping: {str(e)}"
-            return ([{"display": "flex"}] + [no_update] * 17 +
-                    [error_msg, no_update, file_store_data or {}, processed_data or {},
-                     {"display": "none"}, {"display": "none"}])
+            logger.error(f"Error verifying mapping: {e}")
+            error_return = default_return.copy()
+            error_return[17] = f"❌ Error verifying mapping: {str(e)}"
+            error_return[0] = {"display": "flex"}
+            return error_return
 
-    # Default return for unhandled cases
-    return ([{"display": "none"}] + [no_update] * 15 +
-            [""] * 3 + [{}, {}, {"display": "none"}, {"display": "none"}])
+    return default_return
+
 
 
 def enhanced_pattern_matching(headers):
@@ -966,7 +924,7 @@ __all__ = [
     "create_dual_file_uploader",
     "layout",
     "render_column_mapping_panel",
-    "handle_all_upload_modal_actions",
+    "handle_file_upload_and_modal",
     "handle_door_mapping",
     "handle_door_mapping_save",
 ]

@@ -9,25 +9,24 @@ logger = logging.getLogger(__name__)
 
 
 def layout():
-    """File upload page layout with dual upload functionality and all modal elements"""
+    """File upload page layout - starts with upload interface only"""
     return html.Div([
         # Page header
         html.Div([
-            html.H1("\U0001F3EF File Upload & Processing", className="page-title"),
-            html.P("Upload CSV, JSON, and Excel files for security analytics processing", 
+            html.H1("🏯 File Upload & Processing", className="page-title"),
+            html.P("Upload CSV, JSON, and Excel files for security analytics processing",
                    className="page-subtitle")
         ], className="page-header"),
 
-        # Main upload interface
+        # Main upload interface (this should show first)
         create_dual_file_uploader('upload-data'),
 
-        # Status displays
+        # Status displays (initially empty)
         html.Div(id='upload-status', className="mt-4"),
         html.Div(id='upload-info', className="mt-3"),
 
-        # Column mapping modal (with all required elements present)
+        # Column mapping modal (INITIALLY HIDDEN - only shows after file upload)
         html.Div([
-            # Modal overlay
             html.Div([
                 html.Div([
                     # Modal header
@@ -49,7 +48,7 @@ def layout():
 
                         html.Hr(className="form-separator"),
 
-                        # Column mapping dropdowns (ALL ELEMENTS MUST BE PRESENT)
+                        # Column mapping dropdowns
                         html.Div([
                             html.Div([
                                 html.Label("Timestamp Column *", className="form-label form-label--required"),
@@ -97,41 +96,44 @@ def layout():
 
                             html.Div([
                                 html.Label("Floor Estimate", className="form-label"),
-                                html.Small("AI Confidence: 85%", id="floor-confidence", className="form-help-text"),
-                                dcc.Input(
-                                    id="floor-estimate-input",
-                                    type="number",
-                                    value=1,
-                                    min=1,
-                                    max=100,
-                                    className="form-input"
-                                )
+                                html.Div([
+                                    dcc.Input(
+                                        id="floor-estimate-input",
+                                        type="number",
+                                        value=1,
+                                        min=1,
+                                        max=100,
+                                        className="form-input"
+                                    ),
+                                    html.Small("AI Confidence: ", id="floor-confidence", className="form-help-text")
+                                ])
                             ], className="form-field"),
 
-                            # Hidden storage
+                            # Hidden storage for user ID
                             html.Div(id="user-id-storage", children="default", style={"display": "none"})
+                        ]),
 
-                        ], className="modal__body-content"),
+                    ], className="modal__body-content"),
 
-                    ], className="modal__body"),
-
-                    # Modal footer - THESE ELEMENTS MUST EXIST
+                    # Modal footer
                     html.Div([
                         html.Button("Cancel", id="cancel-mapping", className="btn btn-secondary"),
                         html.Button("✅ Verify & Learn", id="verify-mapping", className="btn btn-primary")
                     ], className="modal__footer")
 
                 ], className="modal modal--xl")
-            ], className="modal-overlay", style={"display": "none"}, id="column-mapping-modal-overlay")
+            ], className="modal-overlay",
+               style={"display": "none"},  # CRITICAL: Initially hidden
+               id="column-mapping-modal-overlay")
         ], id='column-mapping-modal'),
 
-        # Mapping verification status
+        # Mapping verification status (initially empty)
         html.Div(id='mapping-verified-status', className="mt-4"),
 
         # Door mapping modal (initially hidden) 
         html.Div(id='door-mapping-modal', style={'display': 'none'}),
 
-        # Additional required elements for next steps
+        # Next step buttons (initially hidden)
         html.Button("Proceed to Door Mapping",
                    id="door-mapping-modal-trigger",
                    className="btn btn-primary mt-3 mr-2",
@@ -142,12 +144,12 @@ def layout():
                    style={"display": "none"}),
 
         # Data stores for the workflow
-        dcc.Store(id='uploaded-file-store'),
-        dcc.Store(id='processed-data-store'),
-        dcc.Store(id='column-mapping-store'),
-        dcc.Store(id='door-mapping-store'),
-        dcc.Store(id='floor-estimate-store'),
-        dcc.Store(id='door-mapping-modal-data-trigger'),
+        dcc.Store(id='uploaded-file-store', data={}),
+        dcc.Store(id='processed-data-store', data={}),
+        dcc.Store(id='column-mapping-store', data={}),
+        dcc.Store(id='door-mapping-store', data={}),
+        dcc.Store(id='floor-estimate-store', data={}),
+        dcc.Store(id='door-mapping-modal-data-trigger', data={}),
     ])
 
 
