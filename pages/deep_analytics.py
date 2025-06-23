@@ -14,7 +14,8 @@ def safe_text(text):
 
 # Safe imports with fallbacks
 try:
-    from dash import html, dcc, Input, Output, State, callback
+    from dash import html, dcc, callback
+    from dash.dependencies import Input, Output, State
     import dash_bootstrap_components as dbc
     DASH_AVAILABLE = True
 except ImportError:
