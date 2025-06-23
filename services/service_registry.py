@@ -9,6 +9,7 @@ from services.protocols import (
     DatabaseProtocol,
     FileProcessorProtocol,
 )
+
 from services.analytics_service import AnalyticsService
 from services.file_processor_service import FileProcessorService
 from config.database_manager import DatabaseManager
@@ -71,3 +72,4 @@ __all__ = [
     'get_database',
     'get_file_processor',
 ]
+
