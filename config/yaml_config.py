@@ -111,6 +111,7 @@ class ConfigurationManager:
 
         self._apply_dict(data)
         self._apply_env_overrides()
+        self._ensure_production_env_vars()
 
     def get_app_config(self) -> AppConfig:
         return self.app_config
@@ -215,6 +216,21 @@ class ConfigurationManager:
                 field_type = type(getattr(inst, key))
                 converted = self._convert(value, field_type)
                 setattr(inst, key, converted)
+
+    def _ensure_production_env_vars(self) -> None:
+        """Ensure critical secrets are set when running in production."""
+        if self.environment != "production":
+            return
+
+        missing = []
+        if not self.security_config.secret_key or self.security_config.secret_key in {"change-me", "dev-key-change-in-production", "change-me-in-production"}:
+            missing.append("SECRET_KEY")
+        if not self.database_config.password:
+            missing.append("DB_PASSWORD")
+
+        if missing:
+            names = ", ".join(missing)
+            raise EnvironmentError(f"Missing required environment variables for production: {names}")
 
     def _convert(self, value: str, target_type: type) -> Any:
         if target_type is bool:

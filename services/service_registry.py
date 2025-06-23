@@ -7,32 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Import core service container
-try:
-    from core.service_container import ServiceContainer
-except ImportError:
-    # Create minimal service container if not available
-    class ServiceContainer:
-        def __init__(self):
-            self._services = {}
-            self._factories = {}
-        
-        def register_singleton(self, name: str, factory):
-            self._services[name] = factory
-        
-        def register_factory(self, name: str, factory):
-            self._factories[name] = factory
-        
-        def get(self, name: str):
-            if name in self._services:
-                if callable(self._services[name]):
-                    instance = self._services[name]()
-                    self._services[name] = instance  # Cache it
-                    return instance
-                return self._services[name]
-            elif name in self._factories:
-                return self._factories[name]()
-            else:
-                raise KeyError(f"Service '{name}' not found")
+from core.service_container import ServiceContainer
 
 # Import protocols and services
 from .protocols import (
