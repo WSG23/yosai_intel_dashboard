@@ -149,7 +149,7 @@ class DIContainerChecker(ServiceChecker):
                 
         except ImportError:
             # Try alternative import paths
-            from core.dependency_container import ServiceContainer
+            from core.service_container import ServiceContainer
             container = ServiceContainer()
             return {
                 'container_type': type(container).__name__,

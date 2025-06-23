@@ -28,6 +28,7 @@ def verify_di_system():
         # Test basic functionality
         container = ServiceContainer()
         container.register_factory('test', lambda: "DI Working!")
+
         result = container.get('test')
         
         # Test configured container - FIXED: Safe service counting

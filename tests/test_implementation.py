@@ -115,7 +115,7 @@ def test_modular_architecture() -> Tuple[bool, str]:
         test_config = create_config_manager()
         
         # Test 3: Container module isolation
-        from core.dependency_container import ServiceContainer
+        from core.service_container import ServiceContainer
         container = ServiceContainer()
         
         # Test 4: Integration test
@@ -143,7 +143,7 @@ def test_error_isolation() -> Tuple[bool, str]:
     
     # Test 2: Can import container module independently
     try:
-        from core.dependency_container import ServiceContainer
+        from core.service_container import ServiceContainer
         container = ServiceContainer()  # Should work without dependencies
         isolated_tests.append("✅ Container module isolated")
     except Exception as e:

@@ -56,11 +56,13 @@ class TestAnalyticsService:
         
         service = AnalyticsService()
         result = service.analyze_access_patterns(self.sample_data)
-        
-        assert 'total_events' in result
-        assert result['total_events'] == 3
-        assert 'access_patterns' in result
-        assert 'unique_users' in result
+
+        assert result.success
+        data = result.data
+        assert 'total_events' in data
+        assert data['total_events'] == 3
+        assert 'access_patterns' in data
+        assert 'unique_users' in data
     
     def test_anomaly_detection(self):
         """Test anomaly detection in isolation"""
@@ -68,8 +70,10 @@ class TestAnalyticsService:
         
         service = AnalyticsService()
         events = self.sample_data.to_dict('records')
-        anomalies = service.detect_anomalies(events)
-        
+        result = service.detect_anomalies(events)
+
+        assert result.success
+        anomalies = result.data
         assert isinstance(anomalies, list)
 
 class TestServiceContainer:

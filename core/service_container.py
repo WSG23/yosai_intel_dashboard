@@ -80,8 +80,10 @@ def configure_services() -> None:
     
     # Register analytics service
     from services.analytics_service import create_analytics_service
-    container.register_singleton('analytics_service', 
-                                lambda: create_analytics_service(container.get('database')))
+    container.register_singleton(
+        'analytics_service',
+        lambda: create_analytics_service(None, container.get('database')),
+    )
     
     # Register file processor
     from services.file_processor_service import FileProcessorService
