@@ -23,6 +23,12 @@ def layout():
 
         # Status messages (initially empty)
         html.Div(id='upload-status', className="mt-6"),
+        html.Button(
+            "Continue to Column Mapping",
+            id="open-column-mapping",
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded",
+            style={"display": "none"},
+        ),
         html.Div(id='upload-info', className="mt-4"),
 
         # Column mapping modal (hidden initially)
