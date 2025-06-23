@@ -422,7 +422,7 @@ def handle_all_upload_modal_actions(upload_contents, cancel_clicks, verify_click
                 no_update, no_update, no_update, no_update, no_update, no_update,
                 no_update, no_update, no_update, no_update, no_update,
                 no_update, no_update, no_update, no_update,
-                no_update, no_update, no_update, no_update,
+                no_update,
                 success_msg,
                 success_msg,
                 file_store_data or {},
