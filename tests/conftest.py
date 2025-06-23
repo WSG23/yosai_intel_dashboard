@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Generator
 import pandas as pd
 
-from core.simple_container import ServiceContainer, get_container
-from core.bootstrap import bootstrap_application
+from core.service_container import ServiceContainer, get_container, configure_services
 from models.entities import Person, Door, AccessEvent
 from models.enums import AccessResult, DoorType
 
@@ -26,7 +25,7 @@ def temp_dir() -> Generator[Path, None, None]:
 def di_container() -> ServiceContainer:
     """Create DI container for tests"""
 
-    bootstrap_application()
+    configure_services()
     return get_container()
 
 

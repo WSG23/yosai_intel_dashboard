@@ -1,5 +1,5 @@
 """Service registration module"""
-from core.dependency_container import ServiceContainer
+from core.service_container import ServiceContainer
 from services.interfaces import AnalyticsServiceProtocol, FileProcessorProtocol
 from services.analytics_service import AnalyticsService
 from services.file_processor_service import FileProcessorService
