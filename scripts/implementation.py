@@ -31,17 +31,16 @@ from datetime import datetime
 import pandas as pd
 
 # Core configuration
-from config.config_manager import get_config
+from config.unified_config import get_config
 
 from core.protocols import (
     DatabaseProtocol,
     AnalyticsServiceProtocol,
     FileProcessorProtocol,
 )
-from core.service_registry import (
-    get_configured_container,
-    EnhancedHealthMonitor as HealthMonitor,
-)
+# Legacy imports replaced by unified container
+from core.unified_container import get_container
+HealthMonitor = None
 from core.container import Container as DIContainer
 
 # Try to import error handling, use basic if not available
@@ -275,7 +274,7 @@ class YosaiIntelDashboard:
 
             print("   📦 Setting up dependency injection...")
             # 2. DEPENDENCY INJECTION CONTAINER with PROTOCOLS
-            self.container = get_configured_container()
+            self.container = get_container()
             print("   🚨 Configuring error handling...")
             # 3. ENHANCED ERROR HANDLING (don't register in problematic container)
             self.error_handler = ErrorHandler()
@@ -734,16 +733,16 @@ def main():
         try:
             # Test basic configuration loading
             print("📋 Testing configuration...")
-            from config.config_manager import get_config
+            from config.unified_config import get_config
 
             config_manager = get_config()
             print("✅ Configuration loaded")
 
             # Test container
             print("📦 Testing dependency injection...")
-            from core.service_registry import get_configured_container
+            from core.unified_container import get_container
 
-            container = get_configured_container()
+            container = get_container()
             print("✅ Container configured")
 
             print("\n🎉 Basic components working! Try full mode.")

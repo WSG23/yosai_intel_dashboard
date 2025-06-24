@@ -1,32 +1,26 @@
 """Minimal plugin config compatibility"""
 
-# Re-export from main config to prevent import errors
+# Re-export from unified configuration for compatibility
 try:
-    from config.config_manager import (
-        ConfigManager,
+    from config.unified_config import (
+        UnifiedConfig,
         get_config,
-        AppConfig,
-        DatabaseConfig,
     )
-    from config.cache_manager import CacheConfig
+    from config.database_manager import DatabaseManager
 
-    # Service locator compatibility
     def get_service_locator():
-        """Compatibility function for service locator"""
+        """Return configuration object for plugins"""
         return get_config()
 
     __all__ = [
-        'ConfigManager',
+        'UnifiedConfig',
         'get_config',
         'get_service_locator',
-        'AppConfig',
-        'DatabaseConfig',
-        'CacheConfig',
+        'DatabaseManager',
     ]
 
-except ImportError:
-    # Minimal fallback if main config not available
-    def get_service_locator():
+except Exception:
+    def get_service_locator():  # pragma: no cover - fallback
         return None
 
     __all__ = ['get_service_locator']
