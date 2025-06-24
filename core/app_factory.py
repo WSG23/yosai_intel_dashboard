@@ -7,6 +7,7 @@ from typing import Optional
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output
 from pages import file_upload
+from pages import file_upload
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +184,6 @@ def create_dashboard_page():
                 ])
             ]),
 
-            # Quick actions
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
