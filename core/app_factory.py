@@ -36,7 +36,7 @@ except ImportError:
 
 
 from .auth import init_auth
-from config.yaml_config import get_configuration_manager
+from config.config_manager import get_config
 from core.plugins.config import get_service_locator
 from .component_registry import ComponentRegistry
 from .layout_manager import LayoutManager
@@ -69,7 +69,7 @@ class DashAppFactory:
         try:
             # Create or get configuration manager
             if config_manager is None:
-                config_manager = get_configuration_manager()
+                config_manager = get_config()
 
             # Create DI container with YAML configuration
             container = get_configured_container_with_yaml(config_manager)
@@ -267,7 +267,7 @@ def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]
     """Create application with enhanced modular configuration"""
     try:
         # Load configuration
-        config_manager = get_configuration_manager()
+        config_manager = get_config()
         if config_path:
             config_manager.load_configuration(config_path)
         else:

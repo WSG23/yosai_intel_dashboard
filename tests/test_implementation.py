@@ -22,18 +22,18 @@ logger = logging.getLogger(__name__)
 def test_configuration_manager_fix() -> Tuple[bool, str]:
     """Test the fixed ConfigurationManager.from_environment method"""
     try:
-        from config.yaml_config import ConfigurationManager
-        
+        from config.config_manager import ConfigManager
+
         # Test the from_environment class method
-        config_manager = ConfigurationManager.from_environment()
+        config_manager = ConfigManager()
+        config_manager.load_config()
         
         if config_manager is None:
             return False, "from_environment returned None"
         
         # Test that it has the expected attributes
         required_attrs = [
-            'app_config', 'database_config', 'cache_config', 
-            'security_config', 'analytics_config', 'monitoring_config'
+            'app', 'database'
         ]
         
         for attr in required_attrs:
@@ -107,8 +107,9 @@ def test_modular_architecture() -> Tuple[bool, str]:
     """Test that the modular architecture principles are working"""
     try:
         # Test 1: Configuration module isolation
-        from config.yaml_config import ConfigurationManager
-        config = ConfigurationManager.from_environment()
+        from config.config_manager import ConfigManager
+        config = ConfigManager()
+        config.load_config()
         
         # Test 2: Service registry module isolation  
         from core.service_registry import create_config_manager, test_container_configuration
@@ -135,8 +136,8 @@ def test_error_isolation() -> Tuple[bool, str]:
     
     # Test 1: Can import config module independently
     try:
-        from config.yaml_config import ConfigurationManager
-        config = ConfigurationManager()  # Should work without dependencies
+        from config.config_manager import ConfigManager
+        config = ConfigManager()  # Should work without dependencies
         isolated_tests.append("✅ Config module isolated")
     except Exception as e:
         isolated_tests.append(f"❌ Config module: {e}")

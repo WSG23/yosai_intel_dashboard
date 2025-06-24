@@ -31,7 +31,7 @@ from datetime import datetime
 import pandas as pd
 
 # Core configuration
-from config.yaml_config import get_configuration_manager
+from config.config_manager import get_config
 
 from core.protocols import (
     DatabaseProtocol,
@@ -253,7 +253,7 @@ class YosaiIntelDashboard:
         try:
             print("   🔧 Loading configuration...")
             # 1. ENHANCED CONFIGURATION SYSTEM
-            self.config_manager = get_configuration_manager()
+            self.config_manager = get_config()
 
             # Load configuration with appropriate path based on environment
             if environment:
@@ -675,7 +675,7 @@ def run_immediate_action_items():
     print("\n2. Validating unified configuration system...")
 
     try:
-        config_manager = get_configuration_manager()
+        config_manager = get_config()
         warnings = config_manager.validate_configuration()
 
         if warnings:
@@ -734,9 +734,9 @@ def main():
         try:
             # Test basic configuration loading
             print("📋 Testing configuration...")
-            from config.yaml_config import get_configuration_manager
+            from config.config_manager import get_config
 
-            config_manager = get_configuration_manager()
+            config_manager = get_config()
             print("✅ Configuration loaded")
 
             # Test container
