@@ -10,12 +10,16 @@ from core.plugins.decorators import safe_callback
 # Type checking imports
 if TYPE_CHECKING:
     import dash_bootstrap_components as dbc
-    from dash import html, dcc, callback, Output, Input
+    from dash import html, dcc
+    from dash._callback import callback
+    from dash.dependencies import Output, Input
 
 # Runtime imports with proper fallbacks
 try:
     import dash_bootstrap_components as dbc
-    from dash import html, dcc, callback, Output, Input
+    from dash import html, dcc
+    from dash._callback import callback
+    from dash.dependencies import Output, Input
     DASH_AVAILABLE = True
 except ImportError:
     print("Warning: Dash components not available")
