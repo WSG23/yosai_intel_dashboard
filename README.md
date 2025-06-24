@@ -130,6 +130,10 @@ flake8 .
 - **CSRF Protection Plugin**: Optional production-ready CSRF middleware for Dash
 - **Machine-Learned Column Mapping**: Trainable model for smarter CSV header recognition
 
+**Note:** The file upload and column mapping functionality relies on `pandas`.
+If `pandas` is missing these pages will be disabled. Ensure you run
+`pip install -r requirements.txt` to install all dependencies.
+
 ## 🔧 Configuration
 
 This project uses **`config/config_manager.py`** for application settings. It
