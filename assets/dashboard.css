@@ -1434,3 +1434,42 @@ td, th {
 .upload-box * {
   color: #ffffff !important;
 }
+
+/* CARD BODY TEXT FIXES */
+
+.card-body {
+  color: #ffffff !important;
+}
+
+.card-title {
+  color: #ffffff !important;
+}
+
+.card-text {
+  color: #f1f5f9 !important;
+}
+
+.file-info-card .card-body {
+  color: #ffffff !important;
+}
+
+.file-info-card .card-title {
+  color: #ffffff !important;
+}
+
+.card-header {
+  color: #ffffff !important;
+}
+
+.card .card-body * {
+  color: #ffffff !important;
+}
+
+.card strong,
+.card b {
+  color: #ffffff !important;
+}
+
+.card .text-muted {
+  color: #e2e8f0 !important;
+}
