@@ -53,11 +53,13 @@ class FileProcessor:
             except Exception:
                 return None
             
-            if filename.endswith('.csv'):
+            filename_lower = filename.lower()
+
+            if filename_lower.endswith('.csv'):
                 return FileProcessor._process_csv(decoded)
-            elif filename.endswith('.json'):
+            elif filename_lower.endswith('.json'):
                 return FileProcessor._process_json(decoded)
-            elif filename.endswith(('.xlsx', '.xls')):
+            elif filename_lower.endswith(('.xlsx', '.xls')):
                 return FileProcessor._process_excel(decoded)
             else:
                 return None

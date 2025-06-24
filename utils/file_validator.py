@@ -54,7 +54,9 @@ def safe_decode_file(contents: str) -> Optional[bytes]:
 def process_dataframe(decoded: bytes, filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """Process decoded bytes into DataFrame"""
     try:
-        if filename.endswith('.csv'):
+        filename_lower = filename.lower()
+
+        if filename_lower.endswith('.csv'):
             # Try multiple encodings
             for encoding in ['utf-8', 'latin-1', 'cp1252']:
                 try:
@@ -64,7 +66,7 @@ def process_dataframe(decoded: bytes, filename: str) -> Tuple[Optional[pd.DataFr
                     continue
             return None, "Could not decode CSV with any standard encoding"
 
-        elif filename.endswith('.json'):
+        elif filename_lower.endswith('.json'):
             import json
             json_data = json.loads(decoded.decode('utf-8'))
             if isinstance(json_data, list):
@@ -73,7 +75,7 @@ def process_dataframe(decoded: bytes, filename: str) -> Tuple[Optional[pd.DataFr
                 df = pd.DataFrame([json_data])
             return df, None
 
-        elif filename.endswith(('.xlsx', '.xls')):
+        elif filename_lower.endswith(('.xlsx', '.xls')):
             df = pd.read_excel(io.BytesIO(decoded))
             return df, None
 
