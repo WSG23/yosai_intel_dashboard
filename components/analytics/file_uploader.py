@@ -199,14 +199,22 @@ class FileUploadController:
     def _parse_file(self, upload_contents: str, filename: str) -> Optional[pd.DataFrame]:
         """Parse uploaded file content into DataFrame"""
         try:
-            # Handle list input (multiple files)
-            if isinstance(upload_contents, list):
-                upload_contents = upload_contents[0]
+            # Handle list input for filenames (multiple uploads)
             if isinstance(filename, list):
                 filename = filename[0]
 
-            # Decode base64 content
-            content_type, content_string = upload_contents.split(',')
+            # Decode base64 content. Large files may be split into multiple
+            # chunks by ``dcc.Upload``. Join all chunks together before decoding
+            # to ensure the entire file is processed.
+            if isinstance(upload_contents, list):
+                content_pieces = []
+                for part in upload_contents:
+                    _, part_content = part.split(',', 1)
+                    content_pieces.append(part_content)
+                content_string = ''.join(content_pieces)
+            else:
+                _, content_string = upload_contents.split(',', 1)
+
             decoded = base64.b64decode(content_string)
 
             # Normalize file extension handling
