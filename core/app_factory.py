@@ -1,333 +1,272 @@
-"""
-App factory with proper JSON plugin integration
-"""
+"""Simplified application factory for the Yōsai Intel Dashboard."""
 
-from typing import Any, Optional
 import logging
-from pathlib import Path
+from typing import Dict, Any
+from datetime import datetime
+
 import dash
-from flask_login import login_required
-from flask_wtf import CSRFProtect
-from flask import session, redirect, request
+from dash import html, dcc, Input, Output, callback
+import plotly.express as px
+import plotly.graph_objects as go
 
-# Import Babel safely
-try:
-    from flask_babel import Babel, lazy_gettext as _lazy_gettext
-
-    BABEL_AVAILABLE = True
-
-    def lazy_gettext(text: str) -> str:
-        """Get translated text as regular string (not LazyString)"""
-        result = _lazy_gettext(text)
-        return str(result)  # Force conversion to prevent JSON issues
-
-except ImportError:
-    BABEL_AVAILABLE = False
-
-    def lazy_gettext(text: str) -> str:
-        return str(text)
-
-    class Babel:
-        def __init__(self, app=None) -> None:
-            pass
-
-        def init_app(self, app) -> None:
-            pass
-
-
-from .auth import init_auth
-from config.yaml_config import get_configuration_manager
-from core.plugins.config import get_service_locator
-from .component_registry import ComponentRegistry
-from .layout_manager import LayoutManager
-from .callback_manager import CallbackManager
-from .service_registry import get_configured_container_with_yaml
-from .container import Container
+from core.container import get_service
+from core.exceptions import YosaiBaseException
 
 logger = logging.getLogger(__name__)
 
 
-class YosaiDash(dash.Dash):
-    """Enhanced Dash subclass with YAML configuration and DI container"""
+class DashboardApp:
+    """Main dashboard application."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._yosai_container: Optional[Container] = None
-        self._config_manager: Optional['ConfigurationManager'] = None
-        self._yosai_plugin_manager: Optional[Any] = None
+    def __init__(self) -> None:
+        self.config = get_service("config")
+        self.analytics_service = get_service("analytics_service")
+        self.app = self._create_app()
+        self._setup_callbacks()
 
-
-class DashAppFactory:
-    """Factory for creating Dash applications with YAML configuration and JSON plugin"""
-
-    @staticmethod
-    def create_app(
-        config_manager: Optional['ConfigurationManager'] = None,
-    ) -> Optional[YosaiDash]:
-        """Create and configure a Dash app with proper JSON plugin integration"""
-
-        try:
-            # Create or get configuration manager
-            if config_manager is None:
-                config_manager = get_configuration_manager()
-
-            # Create DI container with YAML configuration
-            container = get_configured_container_with_yaml(config_manager)
-
-            json_plugin = DashAppFactory._init_json_plugin(container)
-
-            # Create Dash app with configuration
-            # Ensure assets are served from the project-level ``assets`` folder
-            project_root = Path(__file__).resolve().parents[1]
-            assets_path = str(project_root / "assets")
-
-            app = YosaiDash(
-                __name__,
-                external_stylesheets=DashAppFactory._get_stylesheets(config_manager),
-                suppress_callback_exceptions=True,
-                meta_tags=DashAppFactory._get_meta_tags(config_manager),
-                assets_folder=assets_path,
-                assets_url_path="/assets",
-            )
-
-            app.title = config_manager.app_config.title
-            server = app.server
-
-            # Store plugin and container references in app
-            app._config_manager = config_manager
-            app._yosai_container = container
-            app._yosai_json_plugin = json_plugin
-
-            # Create plugin manager and load other plugins
-            try:
-                from core.plugins.manager import PluginManager
-
-                plugin_manager = PluginManager(container, config_manager)
-                plugin_results = plugin_manager.load_all_plugins()
-                app._yosai_plugin_manager = plugin_manager
-                logger.info(f"Loaded additional plugins: {plugin_results}")
-            except Exception as e:
-                logger.warning(f"Plugin manager initialization failed: {e}")
-
-            # Initialize components
-            component_registry = ComponentRegistry()
-            layout_manager = LayoutManager(component_registry)
-            callback_manager = CallbackManager(
-                app, component_registry, layout_manager, container
-            )
-
-            # Set layout
-            app.layout = layout_manager.create_main_layout()
-
-            # Register callbacks
-            callback_manager.register_all_callbacks()
-
-            # Register plugin callbacks if plugin manager is available
-            if hasattr(app, "_yosai_plugin_manager"):
-                try:
-                    plugin_callback_results = (
-                        app._yosai_plugin_manager.register_plugin_callbacks(app)
-                    )
-                    logger.info(
-                        f"Registered plugin callbacks: {plugin_callback_results}"
-                    )
-                except Exception as e:
-                    logger.warning(f"Plugin callback registration failed: {e}")
-
-            # Configure Flask server
-            server.config.update(
-                SECRET_KEY=config_manager.security_config.secret_key,
-                SESSION_COOKIE_SECURE=True,
-                SESSION_COOKIE_HTTPONLY=True,
-                SESSION_COOKIE_SAMESITE="Strict",
-            )
-
-            # Initialize auth and other Flask extensions
-            try:
-                CSRFProtect(server)
-                init_auth(server)
-            except Exception as e:
-                logger.warning(f"Auth initialization failed: {e}")
-
-            # Safely wrap dash.index with login_required
-            try:
-                if "dash.index" in server.view_functions:
-                    server.view_functions["dash.index"] = login_required(
-                        server.view_functions["dash.index"]
-                    )
-            except Exception as e:
-                logger.warning(f"Could not wrap dash.index with login_required: {e}")
-
-            DashAppFactory._setup_babel(server)
-            DashAppFactory._register_json_plugin_health(server, app)
-
-            logger.info(
-                "✅ Dashboard application created successfully with JSON plugin"
-            )
-            return app
-
-        except ImportError as e:
-            logger.error(f"Cannot create app - missing dependencies: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to create Dash application: {e}")
-            return None
-
-    @staticmethod
-    def _init_json_plugin(container: Container):
-        """Load and start the JSON serialization plugin."""
-        from core.json_serialization_plugin import JsonSerializationPlugin
-
-        plugin = JsonSerializationPlugin()
-        config = {
-            "enabled": True,
-            "max_dataframe_rows": 1000,
-            "max_string_length": 10000,
-            "include_type_metadata": True,
-            "compress_large_objects": True,
-            "fallback_to_repr": True,
-            "auto_wrap_callbacks": True,
-        }
-
-        if plugin.load(container, config):
-            plugin.configure(config)
-            plugin.start()
-            logger.info("✅ JSON Serialization Plugin loaded and started")
-        else:
-            logger.error("❌ Failed to load JSON plugin")
-
-        return plugin
-
-    @staticmethod
-    def _setup_babel(server) -> None:
-        """Initialize Flask-Babel on the server if available."""
-        if not BABEL_AVAILABLE:
-            return
-
-        babel = Babel(server)
-
-        def _select_locale() -> str:
-            return session.get("lang", "en")
-
-        if hasattr(babel, "localeselector"):
-
-            @babel.localeselector
-            def get_locale() -> str:  # pragma: no cover - runtime registration
-                return _select_locale()
-
-        else:
-            babel.locale_selector_func = _select_locale
-
-        @server.route("/i18n/<lang>")
-        def set_lang(lang: str):  # pragma: no cover - simple route
-            session["lang"] = lang
-            return redirect(request.referrer or "/")
-
-    @staticmethod
-    def _register_json_plugin_health(server, app) -> None:
-        """Expose JSON plugin health status."""
-
-        @server.route("/health/json-plugin")
-        def json_plugin_health():  # pragma: no cover - simple route
-            if hasattr(app, "_yosai_json_plugin"):
-                health = app._yosai_json_plugin.health_check()
-                from flask import Response
-                import json
-
-                return Response(json.dumps(health), mimetype="application/json")
-            return Response('{"error": "JSON plugin not available"}', mimetype="application/json")
-
-    @staticmethod
-    def _get_stylesheets(config_manager: 'ConfigurationManager') -> list:
-        """Get CSS stylesheets based on configuration"""
-        stylesheets = ["/assets/css/main.css"]
-
-        try:
-            import dash_bootstrap_components as dbc
-
-            if hasattr(dbc, "themes") and hasattr(dbc.themes, "BOOTSTRAP"):
-                stylesheets.insert(0, dbc.themes.BOOTSTRAP)
-        except ImportError:
-            pass
-
-        return stylesheets
-
-    @staticmethod
-    def _get_meta_tags(config_manager: 'ConfigurationManager') -> list:
-        """Get HTML meta tags based on configuration"""
-        return [
-            {"name": "viewport", "content": "width=device-width, initial-scale=1"},
-            {"name": "theme-color", "content": "#1B2A47"},
-            {"name": "description", "content": "Yōsai Intel Security Dashboard"},
-            {"name": "application-name", "content": config_manager.app_config.title},
-        ]
-
-
-def create_application(config_path: Optional[str] = None) -> Optional[YosaiDash]:
-    """Create application with enhanced modular configuration"""
-    try:
-        # Load configuration
-        config_manager = get_configuration_manager()
-        if config_path:
-            config_manager.load_configuration(config_path)
-        else:
-            config_manager.load_configuration()
-
-        # Initialize modular services
-        service_locator = get_service_locator()
-        service_locator.initialize_from_config(config_manager)
-        service_locator.start_services()
-
-        app = DashAppFactory.create_app(config_manager)
-
-        if app is None:
-            logger.error("Failed to create Dash app instance")
-            return None
-
-        # Store service locator in app for later access
-        app._yosai_service_locator = service_locator
-
-        logger.info("Dashboard application created successfully with modular configuration")
+    def _create_app(self) -> dash.Dash:
+        app = dash.Dash(
+            __name__,
+            title="Yōsai Intel Dashboard",
+            suppress_callback_exceptions=True,
+            external_stylesheets=[
+                "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            ],
+        )
+        app.layout = self._create_layout()
         return app
 
-    except ImportError:
-        logger.error("Cannot create application - Dash dependencies not available")
-        print("❌ Error: Dash not installed. Run: pip install dash dash-bootstrap-components")
-        return None
-    except Exception as e:
-        logger.error(f"Error creating application: {e}")
-        return None
+    def _create_layout(self) -> html.Div:
+        return html.Div(
+            [
+                html.Nav(
+                    [
+                        html.Div(
+                            [
+                                html.H1("🏯 Yōsai Intel Dashboard", className="navbar-brand mb-0"),
+                                html.Div(
+                                    [
+                                        html.Button(
+                                            "Refresh",
+                                            id="refresh-btn",
+                                            className="btn btn-outline-light btn-sm",
+                                        ),
+                                        html.Span(id="last-updated", className="text-light ms-3"),
+                                    ],
+                                    className="d-flex align-items-center",
+                                ),
+                            ],
+                            className="container-fluid d-flex justify-content-between align-items-center",
+                        )
+                    ],
+                    className="navbar navbar-dark bg-primary mb-4",
+                ),
+                html.Div(
+                    [
+                        html.Div(id="status-cards", className="row mb-4"),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.H4("Hourly Activity Pattern"),
+                                        dcc.Graph(id="hourly-chart"),
+                                    ],
+                                    className="col-md-6",
+                                ),
+                                html.Div(
+                                    [
+                                        html.H4("Location Analysis"),
+                                        dcc.Graph(id="location-chart"),
+                                    ],
+                                    className="col-md-6",
+                                ),
+                            ],
+                            className="row mb-4",
+                        ),
+                        html.Div(
+                            [html.H4("Recent Activity"), html.Div(id="recent-events")],
+                            className="row",
+                        ),
+                    ],
+                    className="container",
+                ),
+                dcc.Interval(id="interval-component", interval=30 * 1000, n_intervals=0),
+            ]
+        )
 
+    def _setup_callbacks(self) -> None:
+        @self.app.callback(
+            [
+                Output("status-cards", "children"),
+                Output("hourly-chart", "figure"),
+                Output("location-chart", "figure"),
+                Output("recent-events", "children"),
+                Output("last-updated", "children"),
+            ],
+            [Input("interval-component", "n_intervals"), Input("refresh-btn", "n_clicks")],
+        )
+        def update_dashboard(n_intervals, refresh_clicks):
+            try:
+                data = self.analytics_service.get_dashboard_data()
+                status_cards = self._create_status_cards(data["summary"])
+                hourly_chart = self._create_hourly_chart(data["hourly_patterns"])
+                location_chart = self._create_location_chart(data["location_stats"])
+                recent_events = self._create_recent_events_table(data["summary"])
+                last_updated = f"Last updated: {datetime.now().strftime('%H:%M:%S')}"
+                return status_cards, hourly_chart, location_chart, recent_events, last_updated
+            except Exception as e:  # pragma: no cover - runtime errors
+                logger.error(f"Dashboard update failed: {e}")
+                error = html.Div([html.Div("⚠️ Error loading dashboard data", className="alert alert-warning")])
+                empty = go.Figure()
+                return error, empty, empty, error, "Error occurred"
 
-def create_application_for_testing() -> Optional[YosaiDash]:
-    """Create application instance configured for unit tests."""
-    try:
-        app = create_application(None)
-        if app is None:
-            return None
+    def _create_status_cards(self, summary: Dict[str, Any]) -> html.Div:
+        total_events = summary.get("total_events", 0)
+        success_rate = summary.get("success_rate", 0)
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H5("Total Events", className="card-title"),
+                                html.H2(f"{total_events:,}", className="card-text text-primary"),
+                            ],
+                            className="card-body",
+                        )
+                    ],
+                    className="card col-md-3",
+                ),
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H5("Success Rate", className="card-title"),
+                                html.H2(f"{success_rate}%", className="card-text text-success"),
+                            ],
+                            className="card-body",
+                        )
+                    ],
+                    className="card col-md-3",
+                ),
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H5("System Status", className="card-title"),
+                                html.H2("🟢 Online", className="card-text text-success"),
+                            ],
+                            className="card-body",
+                        )
+                    ],
+                    className="card col-md-3",
+                ),
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H5("Period", className="card-title"),
+                                html.H2(f"{summary.get('period_days', 0)} days", className="card-text text-info"),
+                            ],
+                            className="card-body",
+                        )
+                    ],
+                    className="card col-md-3",
+                ),
+            ],
+            className="row",
+        )
 
-        server = app.server
+    def _create_hourly_chart(self, hourly_data: Dict[str, Any]) -> go.Figure:
+        data = hourly_data.get("hourly_data", [])
+        if not data:
+            fig = go.Figure()
+            fig.add_annotation(text="No data available", x=0.5, y=0.5, showarrow=False)
+            return fig
+        hours = [int(item["hour"]) for item in data]
+        counts = [item["event_count"] for item in data]
+        fig = px.bar(x=hours, y=counts, title="Events by Hour", labels={"x": "Hour", "y": "Event Count"})
+        fig.update_layout(xaxis=dict(tickmode="linear", tick0=0, dtick=2), height=400)
+        return fig
 
-        @server.route("/api/ping")
-        def ping() -> Any:
-            from flask import Response
-            import json
+    def _create_location_chart(self, location_data: Dict[str, Any]) -> go.Figure:
+        locations = location_data.get("locations", [])
+        if not locations:
+            fig = go.Figure()
+            fig.add_annotation(text="No location data available", x=0.5, y=0.5, showarrow=False)
+            return fig
+        location_names = [loc["location"] for loc in locations]
+        event_counts = [loc["total_events"] for loc in locations]
+        fig = px.pie(values=event_counts, names=location_names, title="Events by Location")
+        fig.update_layout(height=400)
+        return fig
 
-            # This will use our patched JSON handling
-            return Response(
-                json.dumps({"msg": lazy_gettext("pong")}), mimetype="application/json"
+    def _create_recent_events_table(self, summary: Dict[str, Any]) -> html.Div:
+        breakdown = summary.get("event_breakdown", [])
+        if not breakdown:
+            return html.Div("No recent events", className="text-muted")
+        rows = []
+        for event in breakdown[:10]:
+            rows.append(
+                html.Tr([
+                    html.Td(event.get("event_type", "Unknown")),
+                    html.Td(event.get("status", "Unknown")),
+                    html.Td(f"{event.get('count', 0):,}"),
+                ])
             )
+        return html.Table(
+            [
+                html.Thead([html.Tr([html.Th("Event Type"), html.Th("Status"), html.Th("Count")])]),
+                html.Tbody(rows),
+            ],
+            className="table table-striped",
+        )
 
-        return app
-    except Exception as e:
-        logger.error(f"Error creating test application: {e}")
-        return None
+    def run(self) -> None:
+        logger.info(
+            "Starting Yōsai Intel Dashboard on %s:%s",
+            self.config.host,
+            self.config.port,
+        )
+        self.app.run_server(host=self.config.host, port=self.config.port, debug=self.config.debug)
 
 
-# Export main functions
-__all__ = [
-    "create_application",
-    "create_application_for_testing",
-    "DashAppFactory",
-    "YosaiDash",
-]
+def create_app() -> DashboardApp:
+    """Application factory function."""
+    try:
+        return DashboardApp()
+    except YosaiBaseException as e:  # pragma: no cover - rare errors
+        logger.error(f"Application creation failed: {e.message}")
+        raise
+    except Exception as e:  # pragma: no cover - unexpected errors
+        logger.error(f"Unexpected error during app creation: {e}")
+        raise
+
+
+def create_application() -> dash.Dash:
+    """Compatibility wrapper returning Dash instance."""
+    return create_app().app
+
+
+def create_application_for_testing() -> dash.Dash:
+    """Create application with extra test routes."""
+    app_wrapper = create_app()
+    server = app_wrapper.app.server
+
+    @server.route("/api/ping")
+    def ping():
+        from flask import jsonify
+
+        return jsonify(msg="pong")
+
+    @server.route("/i18n/<lang>")
+    def set_lang(lang: str):
+        from flask import session, redirect, request
+
+        session["lang"] = lang
+        return redirect(request.referrer or "/")
+
+    return app_wrapper.app
+
+
+__all__ = ["create_app", "create_application", "create_application_for_testing", "DashboardApp"]

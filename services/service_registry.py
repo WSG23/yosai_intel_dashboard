@@ -18,6 +18,7 @@ from .protocols import (
 
 from .analytics_service import AnalyticsService
 from .file_processor_service import FileProcessorService
+from config.simple_config import get_config
 
 # Import database manager
 try:
@@ -37,6 +38,9 @@ def configure_services(container: ServiceContainer) -> None:
         else:
             # Mock database for development
             container.register_singleton('database', lambda: MockDatabase())
+
+        # Register configuration
+        container.register_singleton('config', get_config)
         
         # Register analytics service
         container.register_singleton(
