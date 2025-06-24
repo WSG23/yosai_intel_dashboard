@@ -1,10 +1,17 @@
 """Simple cache manager implementations."""
 
 import logging
-from typing import Any, Optional, Dict
 import os
+from dataclasses import dataclass
+from typing import Any, Optional, Dict
 
-from .yaml_config import CacheConfig
+
+@dataclass
+class CacheConfig:
+    """Cache configuration"""
+    type: str = "memory"
+    host: str = "localhost"
+    port: int = 6379
 
 logger = logging.getLogger(__name__)
 
