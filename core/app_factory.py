@@ -208,6 +208,8 @@ def create_dashboard_page():
 def create_file_upload_page():
     """Create file upload page"""
     try:
+        from pages import file_upload
+
         return file_upload.layout()
     except Exception as e:
         logger.error(f"Error creating file upload page: {e}")
@@ -324,19 +326,13 @@ def register_dashboard_callbacks(app):
 
 
 def register_file_upload_callbacks(app):
-    """Register file upload callbacks"""
+    """Ensure file upload callbacks are registered"""
     try:
-        @app.callback(
-            Output('upload-output', 'children'),
-            Input('upload-data', 'contents'),
-            prevent_initial_call=True
-        )
-        def update_output(contents):
-            if contents is not None:
-                return dbc.Alert("✅ File uploaded successfully!", color="success")
-            return ""
+        # Importing registers callbacks via @callback decorators
+        from components.analytics import file_uploader  # noqa: F401
+        logger.info("File upload callbacks registered")
     except Exception as e:
-        logger.error(f"Error registering upload callbacks: {e}")
+        logger.error(f"Error importing file upload callbacks: {e}")
 
 
 def register_analytics_callbacks(app):
