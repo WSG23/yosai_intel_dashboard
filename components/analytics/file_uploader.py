@@ -901,6 +901,12 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
             ai_mapping = processed_store.get('ai_suggestions', {})
         logger.info(f"AI column mapping suggestions: {ai_mapping}")
         logger.info(f"Confirmed column mapping: {mapping}")
+        ai_mapping_msg = html.Pre(
+            json.dumps(ai_mapping, indent=2),
+            className="text-xs bg-gray-100 p-2 rounded mt-2"
+        )
+    else:
+        ai_mapping_msg = html.Div()
 
     if not verification_result['success']:
         error_msg = html.Div(verification_result['error'], className="text-red-600")
@@ -911,7 +917,8 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
 
     success_msg = html.Div([
         html.P("✅ Column mapping verified successfully!", className="text-green-600"),
-        html.P("Ready to proceed to device mapping.", className="text-blue-600")
+        html.P("Ready to proceed to device mapping.", className="text-blue-600"),
+        ai_mapping_msg,
     ])
 
     return [
