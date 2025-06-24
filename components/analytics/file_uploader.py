@@ -2,9 +2,12 @@
 Dual Upload Box Component with Tailwind styling and working callbacks
 """
 
-from dash import html, dcc, callback, Input, Output, State, callback_context, no_update
+from dash import html, dcc
+from dash._callback import callback
+from dash.dependencies import Input, Output, State
+from dash._callback_context import callback_context
+from dash.dash import no_update
 from dash.exceptions import PreventUpdate
-import dash
 import dash_bootstrap_components as dbc
 import base64
 import io
@@ -78,7 +81,7 @@ class AIColumnMapper:
             self.user_mappings[column.lower()] = field
         self._save_user_mappings()
 
-    def analyze_columns(self, column_names: List[str]) -> Dict[str, any]:
+    def analyze_columns(self, column_names: List[str]) -> Dict[str, Any]:
         """Analyze column names and return AI suggestions"""
         suggestions = {}
         confidence_scores = {}
@@ -912,23 +915,23 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, device_col):
     """Handle door mapping modal with AI pre-processing"""
     ctx = callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return no_update
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     if trigger_id == "skip-door-mapping":
         logger.info("Door mapping skipped by user")
-        return dash.no_update
+        return no_update
 
     if trigger_id == "door-mapping-modal-trigger" and open_clicks:
         try:
             if not processed_data or "data" not in processed_data:
-                return dash.no_update
+                return no_update
 
             # Extract CSV data
             csv_data = processed_data["data"]
             if not csv_data:
-                return dash.no_update
+                return no_update
 
             # Get device column
             available_columns = list(csv_data[0].keys())
@@ -959,9 +962,9 @@ def handle_door_mapping(open_clicks, skip_clicks, processed_data, device_col):
 
         except Exception as e:
             logger.error(f"Error in door mapping preparation: {e}")
-            return dash.no_update
+            return no_update
 
-    return dash.no_update
+    return no_update
 
 
 # Door mapping callback
@@ -975,7 +978,7 @@ def handle_door_mapping_buttons(open_clicks, skip_clicks, modal_data):
     """Handle door mapping and skip buttons with AI pre-processing"""
     ctx = callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return no_update
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -986,11 +989,11 @@ def handle_door_mapping_buttons(open_clicks, skip_clicks, modal_data):
     if trigger_id == "door-mapping-modal-trigger":
         if not modal_data or not modal_data.get("ai_processed"):
             logger.warning("AI mapping not completed yet")
-            return dash.no_update
+            return no_update
 
         return "fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
 
-    return dash.no_update
+    return no_update
 
 
 def create_error_modal(title, message):
@@ -1319,7 +1322,7 @@ def generate_ai_door_attributes(device_id: str) -> Dict[str, Any]:
 )
 def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_store, processed_data):
     """Handle saving door mapping configurations"""
-    from dash import no_update
+    from dash.dash import no_update
 
     ctx = callback_context
     if not ctx.triggered:
@@ -1362,7 +1365,13 @@ def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_stor
                         "saved_at": datetime.now().isoformat(),
                     }
 
-                    ai_plugin.csv_repository.update_session_data(session_id, {"door_mappings": door_mapping_data})
+
+                    if ai_plugin.csv_repository is not None:
+                        ai_plugin.csv_repository.update_session_data(
+                            session_id, {"door_mappings": door_mapping_data}
+                        )
+                    else:
+                        logger.warning("CSV repository not available to save door mappings")
 
                     logger.info(f"Door mappings saved for session {session_id}")
                 except Exception as e:
