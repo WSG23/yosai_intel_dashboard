@@ -10,11 +10,407 @@ import io
 import pandas as pd
 import uuid
 import logging
+import re
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 import tempfile
 import os
 
 logger = logging.getLogger(__name__)
+
+
+class AIColumnMapper:
+    """AI-powered column type detection"""
+
+    FIELD_PATTERNS = {
+        'timestamp': {
+            'exact': ['timestamp', 'datetime', 'time', 'date'],
+            'contains': ['time', 'date', 'when', 'occurred', 'created', 'logged', 'recorded'],
+        },
+        'device_name': {
+            'exact': ['device', 'door', 'reader', 'location', 'terminal', 'gate'],
+            'contains': ['device', 'door', 'location', 'area', 'reader', 'panel', 'terminal',
+                        'gate', 'entrance', 'exit', 'access_point', 'checkpoint', 'zone'],
+        },
+        'user_id': {
+            'exact': ['user', 'person', 'employee', 'badge', 'card', 'id'],
+            'contains': ['user', 'person', 'employee', 'badge', 'card', 'id', 'worker',
+                        'staff', 'visitor', 'holder', 'individual'],
+        },
+        'event_type': {
+            'exact': ['event', 'action', 'type', 'result', 'status', 'access'],
+            'contains': ['event', 'action', 'type', 'result', 'status', 'access',
+                        'entry', 'exit', 'granted', 'denied', 'outcome'],
+        }
+    }
+
+    def __init__(self, min_confidence: float = 0.3):
+        self.min_confidence = min_confidence
+
+    def analyze_columns(self, column_names: List[str]) -> Dict[str, any]:
+        """Analyze column names and return AI suggestions"""
+        suggestions = {}
+        confidence_scores = {}
+
+        for column in column_names:
+            match = self._find_best_match(column)
+            if match and match['confidence'] >= self.min_confidence:
+                suggestions[match['field_type']] = column
+                confidence_scores[column] = match['confidence']
+
+        final_suggestions = self._resolve_conflicts(suggestions, confidence_scores, column_names)
+
+        return {
+            'suggestions': final_suggestions,
+            'confidence': confidence_scores
+        }
+
+    def _find_best_match(self, column_name: str) -> Optional[Dict]:
+        """Find the best field type match for a column name"""
+        column_lower = column_name.lower().strip()
+        best_match = None
+        best_confidence = 0.0
+
+        for field_type, patterns in self.FIELD_PATTERNS.items():
+            match = self._match_patterns(column_lower, patterns, field_type)
+            if match and match['confidence'] > best_confidence:
+                best_match = match
+                best_confidence = match['confidence']
+
+        return best_match
+
+    def _match_patterns(self, column_lower: str, patterns: Dict, field_type: str) -> Optional[Dict]:
+        """Check if column matches field type patterns"""
+
+        # 1. Exact matches (highest confidence)
+        if column_lower in patterns['exact']:
+            return {'field_type': field_type, 'confidence': 1.0, 'pattern': column_lower}
+
+        # 2. Contains patterns (medium-high confidence)
+        for pattern in patterns['contains']:
+            if pattern in column_lower:
+                confidence = min(0.9, len(pattern) / len(column_lower) + 0.4)
+                return {'field_type': field_type, 'confidence': confidence, 'pattern': pattern}
+
+        return None
+
+    def _resolve_conflicts(self, suggestions: Dict[str, str],
+                           confidence_scores: Dict[str, float],
+                           all_columns: List[str]) -> Dict[str, str]:
+        """Resolve conflicts where multiple field types map to same column"""
+        final_suggestions = {}
+        used_columns = set()
+
+        # Sort by confidence and assign
+        field_confidence_pairs = []
+        for field_type, column in suggestions.items():
+            confidence = confidence_scores.get(column, 0.0)
+            field_confidence_pairs.append((field_type, column, confidence))
+
+        field_confidence_pairs.sort(key=lambda x: x[2], reverse=True)
+
+        for field_type, column, confidence in field_confidence_pairs:
+            if column not in used_columns:
+                final_suggestions[field_type] = column
+                used_columns.add(column)
+
+        return final_suggestions
+
+
+class FileUploadController:
+    """Handles file upload workflow coordination"""
+
+    def __init__(self):
+        self.ai_mapper = AIColumnMapper(min_confidence=0.3)
+
+    def process_upload(self, upload_contents: str, upload_filename: str) -> Dict[str, Any]:
+        """Main entry point for file upload processing"""
+        try:
+            # Parse and validate file
+            df = self._parse_file(upload_contents, upload_filename)
+            if df is None or df.empty:
+                return self._error_response("File is empty or corrupted")
+
+            # Run AI column analysis
+            columns = list(df.columns)
+            ai_result = self.ai_mapper.analyze_columns(columns)
+
+            # Prepare response data
+            session_id = str(uuid.uuid4())
+
+            return {
+                'success': True,
+                'session_id': session_id,
+                'filename': upload_filename,
+                'data': df.to_dict('records'),
+                'columns': columns,
+                'ai_suggestions': ai_result['suggestions'],
+                'confidence_scores': ai_result['confidence'],
+                'record_count': len(df),
+                'column_count': len(columns),
+                'show_modal': True
+            }
+
+        except Exception as e:
+            logger.error(f"Upload processing failed: {e}")
+            return self._error_response(f"Upload failed: {str(e)}")
+
+    def _parse_file(self, upload_contents: str, filename: str) -> Optional[pd.DataFrame]:
+        """Parse uploaded file content into DataFrame"""
+        try:
+            # Handle list input (multiple files)
+            if isinstance(upload_contents, list):
+                upload_contents = upload_contents[0]
+            if isinstance(filename, list):
+                filename = filename[0]
+
+            # Decode base64 content
+            content_type, content_string = upload_contents.split(',')
+            decoded = base64.b64decode(content_string)
+
+            # Parse based on file extension
+            if filename.endswith('.csv'):
+                return self._parse_csv(decoded)
+            elif filename.endswith(('.xlsx', '.xls')):
+                return self._parse_excel(decoded)
+            elif filename.endswith('.json'):
+                return self._parse_json(decoded)
+            else:
+                raise ValueError(f"Unsupported file type: {filename}")
+
+        except Exception as e:
+            logger.error(f"File parsing failed for {filename}: {e}")
+            return None
+
+    def _parse_csv(self, content: bytes) -> pd.DataFrame:
+        """Parse CSV with encoding detection"""
+        for encoding in ['utf-8', 'latin1', 'cp1252']:
+            try:
+                text = content.decode(encoding)
+                return pd.read_csv(io.StringIO(text))
+            except UnicodeDecodeError:
+                continue
+        raise ValueError("Could not decode CSV with any standard encoding")
+
+    def _parse_excel(self, content: bytes) -> pd.DataFrame:
+        """Parse Excel file"""
+        return pd.read_excel(io.BytesIO(content))
+
+    def _parse_json(self, content: bytes) -> pd.DataFrame:
+        """Parse JSON file"""
+        import json
+        text = content.decode('utf-8')
+        json_data = json.loads(text)
+        if isinstance(json_data, list):
+            return pd.DataFrame(json_data)
+        else:
+            return pd.json_normalize(json_data)
+
+    def verify_column_mapping(self, mapping: Dict[str, str], session_data: Dict) -> Dict[str, Any]:
+        """Verify user's column mapping choices"""
+        try:
+            required_fields = ['timestamp', 'device_name', 'user_id', 'event_type']
+            missing_fields = [f for f in required_fields if f not in mapping.values()]
+
+            if missing_fields:
+                return {
+                    'success': False,
+                    'error': f"Missing required mappings: {missing_fields}",
+                    'next_step': 'fix_mapping'
+                }
+
+            session_data['confirmed_mapping'] = mapping
+            session_data['mapping_verified'] = True
+            session_data['verified_at'] = datetime.now().isoformat()
+
+            return {
+                'success': True,
+                'message': 'Column mapping verified successfully',
+                'next_step': 'device_mapping',
+                'session_data': session_data
+            }
+
+        except Exception as e:
+            logger.error(f"Mapping verification failed: {e}")
+            return self._error_response(f"Verification failed: {str(e)}")
+
+    def _error_response(self, message: str) -> Dict[str, Any]:
+        """Standardized error response"""
+        return {
+            'success': False,
+            'error': message,
+            'show_modal': False
+        }
+
+
+class DeviceMapper:
+    """AI-powered device location mapping"""
+
+    LOCATION_PATTERNS = {
+        'floor': {
+            'patterns': [r'f(\d+)', r'floor[\s_-]*(\d+)', r'level[\s_-]*(\d+)', r'(\d+)f', r'(\d+)floor'],
+            'keywords': ['floor', 'level', 'f1', 'f2', 'f3', 'f4', 'f5']
+        },
+        'area': {
+            'entrance': ['entrance', 'entry', 'main', 'lobby', 'front', 'reception'],
+            'office': ['office', 'desk', 'workspace', 'cubicle', 'room'],
+            'server': ['server', 'data', 'it', 'network', 'computer'],
+            'lab': ['lab', 'laboratory', 'test', 'research'],
+            'storage': ['storage', 'warehouse', 'inventory', 'closet'],
+            'security': ['security', 'guard', 'monitoring', 'control'],
+            'emergency': ['emergency', 'exit', 'fire', 'stair', 'escape'],
+            'bathroom': ['bathroom', 'restroom', 'wc', 'toilet'],
+            'kitchen': ['kitchen', 'cafeteria', 'break', 'lunch'],
+            'meeting': ['meeting', 'conference', 'boardroom', 'presentation']
+        }
+    }
+
+    def __init__(self, default_floor: int = 1):
+        self.default_floor = default_floor
+
+    def analyze_devices(self, data: List[Dict], device_column: str) -> Dict[str, Any]:
+        """Analyze devices and suggest floor/area mappings"""
+        try:
+            # Extract unique devices
+            devices = list(set([
+                str(row.get(device_column, "")).strip()
+                for row in data
+                if row.get(device_column)
+            ]))
+
+            devices = [d for d in devices if d and d != ""]
+
+            # Generate mappings for each device
+            device_mappings = []
+            for device_id in devices:
+                mapping = self._analyze_single_device(device_id)
+                device_mappings.append(mapping)
+
+            # Calculate summary statistics
+            floor_distribution = {}
+            area_distribution = {}
+
+            for mapping in device_mappings:
+                floor = mapping['suggested_floor']
+                area = mapping['suggested_area']
+
+                floor_distribution[floor] = floor_distribution.get(floor, 0) + 1
+                area_distribution[area] = area_distribution.get(area, 0) + 1
+
+            return {
+                'success': True,
+                'device_mappings': device_mappings,
+                'device_count': len(devices),
+                'floor_distribution': floor_distribution,
+                'area_distribution': area_distribution,
+                'estimated_floors': len(floor_distribution),
+            }
+
+        except Exception as e:
+            logger.error(f"Device analysis failed: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def _analyze_single_device(self, device_id: str) -> Dict[str, Any]:
+        """Analyze a single device for location mapping"""
+        device_lower = device_id.lower().strip()
+
+        # Extract floor number
+        floor, floor_confidence, floor_pattern = self._extract_floor(device_lower)
+
+        # Extract area type
+        area, area_confidence, area_pattern = self._extract_area(device_lower)
+
+        # Calculate overall confidence
+        overall_confidence = (floor_confidence + area_confidence) / 2
+
+        return {
+            'device_id': device_id,
+            'suggested_floor': floor,
+            'suggested_area': area,
+            'confidence': overall_confidence,
+            'pattern_matched': f"floor: {floor_pattern}, area: {area_pattern}"
+        }
+
+    def _extract_floor(self, device_text: str) -> Tuple[int, float, str]:
+        """Extract floor number from device name"""
+        import re
+
+        # Try regex patterns for floor numbers
+        for pattern in self.LOCATION_PATTERNS['floor']['patterns']:
+            match = re.search(pattern, device_text)
+            if match:
+                try:
+                    floor_num = int(match.group(1))
+                    return floor_num, 0.9, f"regex: {pattern}"
+                except (ValueError, IndexError):
+                    continue
+
+        # Try keyword matching
+        for keyword in self.LOCATION_PATTERNS['floor']['keywords']:
+            if keyword in device_text:
+                # Try to extract number near keyword
+                floor_num = self._extract_number_near_keyword(device_text, keyword)
+                if floor_num:
+                    return floor_num, 0.7, f"keyword: {keyword}"
+
+        # Default floor
+        return self.default_floor, 0.3, "default"
+
+    def _extract_area(self, device_text: str) -> Tuple[str, float, str]:
+        """Extract area type from device name"""
+
+        best_area = "general"
+        best_confidence = 0.2
+        best_pattern = "default"
+
+        for area_type, keywords in self.LOCATION_PATTERNS['area'].items():
+            for keyword in keywords:
+                if keyword in device_text:
+                    # Calculate confidence based on keyword specificity
+                    confidence = min(0.9, len(keyword) / len(device_text) + 0.5)
+
+                    if confidence > best_confidence:
+                        best_area = area_type
+                        best_confidence = confidence
+                        best_pattern = f"keyword: {keyword}"
+
+        return best_area, best_confidence, best_pattern
+
+    def _extract_number_near_keyword(self, text: str, keyword: str) -> Optional[int]:
+        """Extract number near a specific keyword"""
+        import re
+
+        # Find keyword position
+        keyword_pos = text.find(keyword)
+        if keyword_pos == -1:
+            return None
+
+        # Look for numbers before and after keyword
+        search_range = 10  # characters to search around keyword
+        start_pos = max(0, keyword_pos - search_range)
+        end_pos = min(len(text), keyword_pos + len(keyword) + search_range)
+
+        search_text = text[start_pos:end_pos]
+
+        # Find numbers in search range
+        numbers = re.findall(r'\d+', search_text)
+
+        for num_str in numbers:
+            try:
+                num = int(num_str)
+                if 1 <= num <= 50:  # Reasonable floor range
+                    return num
+            except ValueError:
+                continue
+
+        return None
+
+
+# INITIALIZE THE CONTROLLER
+upload_controller = FileUploadController()
 
 
 def create_dual_file_uploader(upload_id="upload-data"):
@@ -229,407 +625,178 @@ def render_column_mapping_panel(
 
 @callback(
     [
-        Output("column-mapping-modal-overlay", "style"),
-        Output("modal-subtitle", "children"),
-        Output("column-count-text", "children"),
+        Output("column-mapping-modal", "style"),
+        Output("upload-status-message", "children"),
+        Output("modal-file-info", "children"),
         Output("timestamp-dropdown", "options"),
-        Output("device-column-dropdown", "options"),
-        Output("user-id-dropdown", "options"),
-        Output("event-type-dropdown", "options"),
+        Output("device-dropdown", "options"),
+        Output("user-dropdown", "options"),
+        Output("event-dropdown", "options"),
         Output("timestamp-dropdown", "value"),
-        Output("device-column-dropdown", "value"),
-        Output("user-id-dropdown", "value"),
-        Output("event-type-dropdown", "value"),
-        Output("floor-estimate-input", "value"),
-        Output("timestamp-suggestion", "children"),
-        Output("device-suggestion", "children"),
-        Output("user-suggestion", "children"),
-        Output("event-suggestion", "children"),
-        Output("floor-confidence", "children"),
-        Output("upload-status", "children"),
-        Output("upload-feedback", "children"),
+        Output("device-dropdown", "value"),
+        Output("user-dropdown", "value"),
+        Output("event-dropdown", "value"),
         Output("uploaded-file-store", "data"),
         Output("processed-data-store", "data"),
-        Output("open-column-mapping", "style"),
-        Output("proceed-door-mapping-trigger", "style"),
-        Output("skip-door-mapping", "style"),
+        Output("proceed-to-device-mapping", "style"),
     ],
     [
         Input("upload-data", "contents"),
-        Input("cancel-mapping", "n_clicks"),
         Input("verify-mapping", "n_clicks"),
         Input("close-mapping-modal", "n_clicks"),
-        Input("open-column-mapping", "n_clicks"),
     ],
     [
         State("upload-data", "filename"),
         State("timestamp-dropdown", "value"),
-        State("device-column-dropdown", "value"),
-        State("user-id-dropdown", "value"),
-        State("event-type-dropdown", "value"),
-        State("floor-estimate-input", "value"),
-        State("user-id-storage", "children"),
+        State("device-dropdown", "value"),
+        State("user-dropdown", "value"),
+        State("event-dropdown", "value"),
         State("uploaded-file-store", "data"),
         State("processed-data-store", "data"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=True
 )
-def handle_file_upload_and_modal(
-    upload_contents,
-    cancel_clicks,
-    verify_clicks,
-    close_clicks,
-    open_clicks,
-    upload_filename,
-    timestamp_col,
-    device_col,
-    user_col,
-    event_type_col,
-    floor_estimate,
-    user_id,
-    file_store_data,
-    processed_data,
-):
-    """Fixed file upload handler with proper modal display."""
-    from dash import callback_context, no_update
-    import base64
-    import io
-    import pandas as pd
-    import uuid
-    from datetime import datetime
-
-    # Default return state
-    default_return = [
-        {"display": "none"},  # modal hidden
-        "",
-        "",
-        [],
-        [],
-        [],
-        [],
-        None,
-        None,
-        None,
-        None,
-        1,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        {},
-        {},
-        {"display": "none"},  # open mapping button hidden
-        {"display": "none"},  # proceed button hidden
-        {"display": "none"},  # skip button hidden
-    ]
+def handle_upload_workflow(upload_contents, verify_clicks, close_clicks,
+                          upload_filename, timestamp_col, device_col, user_col, event_col,
+                          file_store, processed_store):
+    """Simplified callback handling upload workflow"""
 
     ctx = callback_context
     if not ctx.triggered:
-        return default_return
+        raise PreventUpdate
 
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    logger.info(f"Upload callback triggered by: {trigger_id}")
 
-    # Support dcc.Upload components configured with multiple=True
-    if isinstance(upload_contents, list):
-        upload_contents = upload_contents[0]
-    if isinstance(upload_filename, list):
-        upload_filename = upload_filename[0]
+    default_return = [
+        {"display": "none"},
+        "",
+        "",
+        [],
+        [], [], [],
+        None, None, None, None,
+        {},
+        {},
+        {"display": "none"},
+    ]
 
-    # Handle modal close actions
-    if trigger_id in ["cancel-mapping", "close-mapping-modal"]:
-        logger.info("Closing column mapping modal")
-        return default_return
-
-    # Handle file upload - MAIN ENTRY POINT
-    if trigger_id == "upload-data" and upload_contents is not None:
-        try:
-            logger.info(f"Processing file upload: {upload_filename}")
-
-            # 1. REGISTER FILE UPLOAD
-            content_type, content_string = upload_contents.split(",")
-            decoded = base64.b64decode(content_string)
-            session_id = str(uuid.uuid4())
-
-            # Parse uploaded file
-            df = None
-            if upload_filename.endswith(".csv"):
-                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-            elif upload_filename.endswith((".xlsx", ".xls")):
-                df = pd.read_excel(io.BytesIO(decoded))
-            elif upload_filename.endswith(".json"):
-                import json
-
-                json_data = json.loads(decoded.decode("utf-8"))
-                df = pd.DataFrame(json_data) if isinstance(json_data, list) else pd.json_normalize(json_data)
-            else:
-                return [{"display": "none"}] + ["❌ Unsupported file format."] + default_return[2:]
-
-            if df is None or df.empty:
-                return [{"display": "none"}] + ["❌ File is empty or corrupted."] + default_return[2:]
-
-            # 2. COLUMN ANALYSIS AND MAPPING
-            logger.info("Running AI column analysis...")
-            available_columns = list(df.columns)
-            ai_suggestions, confidence_scores = enhanced_pattern_matching(available_columns)
-
-            # Generate options for dropdowns
-            column_options = [{"label": col, "value": col} for col in available_columns]
-
-            # Calculate floor estimate
-            device_col_suggested = ai_suggestions.get("device_name", available_columns[0])
-            unique_devices = df[device_col_suggested].nunique() if device_col_suggested in df.columns else 10
-            floor_estimate_calc = max(1, min(20, unique_devices // 8))
-
-            # Store file and processed data
-            file_store = {
-                "filename": upload_filename,
-                "session_id": session_id,
-                "upload_time": datetime.now().isoformat(),
-            }
-
-            processed_store = {
-                "data": df.to_dict("records"),
-                "columns": available_columns,
-                "ai_suggestions": ai_suggestions,
-                "confidence_scores": confidence_scores,
-                "session_id": session_id,
-                "floor_estimate": {"total_floors": floor_estimate_calc, "confidence": 0.8},
-            }
-
-            # 3. SHOW COLUMN MAPPING MODAL IMMEDIATELY
-            upload_success_msg = html.Div(
-                [
-                    html.P(
-                        f"✅ File '{upload_filename}' uploaded successfully!", className="text-green-600 font-medium"
-                    ),
-                    html.P(
-                        f"📊 Found {len(df)} records with {len(available_columns)} columns", className="text-gray-600"
-                    ),
-                    html.P("🤖 AI analysis complete. Verify column mapping below.", className="text-blue-600"),
-                ]
+    try:
+        if trigger_id == "upload-data" and upload_contents:
+            return _handle_file_upload(upload_contents, upload_filename)
+        elif trigger_id == "verify-mapping" and verify_clicks:
+            return _handle_mapping_verification(
+                timestamp_col, device_col, user_col, event_col,
+                file_store, processed_store
             )
+        elif trigger_id == "close-mapping-modal":
+            return _handle_modal_close()
+        else:
+            return default_return
+    except Exception as e:
+        logger.error(f"Callback error: {e}")
+        error_msg = html.Div(f"❌ Error: {str(e)}", className="text-red-600")
+        return [{"display": "none"}] + [error_msg] + default_return[2:]
 
-            # Return with modal VISIBLE and data populated
-            return [
-                {"display": "flex"},  # SHOW MODAL IMMEDIATELY
-                f"File: {upload_filename} ({len(df)} records, {len(available_columns)} columns)",
-                f"📊 AI mapped {len([k for k, v in ai_suggestions.items() if v])} columns automatically",
-                column_options,
-                column_options,
-                column_options,
-                column_options,
-                ai_suggestions.get("timestamp"),
-                ai_suggestions.get("device_name"),
-                ai_suggestions.get("user_id"),
-                ai_suggestions.get("event_type"),
-                floor_estimate_calc,
-                f"✅ {ai_suggestions.get('timestamp', 'None')} ({confidence_scores.get(ai_suggestions.get('timestamp', ''), 0)*100:.0f}%)",
-                f"✅ {ai_suggestions.get('device_name', 'None')} ({confidence_scores.get(ai_suggestions.get('device_name', ''), 0)*100:.0f}%)",
-                f"✅ {ai_suggestions.get('user_id', 'None')} ({confidence_scores.get(ai_suggestions.get('user_id', ''), 0)*100:.0f}%)",
-                f"✅ {ai_suggestions.get('event_type', 'None')} ({confidence_scores.get(ai_suggestions.get('event_type', ''), 0)*100:.0f}%)",
-                f"Overall AI Confidence: {max(confidence_scores.values(), default=0.8)*100:.0f}%",
-                upload_success_msg,
-                upload_success_msg,
-                file_store,
-                processed_store,
-                {"display": "none"},  # hide manual mapping button since modal is open
-                {"display": "none"},  # hide proceed button until mapping verified
-                {"display": "none"},  # hide skip button until mapping verified
-            ]
 
-        except Exception as e:
-            logger.error(f"Error processing file upload: {e}")
-            error_msg = f"❌ Error processing file: {str(e)}"
-            return [{"display": "none"}] + [error_msg] + default_return[2:]
+def _handle_file_upload(upload_contents, upload_filename):
+    """Handle file upload processing"""
 
-    # Handle mapping verification
-    elif trigger_id == "verify-mapping" and verify_clicks:
-        try:
-            logger.info("Verifying column mapping")
+    result = upload_controller.process_upload(upload_contents, upload_filename)
 
-            if not timestamp_col:
-                return [
-                    {"display": "flex"},  # keep modal open
-                    no_update,
-                    "❌ Please select a timestamp column",
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                    "❌ Please select a timestamp column",
-                    "",
-                    file_store_data or {},
-                    processed_data or {},
-                    {"display": "none"},
-                    {"display": "none"},
-                    {"display": "none"},
-                ]
+    if not result['success']:
+        error_msg = html.Div(result['error'], className="text-red-600")
+        return [{"display": "none"}] + [error_msg] + [""]*11
 
-            # Mapping verified successfully
-            success_msg = html.Div(
-                [
-                    html.P("✅ Column mapping verified!", className="text-green-600 font-medium"),
-                    html.P("🎯 Ready for device/door mapping...", className="text-blue-600"),
-                ]
-            )
+    columns = result['columns']
+    column_options = [{"label": col, "value": col} for col in columns]
+    suggestions = result['ai_suggestions']
 
-            return [
-                {"display": "none"},  # hide modal
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                success_msg,
-                success_msg,
-                file_store_data or {},
-                processed_data or {},
-                {"display": "none"},  # hide manual mapping button
-                {"display": "inline-block"},  # SHOW proceed button
-                {"display": "inline-block"},  # SHOW skip button
-            ]
+    success_msg = html.Div([
+        html.P(f"✅ File '{result['filename']}' uploaded successfully!",
+               className="text-green-600 font-medium"),
+        html.P(f"📊 Found {result['record_count']} records with {result['column_count']} columns",
+               className="text-gray-600"),
+        html.P("🤖 AI analysis complete. Verify column mapping below.",
+               className="text-blue-600"),
+    ])
 
-        except Exception as e:
-            logger.error(f"Error verifying mapping: {e}")
-            return [{"display": "flex"}] + [f"❌ Error: {str(e)}"] + default_return[2:]
+    file_info = f"File: {result['filename']} ({result['record_count']} records, {result['column_count']} columns)"
 
-    # Handle manual mapping button
-    elif trigger_id == "open-column-mapping" and open_clicks:
+    return [
+        {"display": "flex"},
+        success_msg,
+        file_info,
+        column_options,
+        column_options,
+        column_options,
+        column_options,
+        suggestions.get('timestamp'),
+        suggestions.get('device_name'),
+        suggestions.get('user_id'),
+        suggestions.get('event_type'),
+        {
+            'session_id': result['session_id'],
+            'filename': result['filename']
+        },
+        {
+            'data': result['data'],
+            'columns': result['columns'],
+            'ai_suggestions': result['ai_suggestions'],
+            'confidence_scores': result['confidence_scores']
+        },
+        {"display": "none"},
+    ]
+
+
+def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
+                                file_store, processed_store):
+    """Handle user verification of column mapping"""
+
+    mapping = {}
+    if timestamp_col:
+        mapping['timestamp'] = timestamp_col
+    if device_col:
+        mapping['device_name'] = device_col
+    if user_col:
+        mapping['user_id'] = user_col
+    if event_col:
+        mapping['event_type'] = event_col
+
+    verification_result = upload_controller.verify_column_mapping(mapping, processed_store)
+
+    if not verification_result['success']:
+        error_msg = html.Div(verification_result['error'], className="text-red-600")
         return [
-            {"display": "flex"},  # show modal
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            {"display": "none"},
-            {"display": "none"},
-            {"display": "none"},
-        ]
+            {"display": "flex"},
+            error_msg,
+        ] + [no_update] * 11
 
-    return default_return
+    success_msg = html.Div([
+        html.P("✅ Column mapping verified successfully!", className="text-green-600"),
+        html.P("Ready to proceed to device mapping.", className="text-blue-600")
+    ])
+
+    return [
+        {"display": "none"},
+        success_msg,
+    ] + [no_update] * 10 + [
+        {"display": "block"}
+    ]
+
+
+def _handle_modal_close():
+    """Handle modal close action"""
+    return [
+        {"display": "none"},
+    ] + [no_update] * 12
 
 
 def enhanced_pattern_matching(headers):
-    """Enhanced fallback pattern matching for column detection"""
-    ai_suggestions = {}
-    confidence_scores = {}
+    """Enhanced fallback pattern matching for column detection - now uses AI mapper"""
+    mapper = AIColumnMapper()
+    result = mapper.analyze_columns(headers)
 
-    patterns = {
-        "timestamp": [
-            "time",
-            "date",
-            "timestamp",
-            "datetime",
-            "created",
-            "occurred",
-            "when",
-            "logged",
-            "recorded",
-            "event_time",
-            "access_time",
-        ],
-        "device_name": [
-            "door",
-            "device",
-            "location",
-            "area",
-            "reader",
-            "panel",
-            "terminal",
-            "gate",
-            "entrance",
-            "exit",
-            "access_point",
-            "checkpoint",
-            "zone",
-        ],
-        "user_id": [
-            "user",
-            "person",
-            "employee",
-            "badge",
-            "card",
-            "id",
-            "worker",
-            "staff",
-            "visitor",
-            "holder",
-            "individual",
-        ],
-        "event_type": [
-            "event",
-            "action",
-            "type",
-            "result",
-            "status",
-            "access",
-            "entry",
-            "exit",
-            "granted",
-            "denied",
-            "outcome",
-        ],
-    }
-
-    for field, keywords in patterns.items():
-        best_match = None
-        best_score = 0
-        for header in headers:
-            header_lower = header.lower()
-            for keyword in keywords:
-                if keyword in header_lower:
-                    score = len(keyword) / len(header_lower)
-                    if keyword == header_lower:
-                        score = 1.0
-                    elif header_lower.startswith(keyword) or header_lower.endswith(keyword):
-                        score = 0.9
-                    if score > best_score:
-                        best_score = score
-                        best_match = header
-        if best_match and best_score > 0.3:
-            ai_suggestions[field] = best_match
-            confidence_scores[best_match] = best_score
+    ai_suggestions = result['suggestions']
+    confidence_scores = result['confidence']
 
     return ai_suggestions, confidence_scores
 
@@ -1033,91 +1200,36 @@ def create_door_mapping_modal_with_data(devices, device_column):
     return modal
 
 
-def generate_ai_door_attributes(device_id):
-    """Generate AI-based attribute suggestions for a door/device"""
-    device_lower = device_id.lower()
+def generate_ai_door_attributes(device_id: str) -> Dict[str, Any]:
+    """Generate AI suggestions for door attributes using the DeviceMapper"""
+    try:
+        mapper = DeviceMapper()
+        device_data = [{'device_name': device_id}]
+        result = mapper.analyze_devices(device_data, 'device_name')
 
-    # Default attributes
-    attributes = {
-        "location": f"Floor 1 - {device_id}",
-        "door_type": "entry",
-        "is_critical": False,
-        "security_level": 5,
-        "confidence": 75,
-    }
-
-    # AI logic based on device ID patterns
-    if any(word in device_lower for word in ["main", "front", "entrance", "lobby"]):
-        attributes.update(
-            {
-                "door_type": "entry",
-                "is_critical": True,
-                "security_level": 8,
-                "location": f"Main Entrance - {device_id}",
-                "confidence": 95,
+        if result['success'] and result['device_mappings']:
+            mapping = result['device_mappings'][0]
+            return {
+                'floor': mapping['suggested_floor'],
+                'area': mapping['suggested_area'],
+                'confidence': mapping['confidence'],
+                'pattern': mapping['pattern_matched']
             }
-        )
-    elif any(word in device_lower for word in ["exit", "emergency", "fire"]):
-        attributes.update(
-            {
-                "door_type": "fire_escape",
-                "is_critical": True,
-                "security_level": 9,
-                "location": f"Emergency Exit - {device_id}",
-                "confidence": 90,
+        else:
+            return {
+                'floor': 1,
+                'area': 'general',
+                'confidence': 0.3,
+                'pattern': 'default'
             }
-        )
-    elif any(word in device_lower for word in ["elevator", "lift", "elev"]):
-        attributes.update(
-            {
-                "door_type": "elevator",
-                "is_critical": False,
-                "security_level": 6,
-                "location": f"Elevator Bank - {device_id}",
-                "confidence": 88,
-            }
-        )
-    elif any(word in device_lower for word in ["stair", "stairs", "stairwell"]):
-        attributes.update(
-            {
-                "door_type": "stairwell",
-                "is_critical": False,
-                "security_level": 4,
-                "location": f"Stairwell - {device_id}",
-                "confidence": 85,
-            }
-        )
-    elif any(word in device_lower for word in ["office", "room", "conf"]):
-        attributes.update(
-            {
-                "door_type": "office",
-                "is_critical": False,
-                "security_level": 3,
-                "location": f"Office Area - {device_id}",
-                "confidence": 80,
-            }
-        )
-    elif any(word in device_lower for word in ["parking", "garage", "lot"]):
-        attributes.update(
-            {
-                "door_type": "parking",
-                "is_critical": False,
-                "security_level": 2,
-                "location": f"Parking - {device_id}",
-                "confidence": 85,
-            }
-        )
-
-    # Detect floor information
-    import re
-
-    floor_match = re.search(r"(\d+)f|floor(\d+)|f(\d+)", device_lower)
-    if floor_match:
-        floor_num = floor_match.group(1) or floor_match.group(2) or floor_match.group(3)
-        attributes["location"] = f"Floor {floor_num} - {device_id}"
-        attributes["confidence"] = min(95, attributes["confidence"] + 10)
-
-    return attributes
+    except Exception as e:
+        logger.error(f"Error generating AI door attributes: {e}")
+        return {
+            'floor': 1,
+            'area': 'general',
+            'confidence': 0.3,
+            'pattern': 'error'
+        }
 
 
 @callback(
@@ -1277,7 +1389,7 @@ __all__ = [
     "create_dual_file_uploader",
     "layout",
     "render_column_mapping_panel",
-    "handle_file_upload_and_modal",
+    "handle_upload_workflow",
     "handle_door_mapping",
     "handle_door_mapping_save",
 ]
