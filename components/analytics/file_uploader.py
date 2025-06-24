@@ -895,6 +895,12 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
         mapping['event_type'] = event_col
 
     verification_result = upload_controller.verify_column_mapping(mapping, processed_store)
+    if verification_result.get('success'):
+        ai_mapping = {}
+        if processed_store:
+            ai_mapping = processed_store.get('ai_suggestions', {})
+        logger.info(f"AI column mapping suggestions: {ai_mapping}")
+        logger.info(f"Confirmed column mapping: {mapping}")
 
     if not verification_result['success']:
         error_msg = html.Div(verification_result['error'], className="text-red-600")
