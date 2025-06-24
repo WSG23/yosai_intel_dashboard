@@ -4,7 +4,6 @@ from .yaml_config import (
     ConfigurationManager,
     get_configuration_manager,
     AppConfig,
-    DatabaseConfig,
     CacheConfig,
     SecurityConfig,
     AnalyticsConfig,
@@ -15,6 +14,7 @@ from .yaml_config import (
 from .database_manager import (
     DatabaseManager,
     MockDatabaseConnection,
+    DatabaseConfig,
 )
 
 from .cache_manager import MemoryCacheManager, RedisCacheManager
