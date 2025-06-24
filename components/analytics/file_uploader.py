@@ -9,6 +9,7 @@ from dash._callback_context import callback_context
 from dash.dash import no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
+from .column_data_presenter import create_column_data_presenter
 import base64
 import io
 import pandas as pd
@@ -25,6 +26,9 @@ USER_MAPPING_FILE = os.path.join("data", "user_mappings.json")
 SESSION_FILE = os.path.join("data", "verified_session.json")
 
 logger = logging.getLogger(__name__)
+
+# Initialize presenter
+column_presenter = create_column_data_presenter(max_preview_rows=15)
 
 
 class AIColumnMapper:
@@ -882,8 +886,12 @@ def _handle_file_upload(upload_contents, upload_filename):
 
 def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
                                 file_store, processed_store):
-    """Handle user verification of column mapping"""
+    """
+    REPLACEMENT FUNCTION for _handle_mapping_verification
+    Enhanced version with column data presentation
+    """
 
+    # Build mapping dictionary
     mapping = {}
     if timestamp_col:
         mapping['timestamp'] = timestamp_col
@@ -894,13 +902,8 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
     if event_col:
         mapping['event_type'] = event_col
 
+    # Verify mapping using existing controller
     verification_result = upload_controller.verify_column_mapping(mapping, processed_store)
-    if verification_result.get('success'):
-        ai_mapping = {}
-        if processed_store:
-            ai_mapping = processed_store.get('ai_suggestions', {})
-        logger.info(f"AI column mapping suggestions: {ai_mapping}")
-        logger.info(f"Confirmed column mapping: {mapping}")
 
     if not verification_result['success']:
         error_msg = html.Div(verification_result['error'], className="text-red-600")
@@ -909,27 +912,50 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
             error_msg,
         ] + [no_update] * 11
 
-    success_msg = html.Div([
-        html.P("✅ Column mapping verified successfully!", className="text-green-600"),
-        html.P("Ready to proceed to device mapping.", className="text-blue-600")
-    ])
+    # SUCCESS: Generate column data presentation
+    try:
+        # Extract data for presentation
+        data = processed_store.get('data', [])
+        filename = file_store.get('filename', 'uploaded_file.csv')
 
-    return [
-        {"display": "none"},
-        success_msg,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        no_update,
-        verification_result.get('session_data', processed_store),
-        {"display": "block"},
-    ]
+        # Create the complete presentation
+        presentation_component = column_presenter.generate_complete_presentation(
+            data=data,
+            mapping=mapping,
+            filename=filename
+        )
+
+        # Success message with enhanced info
+        success_msg = html.Div([
+            html.P("✅ Column mapping verified successfully!", className="text-green-600 font-medium"),
+            html.P(f"📊 Mapped {len(mapping)} columns from {filename}", className="text-gray-600"),
+            html.Hr(className="my-4"),
+            presentation_component
+        ])
+
+        return [
+            {"display": "flex"},
+            success_msg,
+            "",  # Clear file info
+            [], [], [], [],  # Clear dropdown options
+            None, None, None, None,  # Clear dropdown values
+            file_store,
+            processed_store,
+            {"display": "none"},  # Keep modal open to show presentation
+        ]
+
+    except Exception as e:
+        logger.error(f"Error creating column presentation: {e}")
+        fallback_msg = html.Div([
+            html.P("✅ Column mapping verified successfully!", className="text-green-600"),
+            html.P("Ready to proceed to device mapping.", className="text-gray-600"),
+            html.P(f"⚠️ Could not load data preview: {str(e)}", className="text-yellow-600 text-sm")
+        ])
+
+        return [
+            {"display": "flex"},
+            fallback_msg,
+        ] + [no_update] * 11
 
 
 def enhanced_pattern_matching(headers):
@@ -1487,6 +1513,47 @@ def handle_door_mapping_save(save_clicks, cancel_clicks, close_clicks, door_stor
             return error_msg, hidden_class
 
     return no_update, no_update
+
+
+@callback(
+    [
+        Output("column-mapping-modal", "style", allow_duplicate=True),
+        Output("proceed-to-device-mapping", "style", allow_duplicate=True),
+    ],
+    [
+        Input("proceed-to-device-btn", "n_clicks"),
+        Input("revise-mapping-btn", "n_clicks"),
+    ],
+    [
+        State("uploaded-file-store", "data"),
+        State("processed-data-store", "data"),
+    ],
+    prevent_initial_call=True
+)
+def handle_presentation_actions(proceed_clicks, revise_clicks, file_store, processed_store):
+    """Handle actions from the column data presentation"""
+
+    ctx = callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == "proceed-to-device-btn" and proceed_clicks:
+        # Close modal and show device mapping
+        return [
+            {"display": "none"},  # Hide modal
+            {"display": "block"}   # Show device mapping section
+        ]
+
+    elif trigger_id == "revise-mapping-btn" and revise_clicks:
+        # Keep modal open, user can revise mapping
+        return [
+            {"display": "flex"},  # Keep modal open
+            {"display": "none"}   # Hide device mapping
+        ]
+
+    raise PreventUpdate
 
 
 @callback(Output("upload-info", "children"), [Input("processed-data-store", "data")], prevent_initial_call=True)
