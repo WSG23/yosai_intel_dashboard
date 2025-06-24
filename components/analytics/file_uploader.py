@@ -767,34 +767,81 @@ def handle_upload_workflow(upload_filename, verify_clicks, close_clicks,
         return [{"display": "none"}] + [error_msg] + default_return[2:]
 
 
+@callback(
+    [
+        Output("timestamp-confidence", "children"),
+        Output("device-confidence", "children"),
+        Output("user-confidence", "children"),
+        Output("event-confidence", "children"),
+        Output("column-preview-list", "children"),
+    ],
+    [
+        Input("uploaded-file-store", "data"),
+        Input("processed-data-store", "data"),
+    ],
+    prevent_initial_call=True
+)
+def update_column_mapping_ui(file_store, processed_store):
+    """Update column mapping UI with confidence indicators and preview"""
+
+    if not processed_store or not file_store:
+        return [html.Div()] * 5
+
+    confidence_scores = processed_store.get('confidence_scores', {})
+    columns = processed_store.get('columns', [])
+
+    def create_confidence_indicator(field_name):
+        """Create confidence indicator for each field"""
+        score = confidence_scores.get(field_name, 0)
+        if score > 0.8:
+            return html.Div([
+                html.I(className="fas fa-check-circle text-green-500"),
+                html.Span(f"{score:.0%}", className="text-xs text-green-600 ml-1")
+            ], className="flex items-center")
+        elif score > 0.5:
+            return html.Div([
+                html.I(className="fas fa-exclamation-triangle text-yellow-500"),
+                html.Span(f"{score:.0%}", className="text-xs text-yellow-600 ml-1")
+            ], className="flex items-center")
+        else:
+            return html.Div([
+                html.I(className="fas fa-question-circle text-gray-400"),
+                html.Span("Low", className="text-xs text-gray-500 ml-1")
+            ], className="flex items-center")
+
+    column_preview = html.Div([
+        html.Div([
+            html.Span(f"• {col}", className="text-sm text-gray-600")
+        ], className="py-1") for col in columns[:10]
+    ] + ([html.Div(f"... and {len(columns)-10} more", className="text-xs text-gray-400 pt-2")] if len(columns) > 10 else []))
+
+    return [
+        create_confidence_indicator('timestamp'),
+        create_confidence_indicator('device_name'),
+        create_confidence_indicator('user_id'),
+        create_confidence_indicator('event_type'),
+        column_preview
+    ]
+
+
 def _handle_file_upload(upload_contents, upload_filename):
-    """Handle file upload processing"""
+    """Handle file upload processing with enhanced UI feedback"""
 
     result = upload_controller.process_upload(upload_contents, upload_filename)
 
     if not result['success']:
         error_msg = html.Div(result['error'], className="text-red-600")
         return [
-            {"display": "none"},
-            error_msg,
-            "",
-            [],
-            [],
-            [],
-            [],
-            None,
-            None,
-            None,
-            None,
-            {},
-            {},
-            {"display": "none"},
+            {"display": "none"}, error_msg, "", [], [], [], [],
+            None, None, None, None, {}, {}, {"display": "none"}
         ]
 
     columns = result['columns']
     column_options = [{"label": col, "value": col} for col in columns]
     suggestions = result['ai_suggestions']
+    confidence_scores = result.get('confidence_scores', {})
 
+    # ENHANCED SUCCESS MESSAGE WITH COLUMN PREVIEW
     success_msg = html.Div([
         html.P(f"✅ File '{result['filename']}' uploaded successfully!",
                className="text-green-600 font-medium"),
@@ -807,20 +854,21 @@ def _handle_file_upload(upload_contents, upload_filename):
     file_info = f"File: {result['filename']} ({result['record_count']} records, {result['column_count']} columns)"
 
     return [
-        {"display": "flex"},
+        {"display": "flex"},  # Show modal
         success_msg,
         file_info,
+        column_options,  # All dropdowns get same options
         column_options,
         column_options,
         column_options,
-        column_options,
-        suggestions.get('timestamp'),
+        suggestions.get('timestamp'),    # AI pre-selections
         suggestions.get('device_name'),
         suggestions.get('user_id'),
         suggestions.get('event_type'),
         {
             'session_id': result['session_id'],
-            'filename': result['filename']
+            'filename': result['filename'],
+            'confidence_scores': confidence_scores  # ADD confidence scores
         },
         {
             'data': result['data'],

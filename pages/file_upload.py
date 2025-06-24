@@ -28,7 +28,7 @@ def layout():
             ),
             create_dual_file_uploader("upload-data"),
             html.Div(id="upload-status-message", className="mt-6"),
-            # FIXED: Add proper modal wrapper with correct id and initial hidden state
+            # Enhanced modal for AI column mapping verification
             html.Div(
                 [
                     html.Div(
@@ -38,15 +38,8 @@ def layout():
                                     # Modal header
                                     html.Div(
                                         [
-                                            html.H2(
-                                                "🤖 Verify AI Column Mapping",
-                                                className="text-xl font-bold",
-                                            ),
-                                            html.P(
-                                                "",
-                                                id="modal-file-info",
-                                                className="text-gray-600",
-                                            ),
+                                            html.H2("🤖 Verify AI Column Mapping", className="text-xl font-bold"),
+                                            html.P("", id="modal-file-info", className="text-gray-600"),
                                             html.Button(
                                                 "✕",
                                                 id="close-mapping-modal",
@@ -55,101 +48,153 @@ def layout():
                                         ],
                                         className="relative mb-6",
                                     ),
-                                    # Modal body
+
+                                    # ENHANCED COLUMN MAPPING SECTION
                                     html.Div(
                                         [
                                             html.P(
-                                                "🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
-                                                className="text-gray-700 mb-6",
+                                                "🤖 AI has analyzed your file and suggested column mappings below. Green checkmarks indicate high confidence matches.",
+                                                className="text-sm text-gray-600 mb-4",
                                             ),
+
+                                            # Column mapping grid
                                             html.Div(
                                                 [
+                                                    # Timestamp mapping
                                                     html.Div(
                                                         [
                                                             html.Label(
-                                                                "🕐 Timestamp Column:",
-                                                                className="block text-sm font-medium mb-1",
+                                                                "⏰ Timestamp Column *",
+                                                                className="block text-sm font-medium text-gray-700 mb-2",
                                                             ),
-                                                            dcc.Dropdown(
-                                                                id="timestamp-dropdown",
-                                                                placeholder="Select timestamp column...",
-                                                                className="mb-3",
+                                                            html.Div(
+                                                                [
+                                                                    dcc.Dropdown(
+                                                                        id="timestamp-dropdown",
+                                                                        placeholder="Select timestamp column...",
+                                                                        className="flex-1",
+                                                                    ),
+                                                                    html.Div(id="timestamp-confidence", className="ml-2 flex items-center"),
+                                                                ],
+                                                                className="flex items-center",
                                                             ),
                                                         ],
                                                         className="mb-4",
                                                     ),
+
+                                                    # Device mapping
                                                     html.Div(
                                                         [
                                                             html.Label(
-                                                                "🚪 Device/Door Column:",
-                                                                className="block text-sm font-medium mb-1",
+                                                                "🚪 Device/Door Column",
+                                                                className="block text-sm font-medium text-gray-700 mb-2",
                                                             ),
-                                                            dcc.Dropdown(
-                                                                id="device-dropdown",
-                                                                placeholder="Select device column...",
-                                                                className="mb-3",
+                                                            html.Div(
+                                                                [
+                                                                    dcc.Dropdown(
+                                                                        id="device-dropdown",
+                                                                        placeholder="Select device column...",
+                                                                        className="flex-1",
+                                                                    ),
+                                                                    html.Div(id="device-confidence", className="ml-2 flex items-center"),
+                                                                ],
+                                                                className="flex items-center",
                                                             ),
                                                         ],
                                                         className="mb-4",
                                                     ),
+
+                                                    # User mapping
                                                     html.Div(
                                                         [
                                                             html.Label(
-                                                                "👤 User/Person Column:",
-                                                                className="block text-sm font-medium mb-1",
+                                                                "👤 User ID Column",
+                                                                className="block text-sm font-medium text-gray-700 mb-2",
                                                             ),
-                                                            dcc.Dropdown(
-                                                                id="user-dropdown",
-                                                                placeholder="Select user column...",
-                                                                className="mb-3",
+                                                            html.Div(
+                                                                [
+                                                                    dcc.Dropdown(
+                                                                        id="user-dropdown",
+                                                                        placeholder="Select user column...",
+                                                                        className="flex-1",
+                                                                    ),
+                                                                    html.Div(id="user-confidence", className="ml-2 flex items-center"),
+                                                                ],
+                                                                className="flex items-center",
                                                             ),
                                                         ],
                                                         className="mb-4",
                                                     ),
+
+                                                    # Event mapping
                                                     html.Div(
                                                         [
                                                             html.Label(
-                                                                "📋 Event Type Column:",
-                                                                className="block text-sm font-medium mb-1",
+                                                                "📝 Event Type Column",
+                                                                className="block text-sm font-medium text-gray-700 mb-2",
                                                             ),
-                                                            dcc.Dropdown(
-                                                                id="event-dropdown",
-                                                                placeholder="Select event column...",
-                                                                className="mb-3",
+                                                            html.Div(
+                                                                [
+                                                                    dcc.Dropdown(
+                                                                        id="event-dropdown",
+                                                                        placeholder="Select event column...",
+                                                                        className="flex-1",
+                                                                    ),
+                                                                    html.Div(id="event-confidence", className="ml-2 flex items-center"),
+                                                                ],
+                                                                className="flex items-center",
                                                             ),
                                                         ],
-                                                        className="mb-4",
+                                                        className="mb-6",
                                                     ),
                                                 ],
-                                                className="grid grid-cols-1 gap-4",
+                                                className="space-y-4",
                                             ),
-                                        ]
-                                    ),
-                                    # Modal footer
-                                    html.Div(
-                                        [
-                                            html.Button(
-                                                "❌ Cancel",
-                                                id="close-mapping-modal",
-                                                className="px-4 py-2 bg-gray-500 text-white rounded mr-2",
+
+                                            # COLUMN PREVIEW SECTION
+                                            html.Div(
+                                                [
+                                                    html.H4(
+                                                        "📋 Available Columns",
+                                                        className="text-sm font-medium text-gray-700 mb-2",
+                                                    ),
+                                                    html.Div(
+                                                        id="column-preview-list",
+                                                        className="bg-gray-50 p-3 rounded max-h-32 overflow-y-auto",
+                                                    ),
+                                                ],
+                                                className="mb-4",
                                             ),
-                                            html.Button(
-                                                "✅ Verify & Continue",
-                                                id="verify-mapping",
-                                                className="px-4 py-2 bg-blue-600 text-white rounded",
+
+                                            # Action buttons
+                                            html.Div(
+                                                [
+                                                    dbc.Button(
+                                                        "✅ Verify Mapping",
+                                                        id="verify-mapping",
+                                                        color="primary",
+                                                        className="mr-2",
+                                                    ),
+                                                    dbc.Button(
+                                                        "Cancel",
+                                                        id="close-mapping-modal",
+                                                        color="secondary",
+                                                    ),
+                                                ],
+                                                className="flex justify-end space-x-2",
                                             ),
                                         ],
-                                        className="flex justify-end mt-6",
+                                        className="p-4",
                                     ),
                                 ],
-                                className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto",
+                                className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto",
                             ),
-                        ],
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4",
+                        ]
                     ),
                 ],
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
                 id="column-mapping-modal",
-                style={"display": "none"},  # FIXED: Initially hidden
+                style={"display": "none"},
             ),
             # Hidden stores for data persistence
             dcc.Store(id="uploaded-file-store"),
