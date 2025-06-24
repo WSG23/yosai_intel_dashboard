@@ -24,12 +24,14 @@ from .base import (
     AnomalyDetectionModel,
     ModelFactory,
 )
-from config.database_manager import MockDatabaseConnection
+
+# Fixed: Import MockConnection, not MockDatabaseConnection
+from config.database_manager import MockConnection
 
 # Define exports
 __all__ = [
     # Enums
-    'AnomalyType', 'AccessResult', 'BadgeStatus', 'SeverityLevel', 
+    'AnomalyType', 'AccessResult', 'BadgeStatus', 'SeverityLevel',
     'TicketStatus', 'DoorType',
     
     # Entities
@@ -43,5 +45,5 @@ __all__ = [
     'AccessEventModel',
     'AnomalyDetectionModel',
     'ModelFactory',
-    'MockDatabaseConnection'
+    'MockConnection'  # Fixed: was MockDatabaseConnection
 ]

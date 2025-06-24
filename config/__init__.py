@@ -9,26 +9,33 @@ from .yaml_config import (
     AnalyticsConfig,
     MonitoringConfig,
     LoggingConfig,
-
 )
-from .cache_manager import CacheConfig
 
 from .database_manager import (
     DatabaseManager,
-    MockDatabaseConnection,
+    MockConnection,  # Fixed: was MockDatabaseConnection
     DatabaseConfig,
+    SQLiteConnection,
+    DatabaseConnection,
 )
 
-from .cache_manager import MemoryCacheManager, RedisCacheManager
+try:
+    from .cache_manager import MemoryCacheManager, RedisCacheManager
+except ImportError:
+    # Handle case where cache manager doesn't exist
+    MemoryCacheManager = None
+    RedisCacheManager = None
 
 __all__ = [
-    'ConfigManager',
-    'get_config',
+    'ConfigurationManager',
+    'get_configuration_manager', 
     'AppConfig',
     'DatabaseConfig',
     'CacheConfig',
     'DatabaseManager',
-    'MockDatabaseConnection',
+    'MockConnection',  # Fixed: was MockDatabaseConnection
+    'SQLiteConnection',
+    'DatabaseConnection',
     'MemoryCacheManager',
     'RedisCacheManager',
 ]
