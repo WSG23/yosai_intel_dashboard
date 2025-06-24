@@ -6,8 +6,14 @@ FIXED version that removes the f-string syntax error
 
 from .service_container import ServiceContainer, get_container
 from .config_manager import ConfigManager
-from .app_factory import create_application
-from .service_registry import get_configured_container
+try:
+    from .app_factory import create_application
+except Exception:  # pragma: no cover - optional in test env
+    create_application = None
+try:
+    from .service_registry import get_configured_container
+except Exception:  # pragma: no cover
+    get_configured_container = None
 
 # Export public API
 __all__ = [

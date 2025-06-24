@@ -1,95 +1,32 @@
-"""Test configuration and fixtures"""
-
+"""Pytest configuration and shared fixtures"""
 import pytest
-import tempfile
-import shutil
-from pathlib import Path
-from typing import Generator
-import pandas as pd
-
-from core.service_container import ServiceContainer, get_container, configure_services
-from models.entities import Person, Door, AccessEvent
-from models.enums import AccessResult, DoorType
-
+from core.container import TestContainer
+from config.config_manager import Config, DatabaseConfig, AppConfig
+from database.connection import MockConnection
+from services.analytics import AnalyticsService
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
-    """Create temporary directory for tests"""
-
-    temp_path = Path(tempfile.mkdtemp())
-    yield temp_path
-    shutil.rmtree(temp_path)
-
-
-@pytest.fixture
-def di_container() -> ServiceContainer:
-    """Create DI container for tests"""
-
-    configure_services()
-    return get_container()
-
-
-@pytest.fixture
-def sample_access_data() -> pd.DataFrame:
-    """Sample access data for testing"""
-
-    return pd.DataFrame(
-        [
-            {
-                "person_id": "EMP001",
-                "door_id": "MAIN_ENTRANCE",
-                "timestamp": "2024-01-15 09:00:00",
-                "access_result": AccessResult.GRANTED.value,
-            },
-            {
-                "person_id": "EMP002",
-                "door_id": "SERVER_ROOM",
-                "timestamp": "2024-01-15 23:00:00",
-                "access_result": AccessResult.DENIED.value,
-            },
-        ]
+def test_config():
+    return Config(
+        database=DatabaseConfig(type="mock", name=":memory:"),
+        app=AppConfig(debug=True, environment="test")
     )
 
+@pytest.fixture
+def test_container(test_config):
+    with TestContainer() as container:
+        container.register_instance('config', test_config)
+        container.register_instance('database_connection', MockConnection())
+        container.register_singleton(
+            'analytics_service',
+            lambda: AnalyticsService(container.get('database_connection'))
+        )
+        yield container
 
 @pytest.fixture
-def sample_persons() -> list[Person]:
-    """Sample person entities for testing"""
-
-    return [
-        Person(
-            person_id="EMP001",
-            name="John Doe",
-            department="IT",
-            clearance_level=3,
-        ),
-        Person(
-            person_id="EMP002",
-            name="Jane Smith",
-            department="Security",
-            clearance_level=5,
-        ),
-    ]
-
+def mock_db():
+    return MockConnection()
 
 @pytest.fixture
-def sample_doors() -> list[Door]:
-    """Sample door entities for testing"""
-
-    return [
-        Door(
-            door_id="MAIN_ENTRANCE",
-            door_name="Main Entrance",
-            facility_id="HQ",
-            area_id="LOBBY",
-            door_type=DoorType.STANDARD,
-        ),
-        Door(
-            door_id="SERVER_ROOM",
-            door_name="Server Room",
-            facility_id="HQ",
-            area_id="IT_FLOOR",
-            door_type=DoorType.CRITICAL,
-            required_clearance=4,
-        ),
-    ]
-
+def analytics_service(mock_db):
+    return AnalyticsService(mock_db)
