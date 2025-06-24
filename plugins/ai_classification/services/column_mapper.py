@@ -6,6 +6,7 @@ from datetime import datetime
 
 from ..database.csv_storage import CSVStorageRepository
 from ..config import ColumnMappingConfig
+from ..database.ai_models import ColumnClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,13 @@ class ColumnMappingService:
         self.repository = repository
         self.config = config
         self.logger = logger
+        self.classifier: Optional[ColumnClassifier] = None
+        if self.config.learning_enabled:
+            self.classifier = ColumnClassifier(
+                self.config.model_path, self.config.vectorizer_path
+            )
+            if not self.classifier.is_ready():
+                self.logger.warning("ML model not found, using heuristics")
 
     def map_columns(self, headers: List[str], session_id: str) -> Dict[str, Any]:
         mapping: Dict[str, str] = {}
@@ -65,7 +73,7 @@ class ColumnMappingService:
             self.logger.error("mapping confirmation failed: %s", exc)
             return False
 
-    def _predict_field_type(self, header: str) -> Tuple[Optional[str], float]:
+    def _predict_field_type_heuristic(self, header: str) -> Tuple[Optional[str], float]:
         h = header.lower()
         best_field = None
         best_score = 0.0
@@ -80,4 +88,21 @@ class ColumnMappingService:
         if best_score < self.config.min_confidence_threshold:
             return None, 0.0
         return best_field, best_score
+
+    def _predict_field_type_ml(self, header: str) -> Tuple[Optional[str], float]:
+        if not self.classifier or not self.classifier.is_ready():
+            return self._predict_field_type_heuristic(header)
+        try:
+            prediction = self.classifier.predict([header])[0]
+            field, score = prediction
+            if score >= self.config.min_confidence_threshold:
+                return field, score
+        except Exception as exc:
+            self.logger.error("ml prediction failed: %s", exc)
+        return self._predict_field_type_heuristic(header)
+
+    def _predict_field_type(self, header: str) -> Tuple[Optional[str], float]:
+        if self.classifier and self.classifier.is_ready():
+            return self._predict_field_type_ml(header)
+        return self._predict_field_type_heuristic(header)
 

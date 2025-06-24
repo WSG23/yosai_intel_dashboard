@@ -23,6 +23,8 @@ class ColumnMappingConfig:
     min_confidence_threshold: float = 0.3
     auto_confirm_threshold: float = 0.9
     learning_enabled: bool = True
+    model_path: str = "data/column_model.joblib"
+    vectorizer_path: str = "data/column_vectorizer.joblib"
 
 
 @dataclass
