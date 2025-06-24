@@ -771,6 +771,7 @@ def create_error_modal(title, message):
                             ),
                         ],
                         className="bg-white p-6 rounded-lg max-w-md",
+                        **{"data-theme": "light"},
                     )
                 ],
                 className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4",
@@ -971,7 +972,9 @@ def create_door_mapping_modal_with_data(devices, device_column):
                                                     ),
                                                     # Table body
                                                     html.Tbody(
-                                                        device_rows, className="bg-white divide-y divide-gray-200"
+                                                        device_rows,
+                                                        className="bg-white divide-y divide-gray-200",
+                                                        **{"data-theme": "light"}
                                                     ),
                                                 ],
                                                 className="min-w-full divide-y divide-gray-200",
@@ -1021,6 +1024,7 @@ def create_door_mapping_modal_with_data(devices, device_column):
                             ),
                         ],
                         className="bg-white rounded-lg max-w-6xl w-full max-h-screen overflow-hidden shadow-xl",
+                        **{"data-theme": "light"},
                     )
                 ],
                 className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-auto",
