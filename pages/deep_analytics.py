@@ -12,15 +12,14 @@ def safe_text(text):
         return ""
     return str(text)
 
-# Safe imports with fallbacks
-try:
-    from dash import html, dcc, callback
-    from dash.dependencies import Input, Output, State
-    import dash_bootstrap_components as dbc
-    DASH_AVAILABLE = True
-except ImportError:
-    DASH_AVAILABLE = False
-    html = dcc = dbc = None
+# Dash components are required for this page
+from dash import html, dcc
+from dash._callback import callback
+from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
+
+# Dash is expected to be installed when this module is used
+DASH_AVAILABLE = True
 
 try:
     from components.analytics import (
