@@ -532,6 +532,17 @@ def create_dual_file_uploader(upload_id="upload-data"):
                     ],
                     className="mb-4",
                 ),
+                html.Div(id="upload-status-message"),
+                html.Div(id="modal-file-info"),
+                dcc.Store(id="uploaded-file-store"),
+                dcc.Store(id="processed-data-store"),
+                html.Div(id="proceed-to-device-mapping", style={"display": "none"}),
+                render_column_mapping_panel(
+                    header_options=[],
+                    file_name="",
+                    ai_suggestions={},
+                    floor_estimate={"total_floors": 1, "confidence": 0},
+                ),
             ],
             className="max-w-2xl mx-auto",
         )
@@ -700,12 +711,12 @@ def _handle_modal_close():
         Output("proceed-to-device-mapping", "style"),
     ],
     [
-        Input("upload-data", "contents"),
+        Input("upload-data", "filename"),
         Input("verify-mapping", "n_clicks"),
         Input("close-mapping-modal", "n_clicks"),
     ],
     [
-        State("upload-data", "filename"),
+        State("upload-data", "contents"),
         State("timestamp-dropdown", "value"),
         State("device-dropdown", "value"),
         State("user-dropdown", "value"),
@@ -715,8 +726,8 @@ def _handle_modal_close():
     ],
     prevent_initial_call=True
 )
-def handle_upload_workflow(upload_contents, verify_clicks, close_clicks,
-                          upload_filename, timestamp_col, device_col, user_col, event_col,
+def handle_upload_workflow(upload_filename, verify_clicks, close_clicks,
+                          upload_contents, timestamp_col, device_col, user_col, event_col,
                           file_store, processed_store):
     """Simplified callback handling upload workflow"""
 
