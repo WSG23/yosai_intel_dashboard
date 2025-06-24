@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output
-from pages import file_upload
+from pages import get_page_layout
 
 logger = logging.getLogger(__name__)
 
@@ -208,9 +208,28 @@ def create_dashboard_page():
 def create_file_upload_page():
     """Create file upload page"""
     try:
-        from pages import file_upload
-
-        return file_upload.layout()
+        layout_func = get_page_layout('file_upload')
+        if layout_func:
+            return layout_func()
+        logger.warning(
+            "File upload dependencies missing. Optional packages like pandas are required."
+        )
+        return dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Alert([
+                        html.H4(
+                            "⚠️ File Upload Unavailable", className="alert-heading"
+                        ),
+                        html.P(
+                            "Required dependencies (e.g., pandas) are not installed."
+                        ),
+                        html.Hr(),
+                        dbc.Button("← Back to Dashboard", href="/", color="primary"),
+                    ], color="warning"),
+                ])
+            ])
+        ], className="mt-5")
     except Exception as e:
         logger.error(f"Error creating file upload page: {e}")
         return create_error_page("File upload page error")
@@ -328,6 +347,12 @@ def register_dashboard_callbacks(app):
 def register_file_upload_callbacks(app):
     """Ensure file upload callbacks are registered"""
     try:
+        if get_page_layout('file_upload') is None:
+            logger.warning(
+                "File upload callbacks not registered. Optional dependencies may be missing."
+            )
+            return
+
         # Importing registers callbacks via @callback decorators
         from components.analytics import file_uploader  # noqa: F401
         logger.info("File upload callbacks registered")
