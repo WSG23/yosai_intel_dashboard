@@ -1399,3 +1399,24 @@ table, .data-table {
 td, th {
     color: #f8f9fa !important;
 }
+
+/* Upload Box Text Fixes */
+.upload-box-title {
+  color: #ffffff !important;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+
+.upload-box * {
+  color: #f7fafc !important;
+}
+
+.upload-box ul,
+.upload-box li {
+  color: #e2e8f0 !important;
+}
+
+.upload-box strong,
+.upload-box b {
+  color: #ffffff !important;
+}
