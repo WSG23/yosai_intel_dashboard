@@ -1,6 +1,5 @@
 # components/analytics/analytics_charts.py - Chart generation component
 import plotly.express as px
-import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 from typing import Dict, Any, List, Optional, Tuple
@@ -38,6 +37,14 @@ def create_analytics_charts(analytics_data: Dict[str, Any]) -> html.Div:
         doors_chart = _create_top_doors_chart(analytics_data['top_doors'])
         if doors_chart:
             charts.append(doors_chart)
+
+    # Numeric Summary Charts
+    if 'numeric_summary' in analytics_data and analytics_data['numeric_summary']:
+        charts.extend(_create_numeric_summary_charts(analytics_data['numeric_summary']))
+
+    # Categorical Summary Charts
+    if 'categorical_summary' in analytics_data and analytics_data['categorical_summary']:
+        charts.extend(_create_categorical_summary_charts(analytics_data['categorical_summary']))
     
     if not charts:
         return html.Div([
@@ -219,9 +226,63 @@ def _create_top_doors_chart(top_doors: Dict[str, int]) -> Optional[dbc.Col]:
         print(f"Error creating top doors chart: {e}")
         return None
 
-def _create_metric_card(
-    title: str, value: str, color: str, small_text: bool = False
-) -> dbc.Col:
+
+def _create_numeric_summary_charts(numeric_summary: Dict[str, Dict[str, float]]) -> List[dbc.Col]:
+    """Create charts for numeric column summaries"""
+    charts: List[dbc.Col] = []
+    for column, stats in numeric_summary.items():
+        try:
+            metrics = list(stats.keys())
+            values = list(stats.values())
+            fig = px.bar(x=metrics, y=values, title=f"{column} Summary")
+            fig.update_layout(xaxis_title="Metric", yaxis_title="Value", height=400)
+
+            charts.append(
+                dbc.Col(
+                    [
+                        dbc.Card(
+                            [
+                                dbc.CardHeader(f"{column} Statistics"),
+                                dbc.CardBody([dcc.Graph(figure=fig, id=f"{column}-numeric-chart")]),
+                            ]
+                        )
+                    ],
+                    width=6,
+                )
+            )
+        except Exception as e:  # pragma: no cover - visualization failure shouldn't crash
+            print(f"Error creating numeric summary chart for {column}: {e}")
+    return charts
+
+
+def _create_categorical_summary_charts(categorical_summary: Dict[str, Dict[str, int]]) -> List[dbc.Col]:
+    """Create charts for categorical column summaries"""
+    charts: List[dbc.Col] = []
+    for column, values in categorical_summary.items():
+        try:
+            categories = list(values.keys())
+            counts = list(values.values())
+            fig = px.bar(x=categories, y=counts, title=f"{column} Top Categories")
+            fig.update_layout(xaxis_title="Category", yaxis_title="Count", height=400)
+
+            charts.append(
+                dbc.Col(
+                    [
+                        dbc.Card(
+                            [
+                                dbc.CardHeader(f"{column} Distribution"),
+                                dbc.CardBody([dcc.Graph(figure=fig, id=f"{column}-categorical-chart")]),
+                            ]
+                        )
+                    ],
+                    width=6,
+                )
+            )
+        except Exception as e:  # pragma: no cover
+            print(f"Error creating categorical summary chart for {column}: {e}")
+    return charts
+
+def _create_metric_card(title: str, value: str, color: str, small_text: bool = False) -> dbc.Col:
     """Create a metric display card"""
     value_class = "h6" if small_text else "h4"
     heading = html.H6 if small_text else html.H4

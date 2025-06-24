@@ -124,6 +124,7 @@ flake8 .
 - **Real-time Security Monitoring**: Live access control event monitoring
 - **AI-Powered Anomaly Detection**: Advanced pattern recognition
 - **Interactive Analytics**: Deep dive data analysis with file uploads
+- **Automatic Data Summaries**: Charts for numeric distributions and top categories
 - **Modular Architecture**: Easy to maintain, test, and extend
 - **Multi-page Interface**: Organized functionality across multiple pages
 - **Type-Safe**: Full type annotations and validation
