@@ -6,7 +6,7 @@ import logging
 from typing import Any, Optional, Dict
 import pandas as pd
 from services.protocols import DatabaseProtocol
-from .yaml_config import DatabaseConfig
+from .config_manager import DatabaseConfig
 
 logger = logging.getLogger(__name__)
 
