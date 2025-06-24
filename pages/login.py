@@ -2,7 +2,8 @@
 """Login page component"""
 
 import dash_bootstrap_components as dbc
-from dash import html, dcc, callback, Output, Input, State
+from dash import html, dcc
+from dash.dependencies import Output, Input, State
 from core.plugins.decorators import safe_callback
 
 
