@@ -3,6 +3,7 @@ Dual Upload Box Component with Tailwind styling and working callbacks
 """
 
 from dash import html, dcc, callback, Input, Output, State, callback_context, no_update
+from dash.exceptions import PreventUpdate
 import dash
 import dash_bootstrap_components as dbc
 import base64
@@ -15,7 +16,6 @@ from typing import Dict, List, Optional, Any, Tuple
 import json
 from datetime import datetime
 import tempfile
-from dash.exceptions import PreventUpdate
 import os
 
 USER_MAPPING_FILE = os.path.join("data", "user_mappings.json")
@@ -285,12 +285,8 @@ class FileUploadController:
             return self._error_response(f"Verification failed: {str(e)}")
 
     def _error_response(self, message: str) -> Dict[str, Any]:
-        """Standardized error response"""
-        return {
-            'success': False,
-            'error': message,
-            'show_modal': False
-        }
+        """Return standardized error response"""
+        return {'success': False, 'error': message}
 
 
 class DeviceMapper:
@@ -673,6 +669,14 @@ def render_column_mapping_panel(
     )
 
 
+def _handle_modal_close():
+    """Handle modal close action"""
+    return [
+        {"display": "none"}, "", "", [], [], [], [],
+        None, None, None, None, {}, {}, {"display": "none"}
+    ]
+
+
 @callback(
     [
         Output("column-mapping-modal", "style"),
@@ -855,26 +859,6 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
         no_update,
         verification_result.get('session_data', processed_store),
         {"display": "block"},
-    ]
-
-
-def _handle_modal_close():
-    """Handle modal close action"""
-    return [
-        {"display": "none"},
-        "",
-        "",
-        [],
-        [],
-        [],
-        [],
-        None,
-        None,
-        None,
-        None,
-        {},
-        {},
-        {"display": "none"},
     ]
 
 
