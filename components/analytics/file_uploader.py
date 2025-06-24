@@ -168,12 +168,15 @@ class FileUploadController:
             content_type, content_string = upload_contents.split(',')
             decoded = base64.b64decode(content_string)
 
+            # Normalize file extension handling
+            filename_lower = filename.lower()
+
             # Parse based on file extension
-            if filename.endswith('.csv'):
+            if filename_lower.endswith('.csv'):
                 return self._parse_csv(decoded)
-            elif filename.endswith(('.xlsx', '.xls')):
+            elif filename_lower.endswith(('.xlsx', '.xls')):
                 return self._parse_excel(decoded)
-            elif filename.endswith('.json'):
+            elif filename_lower.endswith('.json'):
                 return self._parse_json(decoded)
             else:
                 raise ValueError(f"Unsupported file type: {filename}")
