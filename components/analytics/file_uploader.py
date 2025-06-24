@@ -753,7 +753,22 @@ def _handle_file_upload(upload_contents, upload_filename):
 
     if not result['success']:
         error_msg = html.Div(result['error'], className="text-red-600")
-        return [{"display": "none"}] + [error_msg] + [""]*11
+        return [
+            {"display": "none"},
+            error_msg,
+            "",
+            [],
+            [],
+            [],
+            [],
+            None,
+            None,
+            None,
+            None,
+            {},
+            {},
+            {"display": "none"},
+        ]
 
     columns = result['columns']
     column_options = [{"label": col, "value": col} for col in columns]
