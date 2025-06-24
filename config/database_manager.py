@@ -15,6 +15,7 @@ from typing import Optional, Protocol
 
 import pandas as pd
 
+
 from core.exceptions import DatabaseError
 
 
@@ -139,6 +140,7 @@ class MockConnection:
 
     def health_check(self) -> bool:
         return True
+
 
 
 class DatabaseManager:

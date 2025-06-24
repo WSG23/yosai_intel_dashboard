@@ -55,7 +55,7 @@ def test_imports():
             DatabaseManagerFactory,
             CacheManagerFactory,
             get_service_locator,
-            get_configuration_manager
+            get_config
         )
         print("✅ All imports successful")
         return True
@@ -66,8 +66,8 @@ def test_imports():
 def test_configuration():
     """Test configuration loading"""
     try:
-        from core.plugins.config import get_configuration_manager
-        config_manager = get_configuration_manager()
+        from core.plugins.config import get_config
+        config_manager = get_config()
         config_manager.load_configuration(None)  # Use defaults
         print(f"✅ Configuration loaded - Database: {config_manager.database_config.type}")
         return True
@@ -78,8 +78,8 @@ def test_configuration():
 def test_service_locator():
     """Test service locator"""
     try:
-        from core.plugins.config import get_configuration_manager, get_service_locator
-        config_manager = get_configuration_manager()
+        from core.plugins.config import get_config, get_service_locator
+        config_manager = get_config()
         config_manager.load_configuration(None)
         service_locator = get_service_locator()
         service_locator.initialize_from_config(config_manager)
@@ -100,8 +100,8 @@ def test_service_locator():
 def test_database_factory():
     """Test database factory"""
     try:
-        from core.plugins.config import DatabaseManagerFactory, get_configuration_manager
-        config_manager = get_configuration_manager()
+        from core.plugins.config import DatabaseManagerFactory, get_config
+        config_manager = get_config()
         config_manager.load_configuration(None)
         db_manager = DatabaseManagerFactory.create_manager(config_manager.database_config)
         result = db_manager.get_connection()

@@ -10,7 +10,7 @@ This project follows a fully modular architecture for maximum maintainability an
 yosai_intel_dashboard/
 ├── app.py                     # Main application entry point
 ├── config/                    # Configuration management
-│   ├── yaml_config.py         # YAML-based configuration loader
+│   ├── config_manager.py      # Simplified configuration loader
 │   ├── database_manager.py    # Database connections and pooling
 │   └── app_config.py          # Immutable configuration models
 ├── models/                    # Data models and business entities
@@ -131,10 +131,11 @@ flake8 .
 
 ## 🔧 Configuration
 
-This project uses **`config/yaml_config.py`** as the single source of
-configuration. Earlier versions included a `unified_config.py` module, but it
-has been removed in favor of the YAML-based system. All settings are loaded from
-YAML files in `config/` and can be overridden via environment variables.
+This project uses **`config/config_manager.py`** for application settings. It
+loads defaults from `config/config.yaml` and allows environment variables to
+override any value. Earlier versions included `yaml_config.py` and
+`unified_config.py`; these have been replaced by the streamlined
+`ConfigManager`.
 
 ### Database
 

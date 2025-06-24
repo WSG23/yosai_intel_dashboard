@@ -2,28 +2,26 @@
 
 # Re-export from main config to prevent import errors
 try:
-    from config.yaml_config import (
-        ConfigurationManager,
-        get_configuration_manager,
+    from config.config_manager import (
+        ConfigManager,
+        get_config,
         AppConfig,
         DatabaseConfig,
-        CacheConfig,
-        SecurityConfig
     )
+    from config.cache_manager import CacheConfig
 
     # Service locator compatibility
     def get_service_locator():
         """Compatibility function for service locator"""
-        return get_configuration_manager()
+        return get_config()
 
     __all__ = [
-        'ConfigurationManager',
-        'get_configuration_manager',
+        'ConfigManager',
+        'get_config',
         'get_service_locator',
         'AppConfig',
         'DatabaseConfig',
         'CacheConfig',
-        'SecurityConfig'
     ]
 
 except ImportError:
