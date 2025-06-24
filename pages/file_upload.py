@@ -4,6 +4,7 @@ Enhanced File Upload Page with AI Integration and Dual Loading
 
 from dash import html, dcc
 import logging
+import dash_bootstrap_components as dbc
 from components.analytics.file_uploader import create_dual_file_uploader
 
 logger = logging.getLogger(__name__)
