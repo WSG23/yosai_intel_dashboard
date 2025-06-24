@@ -555,8 +555,10 @@ def create_dual_file_uploader(upload_id="upload-data"):
 
 
 def render_column_mapping_panel(
-    header_options, file_name, ai_suggestions=None, floor_estimate=None, user_id="default"
+    header_options, file_name="access_control_data.csv", ai_suggestions=None, floor_estimate=None, user_id="default"
 ):
+    """Enhanced column mapping UI panel with AI suggestions and verification."""
+
     if ai_suggestions is None:
         ai_suggestions = {}
     if floor_estimate is None:
@@ -566,13 +568,20 @@ def render_column_mapping_panel(
         return html.Div(
             className="form-field",
             children=[
-                html.Label(label),
+                html.Label(
+                    label + (" *" if required else ""),
+                    className="form-label" + (" form-label--required" if required else ""),
+                ),
+                html.Small(
+                    f"AI Suggestion: {suggested_value}" if suggested_value else "No AI suggestion",
+                    className="form-help-text",
+                ),
                 dcc.Dropdown(
                     id=field_id,
-                    options=[{"label": h, "value": h} for h in header_options],
+                    options=[{"label": col, "value": col} for col in header_options],
                     value=suggested_value,
-                    placeholder="Select column",
-                    style={"width": "100%"},
+                    placeholder="Select a column...",
+                    className="form-select",
                 ),
             ],
         )
@@ -580,19 +589,96 @@ def render_column_mapping_panel(
     return html.Div(
         id="column-mapping-modal",
         className="modal-overlay",
-        style={"display": "none"},  # hidden by default
+        style={"display": "none"},
         children=[
             html.Div(
-                className="modal-content",
+                className="modal modal--xl",
                 children=[
-                    html.H3(f"Map Columns for {file_name}"),
-                    html.Div(id="modal-file-info"),
-                    create_field_dropdown("Timestamp Column", "timestamp-dropdown", ai_suggestions.get("timestamp")),
-                    create_field_dropdown("Device Column",    "device-dropdown",    ai_suggestions.get("device")),
-                    create_field_dropdown("User ID Column",   "user-dropdown",      ai_suggestions.get("user")),
-                    create_field_dropdown("Event Column",     "event-dropdown",     ai_suggestions.get("event")),
-                    html.Button("Confirm Mapping", id="verify-mapping", n_clicks=0),
-                    html.Button("Close",           id="close-mapping-modal", n_clicks=0),
+                    html.Div(
+                        className="modal__header",
+                        children=[
+                            html.H2("Verify AI Column Mapping", className="modal__title"),
+                            html.P(f"File: {file_name}", className="modal__subtitle"),
+                            html.Button("\xd7", id="close-mapping-modal", className="modal__close"),
+                        ],
+                    ),
+                    html.Div(
+                        className="modal__body",
+                        children=[
+                            # Instructions
+                            html.Div(
+                                className="form-instructions",
+                                children=[
+                                    html.P(
+                                        "🤖 AI has analyzed your file and suggested column mappings below. Please verify and adjust as needed.",
+                                        className="form-instructions-text",
+                                    ),
+                                    html.P(
+                                        f"📊 Detected {len(header_options)} columns in your file",
+                                        className="form-instructions-subtext",
+                                    ),
+                                ],
+                            ),
+                            html.Hr(className="form-separator"),
+                            # Column Mapping Fields
+                            html.Div(
+                                className="form-grid",
+                                children=[
+                                    create_field_dropdown(
+                                        "Timestamp Column",
+                                        "timestamp-dropdown",
+                                        ai_suggestions.get("timestamp"),
+                                        required=True,
+                                    ),
+                                    create_field_dropdown(
+                                        "Device/Door Column",
+                                        "device-dropdown",
+                                        ai_suggestions.get("device_name"),
+                                    ),
+                                    create_field_dropdown(
+                                        "User ID Column", "user-dropdown", ai_suggestions.get("user_id")
+                                    ),
+                                    create_field_dropdown(
+                                        "Event Type Column", "event-dropdown", ai_suggestions.get("event_type")
+                                    ),
+                                ],
+                            ),
+                            html.Hr(className="form-separator"),
+                            # Floor Estimate
+                            html.Div(
+                                className="form-row",
+                                children=[
+                                    html.Div(
+                                        className="form-field",
+                                        children=[
+                                            html.Label("Number of Floors", className="form-label"),
+                                            dcc.Input(
+                                                id="floor-estimate-input",
+                                                type="number",
+                                                value=floor_estimate.get("total_floors", 1),
+                                                min=1,
+                                                max=100,
+                                                className="form-input",
+                                            ),
+                                            html.Small(
+                                                f"AI Confidence: {floor_estimate.get('confidence', 0) * 100:.0f}%",
+                                                className="form-help-text",
+                                            ),
+                                        ],
+                                    )
+                                ],
+                            ),
+                            # Hidden storage for user ID
+                            html.Div(id="user-id-storage", children=user_id, style={"display": "none"}),
+                        ],
+                    ),
+                    html.Div(
+                        className="modal__footer",
+                        children=[
+                            html.Button("Cancel", id="cancel-mapping", className="btn btn-secondary"),
+                            html.Button("\u2705 Verify & Learn", id="verify-mapping", className="btn btn-primary"),
+                        ],
+                    ),
                 ],
             )
         ],
@@ -607,73 +693,79 @@ def _handle_modal_close():
     ]
 
 
-
 @callback(
-    outputs=[
+    [
         Output("column-mapping-modal", "style"),
-        Output("upload-status-message",   "children"),
-        Output("modal-file-info",         "children"),
-        Output("timestamp-dropdown",      "options"),
-        Output("device-dropdown",         "options"),
-        Output("user-dropdown",           "options"),
-        Output("event-dropdown",          "options"),
-        Output("timestamp-dropdown",      "value"),
-        Output("device-dropdown",         "value"),
-        Output("user-dropdown",           "value"),
-        Output("event-dropdown",          "value"),
-        Output("uploaded-file-store",     "data"),
-        Output("processed-data-store",    "data"),
+        Output("upload-status-message", "children"),
+        Output("modal-file-info", "children"),
+        Output("timestamp-dropdown", "options"),
+        Output("device-dropdown", "options"),
+        Output("user-dropdown", "options"),
+        Output("event-dropdown", "options"),
+        Output("timestamp-dropdown", "value"),
+        Output("device-dropdown", "value"),
+        Output("user-dropdown", "value"),
+        Output("event-dropdown", "value"),
+        Output("uploaded-file-store", "data"),
+        Output("processed-data-store", "data"),
         Output("proceed-to-device-mapping", "style"),
     ],
-    inputs=[
-        Input("upload-data",      "contents"),
-        Input("upload-data",      "filename"),
-        Input("verify-mapping",   "n_clicks"),
+    [
+        Input("upload-data", "filename"),
+        Input("verify-mapping", "n_clicks"),
         Input("close-mapping-modal", "n_clicks"),
     ],
-    states=[
-        State("timestamp-dropdown",   "value"),
-        State("device-dropdown",      "value"),
-        State("user-dropdown",        "value"),
-        State("event-dropdown",       "value"),
-        State("uploaded-file-store",  "data"),
+    [
+        State("upload-data", "contents"),
+        State("timestamp-dropdown", "value"),
+        State("device-dropdown", "value"),
+        State("user-dropdown", "value"),
+        State("event-dropdown", "value"),
+        State("uploaded-file-store", "data"),
         State("processed-data-store", "data"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=True
 )
-def handle_upload_workflow(
-    upload_contents, upload_filename, verify_clicks, close_clicks,
-    ts_val, dev_val, usr_val, ev_val,
-    file_store, processed_store
-):
+def handle_upload_workflow(upload_filename, verify_clicks, close_clicks,
+                          upload_contents, timestamp_col, device_col, user_col, event_col,
+                          file_store, processed_store):
+    """Simplified callback handling upload workflow"""
+
     ctx = callback_context
-    trig = ctx.triggered[0]["prop_id"].split(".")[0]
+    if not ctx.triggered:
+        raise PreventUpdate
 
-    if trig == "upload-data" and upload_contents:
-        return _handle_file_upload(upload_contents, upload_filename)
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    if trig == "verify-mapping" and verify_clicks:
-        new_store = {**processed_store, "mapping": {
-            "timestamp": ts_val,
-            "device":    dev_val,
-            "user":      usr_val,
-            "event":     ev_val
-        }}
-        return (
-            {"display": "none"},
-            "Mapping confirmed!",
-            f"Columns mapped for {upload_filename}.",
-            [], [], [], [],
-            None, None, None, None,
-            file_store,
-            new_store,
-            {"display": "block"}
-        )
+    default_return = [
+        {"display": "none"},
+        "",
+        "",
+        [],
+        [], [], [],
+        None, None, None, None,
+        {},
+        {},
+        {"display": "none"},
+    ]
 
-    if trig == "close-mapping-modal" and close_clicks:
-        return [{"display": "none"}] + [""]*2 + [[]]*4 + [None]*4 + [{}, {}] + [{"display": "none"}]
+    try:
+        if trigger_id == "upload-data" and upload_contents:
+            return _handle_file_upload(upload_contents, upload_filename)
+        elif trigger_id == "verify-mapping" and verify_clicks:
+            return _handle_mapping_verification(
+                timestamp_col, device_col, user_col, event_col,
+                file_store, processed_store
+            )
+        elif trigger_id == "close-mapping-modal":
+            return _handle_modal_close()
+        else:
+            return default_return
+    except Exception as e:
+        logger.error(f"Callback error: {e}")
+        error_msg = html.Div(f"❌ Error: {str(e)}", className="text-red-600")
+        return [{"display": "none"}] + [error_msg] + default_return[2:]
 
-    raise PreventUpdate
 
 def _handle_file_upload(upload_contents, upload_filename):
     """Handle file upload processing"""
