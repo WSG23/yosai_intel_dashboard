@@ -219,15 +219,18 @@ def _create_top_doors_chart(top_doors: Dict[str, int]) -> Optional[dbc.Col]:
         print(f"Error creating top doors chart: {e}")
         return None
 
-def _create_metric_card(title: str, value: str, color: str, small_text: bool = False) -> dbc.Col:
+def _create_metric_card(
+    title: str, value: str, color: str, small_text: bool = False
+) -> dbc.Col:
     """Create a metric display card"""
     value_class = "h6" if small_text else "h4"
-    
+    heading = html.H6 if small_text else html.H4
+
     return dbc.Col([
         dbc.Card([
             dbc.CardBody([
-                html.H4(value, className=f"card-title text-{color} {value_class}"),
-                html.P(title, className="card-text text-muted")
+                heading(value, className=f"card-title text-{color} {value_class}"),
+                html.P(title, className="card-text text-muted"),
             ])
-        ], color=color, outline=True)
+        ], color=color, outline=True),
     ], width=3)
