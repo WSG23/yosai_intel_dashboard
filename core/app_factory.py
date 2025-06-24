@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output
+from pages import file_upload
 
 logger = logging.getLogger(__name__)
 
@@ -207,62 +208,7 @@ def create_dashboard_page():
 def create_file_upload_page():
     """Create file upload page"""
     try:
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H1("📂 File Upload & Processing", className="text-center mb-4"),
-                    html.P("Upload CSV, JSON, and Excel files for security analytics processing",
-                           className="text-center text-muted mb-4"),
-                ])
-            ]),
-
-            # Upload area
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader("📤 Upload Files"),
-                        dbc.CardBody([
-                            dcc.Upload(
-                                id='upload-data',
-                                children=html.Div([
-                                    html.I(className="fas fa-cloud-upload-alt fa-3x mb-3"),
-                                    html.H4("Drag and Drop or Click to Upload"),
-                                    html.P("Supports CSV, JSON, Excel files")
-                                ], className="text-center p-4"),
-                                style={
-                                    'width': '100%',
-                                    'height': '200px',
-                                    'lineHeight': '200px',
-                                    'borderWidth': '2px',
-                                    'borderStyle': 'dashed',
-                                    'borderRadius': '10px',
-                                    'borderColor': '#ccc',
-                                    'textAlign': 'center',
-                                    'margin': '10px'
-                                },
-                                multiple=True
-                            ),
-                            html.Div(id='upload-output'),
-                            html.Div(id='upload-status-message', className="mt-3")
-                        ])
-                    ])
-                ])
-            ]),
-
-            # AI Column Mapping
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader("🤖 AI Column Mapping"),
-                        dbc.CardBody([
-                            html.P("AI-powered column detection will appear here after file upload."),
-                            html.Div(id='column-mapping-area')
-                        ])
-                    ])
-                ], className="mt-4")
-            ])
-        ], fluid=True)
-
+        return file_upload.layout()
     except Exception as e:
         logger.error(f"Error creating file upload page: {e}")
         return create_error_page("File upload page error")
