@@ -905,6 +905,7 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
     # Verify mapping using existing controller
     verification_result = upload_controller.verify_column_mapping(mapping, processed_store)
 
+
     if not verification_result['success']:
         error_msg = html.Div(verification_result['error'], className="text-red-600")
         return [
@@ -924,6 +925,7 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
             mapping=mapping,
             filename=filename
         )
+
 
         # Success message with enhanced info
         success_msg = html.Div([
