@@ -1400,23 +1400,37 @@ td, th {
     color: #f8f9fa !important;
 }
 
-/* Upload Box Text Fixes */
+/* UPLOAD BOX TEXT FIXES - Add to bottom of dashboard.css */
+
+/* Override the existing dark colors with bright ones */
 .upload-box-title {
   color: #ffffff !important;
-  font-weight: 600;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  font-weight: 600 !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7) !important;
 }
 
+.upload-box-subtitle {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+
+.upload-supported-types {
+  color: #f8fafc !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+
+.upload-supported-types p {
+  color: #f8fafc !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+
+/* Force all text in upload areas to be bright */
+.dual-upload-wrapper,
+.dual-upload-wrapper * {
+  color: #ffffff !important;
+}
+
+.upload-box,
 .upload-box * {
-  color: #f7fafc !important;
-}
-
-.upload-box ul,
-.upload-box li {
-  color: #e2e8f0 !important;
-}
-
-.upload-box strong,
-.upload-box b {
   color: #ffffff !important;
 }
