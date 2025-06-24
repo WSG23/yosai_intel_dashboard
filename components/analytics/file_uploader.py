@@ -576,7 +576,9 @@ def render_column_mapping_panel(
         )
 
     return html.Div(
+        id="column-mapping-modal",
         className="modal-overlay",
+        style={"display": "none"},
         children=[
             html.Div(
                 className="modal modal--xl",
@@ -619,14 +621,14 @@ def render_column_mapping_panel(
                                     ),
                                     create_field_dropdown(
                                         "Device/Door Column",
-                                        "device-column-dropdown",
+                                        "device-dropdown",
                                         ai_suggestions.get("device_name"),
                                     ),
                                     create_field_dropdown(
-                                        "User ID Column", "user-id-dropdown", ai_suggestions.get("user_id")
+                                        "User ID Column", "user-dropdown", ai_suggestions.get("user_id")
                                     ),
                                     create_field_dropdown(
-                                        "Event Type Column", "event-type-dropdown", ai_suggestions.get("event_type")
+                                        "Event Type Column", "event-dropdown", ai_suggestions.get("event_type")
                                     ),
                                 ],
                             ),
@@ -908,7 +910,7 @@ def fallback_floor_estimation(data):
 @callback(
     Output("door-mapping-modal-data-trigger", "data"),
     [Input("door-mapping-modal-trigger", "n_clicks"), Input("skip-door-mapping", "n_clicks")],
-    [State("processed-data-store", "data"), State("device-column-dropdown", "value")],
+    [State("processed-data-store", "data"), State("device-dropdown", "value")],
     prevent_initial_call=True,
 )
 def handle_door_mapping(open_clicks, skip_clicks, processed_data, device_col):
