@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output
+from pages import file_upload
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,7 @@ def create_file_upload_page():
     """Create file upload page"""
     try:
         from pages import file_upload
+
         return file_upload.layout()
     except Exception as e:
         logger.error(f"Error creating file upload page: {e}")
