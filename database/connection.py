@@ -2,7 +2,7 @@
 
 import pandas as pd
 from typing import Optional, Protocol
-from config.database_manager import DatabaseManager, MockDatabaseConnection
+from config.database_manager import DatabaseManager, MockConnection
 
 
 class DatabaseConnection(Protocol):
@@ -40,4 +40,4 @@ def create_database_connection() -> DatabaseConnection:
 
 
 # For compatibility with existing imports
-__all__ = ['DatabaseConnection', 'create_database_connection', 'DatabaseManager', 'MockDatabaseConnection']
+__all__ = ['DatabaseConnection', 'create_database_connection', 'DatabaseManager', 'MockConnection']
