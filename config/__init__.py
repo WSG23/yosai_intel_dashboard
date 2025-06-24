@@ -1,41 +1,20 @@
-"""Simplified configuration package without plugin indirection."""
+"""Simplified configuration package"""
 
-from .yaml_config import (
-    ConfigurationManager,
-    get_configuration_manager,
-    AppConfig,
-    CacheConfig,
-    SecurityConfig,
-    AnalyticsConfig,
-    MonitoringConfig,
-    LoggingConfig,
+from .config import (
+    Config, AppConfig, DatabaseConfig, SecurityConfig,
+    ConfigManager, get_config, reload_config,
+    get_app_config, get_database_config, get_security_config,
 )
 
 from .database_manager import (
-    DatabaseManager,
-    MockConnection,  # Fixed: was MockDatabaseConnection
-    DatabaseConfig,
-    SQLiteConnection,
-    DatabaseConnection,
+    DatabaseManager, MockConnection, DatabaseConfig as DBConfig,
+    SQLiteConnection, DatabaseConnection
 )
 
-try:
-    from .cache_manager import MemoryCacheManager, RedisCacheManager
-except ImportError:
-    # Handle case where cache manager doesn't exist
-    MemoryCacheManager = None
-    RedisCacheManager = None
-
 __all__ = [
-    'ConfigurationManager',
-    'get_configuration_manager', 
-    'AppConfig',
-    'DatabaseConfig',
-    'CacheConfig',
-    'DatabaseManager',
-    'MockConnection',  # Fixed: was MockDatabaseConnection
-    'SQLiteConnection',
-    'DatabaseConnection',
-    'MemoryCacheManager',
-    'RedisCacheManager',
+    'Config', 'AppConfig', 'DatabaseConfig', 'SecurityConfig',
+    'ConfigManager', 'get_config', 'reload_config',
+    'get_app_config', 'get_database_config', 'get_security_config',
+    'DatabaseManager', 'MockConnection', 'DBConfig',
+    'SQLiteConnection', 'DatabaseConnection'
 ]
