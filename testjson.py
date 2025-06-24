@@ -17,7 +17,7 @@ def test_plugin_directly():
     try:
         # Import the fixed plugin
         from core.json_serialization_plugin import JsonSerializationPlugin, JsonSerializationConfig
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
         
         # Create plugin and container
         container = DIContainer()

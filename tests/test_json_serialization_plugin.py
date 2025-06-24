@@ -15,7 +15,7 @@ from plugins.builtin.json_serialization_plugin import (
     JsonSerializationService, JsonCallbackService
 )
 from core.plugins.manager import PluginManager
-from core.di_container import DIContainer
+from core.container import Container as DIContainer
 
 class TestJsonSerializationPlugin(unittest.TestCase):
     """Test the JSON Serialization Plugin"""

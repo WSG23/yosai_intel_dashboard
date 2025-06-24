@@ -8,7 +8,7 @@ def test_container_basic_functionality():
     print("🧪 Testing Container Basic Functionality...")
     
     try:
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
 
         # Create container
         container = DIContainer()
@@ -37,7 +37,7 @@ def test_dependency_injection():
     print("🧪 Testing Dependency Injection...")
     
     try:
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
 
         # Create container
         container = DIContainer()
@@ -69,7 +69,7 @@ def test_dependency_injection():
 
 def test_di_container_has_method():
     """Ensure DIContainer.has works for services and instances"""
-    from core.di_container import DIContainer
+    from core.container import Container as DIContainer
 
     container = DIContainer()
     container.register('service_a', lambda: 'a')
@@ -186,7 +186,7 @@ def test_mock_replacement():
     print("🧪 Testing Mock Replacement (DI Testing Benefit)...")
     
     try:
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
 
         # Create container
         container = DIContainer()

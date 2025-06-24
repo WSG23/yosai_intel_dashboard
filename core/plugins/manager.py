@@ -9,8 +9,9 @@ from core.plugins.protocols import (
     PluginStatus,
 )
 
-from core.di_container import DIContainer
+from core.container import Container as DIContainer
 from config.yaml_config import ConfigurationManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class PluginManager:
     def __init__(
         self,
         container: DIContainer,
-        config_manager: ConfigurationManager,
+        config_manager: ConfigManager,
         package: str = "plugins",
     ):
         self.container = container

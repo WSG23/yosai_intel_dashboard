@@ -2,7 +2,7 @@
 Simple service tests
 """
 import pandas as pd
-from services.analytics_service import AnalyticsService
+from services.analytics import AnalyticsService
 
 
 class TestAnalyticsService:

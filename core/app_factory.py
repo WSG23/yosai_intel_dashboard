@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from core.container import get_service
 from core.exceptions import YosaiBaseException
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +36,7 @@ class DashboardApp:
         )
         app.layout = self._create_layout()
         return app
+
 
     def _create_layout(self) -> html.Div:
         return html.Div(
@@ -241,6 +243,7 @@ def create_app() -> DashboardApp:
     except Exception as e:  # pragma: no cover - unexpected errors
         logger.error(f"Unexpected error during app creation: {e}")
         raise
+
 
 
 def create_application() -> dash.Dash:

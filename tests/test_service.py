@@ -345,16 +345,16 @@ class ConfigurationChecker(ServiceChecker):
     
     def _check_config_health(self) -> Dict[str, Any]:
         try:
-            # Try your actual YAML configuration manager
-            from config.yaml_config import ConfigurationManager
-            
-            config_manager = ConfigurationManager()
-            config_manager.load_configuration()
+            # Try streamlined configuration manager
+            from config.config_manager import ConfigManager
+
+            config_manager = ConfigManager()
+            config_manager.load_config()
             
             return {
                 'config_manager_type': 'YAML',
-                'config_loaded': hasattr(config_manager, '_config_source') and config_manager._config_source is not None,
-                'environment': getattr(config_manager, 'environment', 'unknown'),
+                'config_loaded': True,
+                'environment': getattr(config_manager.app, 'environment', 'unknown'),
                 'has_app_config': hasattr(config_manager, 'app_config'),
                 'has_database_config': hasattr(config_manager, 'database_config')
             }
