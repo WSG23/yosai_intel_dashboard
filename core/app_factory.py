@@ -1,381 +1,268 @@
+#!/usr/bin/env python3
 """
-Complete app factory with all original functionality restored
+Streamlined App Factory - Single responsibility for creating Dash applications
+Replaces: core/app_factory.py, core/layout_manager.py, core/callback_manager.py
 """
 import dash
 import logging
-from typing import Optional
+from typing import Optional, Any
 import dash_bootstrap_components as dbc
-from dash import html, dcc, Input, Output
-from pages import get_page_layout
+from dash import html, dcc, Input, Output, callback
 
 logger = logging.getLogger(__name__)
 
 
 def create_app() -> dash.Dash:
-    """Create fully functional Dash application with all pages"""
+    """Create Dash application with clean architecture"""
     try:
-        # Create Dash app
+        # Create Dash app with external stylesheets
         app = dash.Dash(
             __name__,
             external_stylesheets=[dbc.themes.BOOTSTRAP],
-            suppress_callback_exceptions=True
+            suppress_callback_exceptions=True,
+            assets_folder='assets'
         )
-
+        
         app.title = "Yōsai Intel Dashboard"
-
-        # Set main layout with navigation
-        app.layout = create_main_layout()
-
-        # Register all callbacks
-        register_all_callbacks(app)
-
-        logger.info("✅ Complete Dash application created successfully")
+        
+        # Set main layout
+        app.layout = _create_main_layout()
+        
+        # Register callbacks
+        _register_callbacks(app)
+        
+        logger.info("✅ Dash application created successfully")
         return app
-
+        
     except Exception as e:
         logger.error(f"Failed to create application: {e}")
         raise
 
 
-def create_main_layout():
-    """Create the main application layout with navigation"""
-    try:
-        return html.Div([
-            dcc.Location(id='url', refresh=False),
-
-            # Navigation bar
-            create_navigation_bar(),
-
-            # Main content area
-            html.Div(id='page-content', className="main-content"),
-
-            # Global stores
-            dcc.Store(id='global-data-store', data={}),
-            dcc.Store(id='user-session-store', data={}),
-        ])
-    except Exception as e:
-        logger.error(f"Error creating main layout: {e}")
-        return html.Div("Error creating layout")
+def _create_main_layout() -> html.Div:
+    """Create main application layout"""
+    return html.Div([
+        # URL routing component
+        dcc.Location(id='url', refresh=False),
+        
+        # Navigation bar
+        _create_navbar(),
+        
+        # Main content area (dynamically populated)
+        html.Div(id='page-content', className="main-content p-4"),
+        
+        # Global data stores
+        dcc.Store(id='global-store', data={}),
+        dcc.Store(id='session-store', data={}),
+    ])
 
 
-def create_navigation_bar():
+def _create_navbar() -> dbc.Navbar:
     """Create navigation bar"""
-    try:
-        return dbc.Navbar([
-            dbc.Container([
-                # Brand
-                dbc.NavbarBrand([
-                    html.Span("🏯 ", className="me-2"),
-                    "Yōsai Intel Dashboard"
-                ], href="/", className="navbar-brand"),
-
-                # Navigation links
-                dbc.Nav([
-                    dbc.NavItem(dbc.NavLink("Dashboard", href="/", active="exact")),
-                    dbc.NavItem(dbc.NavLink("File Upload", href="/file-upload", active="exact")),
-                    dbc.NavItem(dbc.NavLink("Analytics", href="/analytics", active="exact")),
-                ], className="ms-auto", navbar=True),
-
-                # Live time display
-                html.Span(id="live-time", className="navbar-text text-light ms-3"),
-            ], fluid=True)
-        ], color="dark", dark=True, className="mb-4")
-
-    except Exception as e:
-        logger.error(f"Error creating navigation bar: {e}")
-        return html.Div("Navigation error")
+    return dbc.Navbar(
+        dbc.Container([
+            # Brand
+            dbc.NavbarBrand([
+                html.I(className="fas fa-shield-alt me-2"),
+                "Yōsai Intel Dashboard"
+            ], href="/", className="text-primary fw-bold"),
+            
+            # Navigation links
+            dbc.Nav([
+                dbc.NavItem(dbc.NavLink("Dashboard", href="/", active="exact")),
+                dbc.NavItem(dbc.NavLink("Analytics", href="/analytics", active="exact")),
+                dbc.NavItem(dbc.NavLink("Upload", href="/upload", active="exact")),
+            ], className="ms-auto", navbar=True),
+            
+        ], fluid=True),
+        color="dark",
+        dark=True,
+        className="mb-4"
+    )
 
 
-def register_all_callbacks(app):
+def _register_callbacks(app: dash.Dash) -> None:
     """Register all application callbacks"""
-    try:
-        # Page routing callback
-        @app.callback(
-            Output('page-content', 'children'),
-            Input('url', 'pathname')
-        )
-        def display_page(pathname):
-            """Route to appropriate page"""
-            try:
-                if pathname == '/' or pathname is None:
-                    return create_dashboard_page()
-                elif pathname == '/file-upload':
-                    return create_file_upload_page()
-                elif pathname == '/analytics':
-                    return create_analytics_page()
-                else:
-                    return create_404_page(pathname)
-            except Exception as e:
-                logger.error(f"Error routing to {pathname}: {e}")
-                return create_error_page(f"Error loading page: {str(e)}")
-
-        # Live time callback
-        @app.callback(
-            Output('live-time', 'children'),
-            Input('url', 'pathname')
-        )
-        def update_time(pathname):
-            """Update live time display"""
-            try:
-                from datetime import datetime
-                return f"Live: {datetime.now().strftime('%H:%M:%S')}"
-            except Exception:
-                return "Live: --:--:--"
-
-        # Register page-specific callbacks
-        register_dashboard_callbacks(app)
-        register_file_upload_callbacks(app)
-        register_analytics_callbacks(app)
-
-        logger.info("All callbacks registered successfully")
-
-    except Exception as e:
-        logger.error(f"Error registering callbacks: {e}")
+    
+    @app.callback(
+        Output('page-content', 'children'),
+        Input('url', 'pathname'),
+        prevent_initial_call=False
+    )
+    def display_page(pathname: Optional[str]) -> Any:
+        """Route to appropriate page based on URL"""
+        try:
+            # Default to dashboard
+            if pathname == "/" or pathname is None:
+                return _create_dashboard_page()
+            
+            elif pathname == "/analytics":
+                return _create_analytics_page()
+            
+            elif pathname == "/upload":
+                return _create_upload_page()
+            
+            else:
+                return _create_404_page(pathname)
+                
+        except Exception as e:
+            logger.error(f"Error routing to {pathname}: {e}")
+            return _create_error_page(f"Error loading page: {str(e)}")
 
 
-def create_dashboard_page():
+def _create_dashboard_page() -> dbc.Container:
     """Create main dashboard page"""
-    try:
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H1("🏯 Yōsai Intel Dashboard", className="text-center mb-4"),
-                    html.Hr(),
-                ])
-            ]),
-
-            # Dashboard content
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader("📊 Dashboard Overview"),
-                        dbc.CardBody([
-                            dbc.Alert("✅ Dashboard loaded successfully!", color="success"),
-                            html.P("Welcome to your security intelligence dashboard."),
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H4("42", className="card-title text-primary"),
-                                            html.P("Total Events", className="card-text")
-                                        ])
-                                    ])
-                                ], width=4),
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H4("98%", className="card-title text-success"),
-                                            html.P("Success Rate", className="card-text")
-                                        ])
-                                    ])
-                                ], width=4),
-                                dbc.Col([
-                                    dbc.Card([
-                                        dbc.CardBody([
-                                            html.H4("3", className="card-title text-warning"),
-                                            html.P("Alerts", className="card-text")
-                                        ])
-                                    ])
-                                ], width=4),
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                html.H1("🏯 Dashboard", className="text-primary mb-4"),
+                dbc.Alert("✅ Dashboard loaded successfully!", color="success"),
+                
+                # Dashboard metrics
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H4("156", className="text-primary mb-0"),
+                                html.P("Active Events", className="text-muted mb-0")
                             ])
+                        ])
+                    ], width=3),
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H4("23", className="text-warning mb-0"),
+                                html.P("Pending Alerts", className="text-muted mb-0")
+                            ])
+                        ])
+                    ], width=3),
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H4("8", className="text-danger mb-0"),
+                                html.P("Critical Issues", className="text-muted mb-0")
+                            ])
+                        ])
+                    ], width=3),
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H4("99.7%", className="text-success mb-0"),
+                                html.P("System Health", className="text-muted mb-0")
+                            ])
+                        ])
+                    ], width=3),
+                ], className="mb-4"),
+                
+                # Quick actions
+                dbc.Card([
+                    dbc.CardHeader("Quick Actions"),
+                    dbc.CardBody([
+                        dbc.ButtonGroup([
+                            dbc.Button("📊 View Analytics", href="/analytics", color="primary"),
+                            dbc.Button("📁 Upload Data", href="/upload", color="secondary"),
+                            dbc.Button("⚙️ Settings", color="outline-secondary"),
                         ])
                     ])
                 ])
-            ]),
-
-            # Quick actions
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader("🚀 Quick Actions"),
-                        dbc.CardBody([
-                            dbc.ButtonGroup([
-                                dbc.Button("📂 Upload File", href="/file-upload", color="primary"),
-                                dbc.Button("📊 View Analytics", href="/analytics", color="info"),
-                                dbc.Button("🔍 Search Events", color="secondary", disabled=True),
-                            ])
-                        ])
-                    ])
-                ], className="mt-4")
             ])
-        ], fluid=True)
-
-    except Exception as e:
-        logger.error(f"Error creating dashboard: {e}")
-        return create_error_page("Dashboard error")
+        ])
+    ], fluid=True)
 
 
-def create_file_upload_page():
-    """Create file upload page"""
+def _create_analytics_page() -> Any:
+    """Create analytics page - imports from pages module"""
     try:
-        layout_func = get_page_layout('file_upload')
-        if layout_func:
-            return layout_func()
-        logger.warning(
-            "File upload dependencies missing. Optional packages like pandas are required."
+        from pages.deep_analytics import layout
+        return layout()
+    except ImportError:
+        return _create_placeholder_page(
+            "📊 Analytics", 
+            "Analytics page is being loaded...",
+            "The deep analytics module is not available."
         )
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    dbc.Alert([
-                        html.H4(
-                            "⚠️ File Upload Unavailable", className="alert-heading"
+
+
+def _create_upload_page() -> dbc.Container:
+    """Create file upload page"""
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                html.H1("📁 File Upload", className="text-primary mb-4"),
+                
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Upload Data Files", className="mb-3"),
+                        dcc.Upload(
+                            id='upload-data',
+                            children=html.Div([
+                                html.I(className="fas fa-cloud-upload-alt fa-3x mb-3"),
+                                html.H6("Drag and Drop or Click to Select Files"),
+                                html.P("Supports CSV, Excel, JSON files", 
+                                      className="text-muted")
+                            ], className="text-center p-4"),
+                            style={
+                                'width': '100%',
+                                'border': '2px dashed #ddd',
+                                'borderRadius': '8px',
+                                'textAlign': 'center',
+                                'cursor': 'pointer'
+                            },
+                            multiple=True
                         ),
-                        html.P(
-                            "Required dependencies (e.g., pandas) are not installed."
-                        ),
-                        html.Hr(),
-                        dbc.Button("← Back to Dashboard", href="/", color="primary"),
-                    ], color="warning"),
-                ])
-            ])
-        ], className="mt-5")
-    except Exception as e:
-        logger.error(f"Error creating file upload page: {e}")
-        return create_error_page("File upload page error")
-
-
-def create_analytics_page():
-    """Create analytics page"""
-    try:
-        return dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H1("📊 Deep Analytics", className="text-center mb-4"),
-                    html.P("Advanced data analysis and visualization for security intelligence",
-                           className="text-center text-muted mb-4"),
-                ])
-            ]),
-
-            # Data source selection
-            dbc.Row([
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader("📊 Data Source Selection"),
-                        dbc.CardBody([
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Select Data Source:"),
-                                    dcc.Dropdown(
-                                        id="analytics-data-source",
-                                        options=[
-                                            {"label": "Uploaded Files", "value": "uploaded"},
-                                            {"label": "Sample Data", "value": "sample"},
-                                            {"label": "Database", "value": "database"},
-                                        ],
-                                        value="sample",
-                                        placeholder="Choose data source..."
-                                    )
-                                ], width=6),
-                                dbc.Col([
-                                    dbc.Label("Analysis Type:"),
-                                    dcc.Dropdown(
-                                        id="analytics-type",
-                                        options=[
-                                            {"label": "Security Patterns", "value": "security"},
-                                            {"label": "Access Trends", "value": "trends"},
-                                            {"label": "User Behavior", "value": "behavior"},
-                                            {"label": "Custom Analysis", "value": "custom"},
-                                        ],
-                                        value="security",
-                                        placeholder="Select analysis type..."
-                                    )
-                                ], width=6),
-                            ]),
-                            html.Hr(),
-                            dbc.Button(
-                                "Generate Analytics",
-                                id="generate-analytics-btn",
-                                color="primary",
-                                className="mt-2"
-                            )
-                        ])
+                        
+                        html.Div(id='upload-output', className="mt-3")
                     ])
                 ])
-            ]),
-
-            # Analytics display area
-            dbc.Row([
-                dbc.Col([
-                    html.Div(id="analytics-display-area", className="mt-4")
-                ])
             ])
-        ], fluid=True)
-
-    except Exception as e:
-        logger.error(f"Error creating analytics page: {e}")
-        return create_error_page("Analytics page error")
+        ])
+    ], fluid=True)
 
 
-def create_404_page(pathname):
+def _create_placeholder_page(title: str, subtitle: str, message: str) -> dbc.Container:
+    """Create placeholder page for missing components"""
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                html.H1(title, className="text-primary mb-2"),
+                html.P(subtitle, className="text-muted mb-4"),
+                dbc.Alert([
+                    html.I(className="fas fa-info-circle me-2"),
+                    message
+                ], color="info"),
+                dbc.Button("← Back to Dashboard", href="/", color="primary")
+            ])
+        ])
+    ], fluid=True)
+
+
+def _create_404_page(pathname: str) -> dbc.Container:
     """Create 404 error page"""
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                html.H1("404 - Page Not Found", className="text-center text-danger"),
-                html.P(f"The page '{pathname}' was not found.", className="text-center text-muted"),
-                html.Div([
-                    dbc.Button("← Back to Dashboard", href="/", color="primary")
-                ], className="text-center mt-4")
+                html.H1("404 - Page Not Found", className="text-danger mb-4"),
+                html.P(f"The page '{pathname}' was not found.", className="mb-4"),
+                dbc.Button("← Back to Dashboard", href="/", color="primary")
             ])
         ])
-    ], className="mt-5")
+    ], fluid=True)
 
 
-def create_error_page(error_message):
+def _create_error_page(error_message: str) -> dbc.Container:
     """Create error page"""
     return dbc.Container([
         dbc.Row([
             dbc.Col([
+                html.H1("⚠️ Error", className="text-danger mb-4"),
                 dbc.Alert([
-                    html.H4("⚠️ Error", className="alert-heading"),
-                    html.P(error_message),
-                    html.Hr(),
-                    dbc.Button("← Back to Dashboard", href="/", color="primary")
-                ], color="danger")
+                    html.P(error_message, className="mb-0")
+                ], color="danger"),
+                dbc.Button("← Back to Dashboard", href="/", color="primary")
             ])
         ])
-    ], className="mt-5")
+    ], fluid=True)
 
 
-def register_dashboard_callbacks(app):
-    """Register dashboard-specific callbacks"""
-    # Dashboard callbacks would go here
-    pass
-
-
-def register_file_upload_callbacks(app):
-    """Ensure file upload callbacks are registered"""
-    try:
-        if get_page_layout('file_upload') is None:
-            logger.warning(
-                "File upload callbacks not registered. Optional dependencies may be missing."
-            )
-            return
-
-        # Importing registers callbacks via @callback decorators
-        from components.analytics import file_uploader  # noqa: F401
-        logger.info("File upload callbacks registered")
-    except Exception as e:
-        logger.error(f"Error importing file upload callbacks: {e}")
-
-
-def register_analytics_callbacks(app):
-    """Register analytics callbacks"""
-    try:
-        @app.callback(
-            Output('analytics-display-area', 'children'),
-            Input('generate-analytics-btn', 'n_clicks'),
-            prevent_initial_call=True
-        )
-        def generate_analytics(n_clicks):
-            if n_clicks:
-                return dbc.Alert("📊 Analytics generated successfully!", color="success")
-            return ""
-    except Exception as e:
-        logger.error(f"Error registering analytics callbacks: {e}")
-
-
-def create_application():
-    """Legacy compatibility function"""
-    return create_app()
+# Export main function
+__all__ = ['create_app']

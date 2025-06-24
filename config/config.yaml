@@ -1,40 +1,21 @@
-# Minimal Yosai Configuration
+# Yōsai Intel Dashboard Configuration
+
 app:
-  title: "Yosai Intelligence Dashboard"
   debug: true
   host: "127.0.0.1"
   port: 8050
-  log_level: "INFO"
+  secret_key: "dev-key-change-in-production"
+  environment: "development"
 
 database:
-  host: "localhost"
+  type: "sqlite"
+  host: "localhost" 
   port: 5432
-  name: "yosai_db"
-  user: "yosai_user"
-  password: "${DB_PASSWORD:}"
+  name: "yosai.db"
+  user: "user"
+  password: ""
 
 security:
-  secret_key: "${SECRET_KEY:dev-key}"  # default only for dev
+  secret_key: "dev-key-change-in-production"
   session_timeout: 3600
-
-analytics:
-  enabled: true
-  batch_size: 100
-
-monitoring:
-  health_check_interval: 30
-  metrics_enabled: true
-
-cache:
-  type: "memory"
-  ttl: 300
-
-plugins:
-  json_serialization:
-    enabled: true
-    max_dataframe_rows: 1000
-    max_string_length: 10000
-    include_type_metadata: true
-    compress_large_objects: true
-    fallback_to_repr: true
-    auto_wrap_callbacks: true
+  cors_origins: []

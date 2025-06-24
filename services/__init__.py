@@ -1,31 +1,18 @@
+#!/usr/bin/env python3
 """
-Services package for Yōsai Intel Dashboard
+Simplified Services Package
 """
-from .base import BaseService, MockService
-from .protocols import DatabaseProtocol, AnalyticsProtocol, FileProcessorProtocol
-from .analytics import AnalyticsService, create_analytics_service
+import logging
 
-# Only import if file exists
+logger = logging.getLogger(__name__)
+
+# Only import existing services
 try:
-    from .file_processor_service import FileProcessorService
+    from .file_processor import FileProcessor
+    FILE_PROCESSOR_AVAILABLE = True
 except ImportError:
-    FileProcessorService = None
+    logger.warning("File processor not available")
+    FILE_PROCESSOR_AVAILABLE = False
+    FileProcessor = None
 
-try:
-    from .service_registry import register_all_services, get_service
-except ImportError:
-    register_all_services = None
-    get_service = None
-
-__all__ = [
-    'BaseService',
-    'MockService', 
-    'DatabaseProtocol',
-    'AnalyticsProtocol',
-    'FileProcessorProtocol',
-    'AnalyticsService',
-    'create_analytics_service',
-    'FileProcessorService',
-    'register_all_services',
-    'get_service'
-]
+__all__ = ['FileProcessor', 'FILE_PROCESSOR_AVAILABLE']

@@ -1,13 +1,14 @@
+#!/usr/bin/env python3
 """
-Safe page imports with fallback handling
+Simplified Pages Package
 """
 import logging
 from typing import Optional, Callable, Any
 
 logger = logging.getLogger(__name__)
 
-# Safe page imports
-_pages: dict[str, Optional[Any]] = {}
+# Only import existing pages
+_pages = {}
 
 try:
     from . import deep_analytics
@@ -16,21 +17,6 @@ except ImportError as e:
     logger.warning(f"Deep analytics page not available: {e}")
     _pages['deep_analytics'] = None
 
-try:
-    from . import file_upload
-    _pages['file_upload'] = file_upload
-except ImportError as e:
-    logger.warning(f"File upload page not available: {e}")
-    _pages['file_upload'] = None
-
-try:
-    from . import login
-    _pages['login'] = login
-except ImportError as e:
-    logger.warning(f"Login page not available: {e}")
-    _pages['login'] = None
-
-
 def get_page_layout(page_name: str) -> Optional[Callable]:
     """Get page layout function safely"""
     page_module = _pages.get(page_name)
@@ -38,36 +24,4 @@ def get_page_layout(page_name: str) -> Optional[Callable]:
         return page_module.layout
     return None
 
-
-def register_page_callbacks(page_name: str, app: Any, container: Any = None) -> bool:
-    """Register page callbacks safely"""
-    page_module = _pages.get(page_name)
-    
-    if page_name == 'deep_analytics' and page_module and hasattr(page_module, 'register_analytics_callbacks'):
-        try:
-            page_module.register_analytics_callbacks(app, container)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to register analytics callbacks: {e}")
-    
-    # Skip file_upload callbacks since they're now handled by centralized system
-    elif page_name == 'file_upload':
-        logger.info("File upload callbacks handled by centralized system")
-        return True
-
-    elif page_name == 'login' and page_module and hasattr(page_module, 'register_login_callbacks'):
-        try:
-            page_module.register_login_callbacks(app)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to register login callbacks: {e}")
-
-    return False
-
-
-def get_available_pages():
-    """Get list of available pages"""
-    return [name for name, module in _pages.items() if module is not None]
-
-
-__all__ = ['get_page_layout', 'register_page_callbacks', 'get_available_pages']
+__all__ = ['get_page_layout']

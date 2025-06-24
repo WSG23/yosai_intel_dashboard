@@ -1,49 +1,30 @@
-# models/__init__.py - Simplified re-exports for models package
-"""Yōsai Intel Data Models Package"""
+#!/usr/bin/env python3
+"""
+Simplified Models Package
+"""
 
-# Import enums
+# Import core models only
 from .enums import (
-    AnomalyType,
-    AccessResult,
-    BadgeStatus,
-    SeverityLevel,
-    TicketStatus,
-    DoorType,
+    AnomalyType, AccessResult, BadgeStatus, 
+    SeverityLevel, TicketStatus, DoorType
 )
 
-# Import entities
 from .entities import Person, Door, Facility
-
-# Import events
 from .events import AccessEvent, AnomalyDetection, IncidentTicket
 
-# Import base models
-from .base import (
-    BaseModel,
-    AccessEventModel,
-    AnomalyDetectionModel,
-    ModelFactory,
-)
+try:
+    from .base import BaseModel, AccessEventModel, ModelFactory
+    BASE_MODELS_AVAILABLE = True
+except ImportError:
+    BASE_MODELS_AVAILABLE = False
+    BaseModel = None
+    AccessEventModel = None
+    ModelFactory = None
 
-# Fixed: Import MockConnection, not MockDatabaseConnection
-from config.database_manager import MockConnection
-
-# Define exports
 __all__ = [
-    # Enums
     'AnomalyType', 'AccessResult', 'BadgeStatus', 'SeverityLevel',
-    'TicketStatus', 'DoorType',
-    
-    # Entities
-    'Person', 'Door', 'Facility',
-    
-    # Events
+    'TicketStatus', 'DoorType', 'Person', 'Door', 'Facility',
     'AccessEvent', 'AnomalyDetection', 'IncidentTicket',
-    
-    # Models
-    'BaseModel',
-    'AccessEventModel',
-    'AnomalyDetectionModel',
-    'ModelFactory',
-    'MockConnection'  # Fixed: was MockDatabaseConnection
+    'BaseModel', 'AccessEventModel', 'ModelFactory',
+    'BASE_MODELS_AVAILABLE'
 ]
