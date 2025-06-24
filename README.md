@@ -128,6 +128,7 @@ flake8 .
 - **Multi-page Interface**: Organized functionality across multiple pages
 - **Type-Safe**: Full type annotations and validation
 - **CSRF Protection Plugin**: Optional production-ready CSRF middleware for Dash
+- **Machine-Learned Column Mapping**: Trainable model for smarter CSV header recognition
 
 ## 🔧 Configuration
 
