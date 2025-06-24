@@ -23,7 +23,7 @@ def test_basic_imports() -> Tuple[bool, str]:
         )
         from core.service_registry import configure_container
         from core.app_factory import create_application
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
         
         return True, "All imports successful"
     except ImportError as e:
@@ -211,7 +211,7 @@ def test_dependency_injection_integration() -> Tuple[bool, str]:
     try:
         from config.yaml_config import ConfigurationManager
         from core.service_registry import configure_container
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
         
         # Create configuration
         config_manager = ConfigurationManager()

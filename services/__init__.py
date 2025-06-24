@@ -3,7 +3,7 @@ Services package for Yōsai Intel Dashboard
 """
 from .base import BaseService, MockService
 from .protocols import DatabaseProtocol, AnalyticsProtocol, FileProcessorProtocol
-from .analytics_service import AnalyticsService, create_analytics_service
+from .analytics import AnalyticsService, create_analytics_service
 
 # Only import if file exists
 try:

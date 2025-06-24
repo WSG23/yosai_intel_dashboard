@@ -188,7 +188,7 @@ class AnalyticsModuleTester(ModularTestBase):
         # Test 1: Analytics Service Import
         start_time = datetime.now()
         try:
-            from services.analytics_service import create_analytics_service, AnalyticsService
+            from services.analytics import create_analytics_service, AnalyticsService
             execution_time = (datetime.now() - start_time).total_seconds()
             results.append(TestResult(
                 "Analytics Service Import",

@@ -9,7 +9,7 @@ from core.plugins.protocols import (
     PluginStatus,
 )
 
-from core.di_container import DIContainer
+from core.container import Container as DIContainer
 from config.yaml_config import ConfigurationManager
 
 logger = logging.getLogger(__name__)

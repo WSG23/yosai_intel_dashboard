@@ -24,7 +24,7 @@ def test_imports():
         print(f"   ✅ Plugin metadata: {metadata.name} v{metadata.version}")
         
         print("4. Testing container import...")
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
         container = DIContainer()
         print("   ✅ Container imported and created")
         
@@ -64,7 +64,7 @@ def test_basic_serialization():
         plugin = JsonSerializationPlugin()
         config = {'enabled': True, 'fallback_to_repr': True}
         
-        from core.di_container import DIContainer
+        from core.container import Container as DIContainer
         container = DIContainer()
         
         plugin.load(container, config)

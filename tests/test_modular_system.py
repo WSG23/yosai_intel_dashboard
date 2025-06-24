@@ -31,7 +31,7 @@ class ModularityValidator:
         required_structure = {
             'config/': ['__init__.py', 'database_manager.py'],
             'models/': ['__init__.py', 'base.py', 'entities.py', 'events.py', 'enums.py', 'access_events.py'],
-            'services/': ['__init__.py', 'analytics_service.py'],
+            'services/': ['__init__.py', 'analytics.py'],
             'components/': ['__init__.py', 'navbar.py'],
             'components/analytics/': ['__init__.py', 'file_uploader.py', 'data_preview.py', 'analytics_charts.py'],
             'pages/': ['__init__.py', 'deep_analytics.py', 'file_upload.py'],
@@ -62,7 +62,7 @@ class ModularityValidator:
             'models.events',
             'models.enums',
             'models.access_events',
-            'services.analytics_service',
+            'services.analytics',
             'components.navbar',
             'components.analytics',
             'pages.deep_analytics',
@@ -101,9 +101,9 @@ class ModularityValidator:
         
         # Test analytics service isolation
         try:
-            from services.analytics_service import create_analytics_service, AnalyticsConfig
-            
-            service = create_analytics_service(AnalyticsConfig())
+            from services.analytics import create_analytics_service
+
+            service = create_analytics_service(None)
             summary = service.get_dashboard_summary()
             isolation_results['analytics_service'] = isinstance(summary, dict)
             
@@ -171,11 +171,10 @@ class ModularityValidator:
         
         # Test services type safety
         try:
-            from services.analytics_service import AnalyticsService, AnalyticsConfig
+            from services.analytics import AnalyticsService
             from config.database_manager import MockDatabaseConnection
-            
-            config = AnalyticsConfig(default_time_range_days=7)
-            service = AnalyticsService(config)
+
+            service = AnalyticsService(MockDatabaseConnection())
             
             # Test with typed inputs
             sample_data = pd.DataFrame({
@@ -246,7 +245,7 @@ class IntegrationTester(unittest.TestCase):
         """Test database and service integration"""
         try:
             from config.database_manager import DatabaseManager, DatabaseConfig
-            from services.analytics_service import create_analytics_service
+            from services.analytics import create_analytics_service
             
             # Create mock database
             config = DatabaseConfig(db_type='mock')
@@ -268,7 +267,7 @@ class IntegrationTester(unittest.TestCase):
         """Test complete analytics pipeline"""
         try:
             from components.analytics import FileProcessor, AnalyticsGenerator
-            from services.analytics_service import create_analytics_service
+            from services.analytics import create_analytics_service
             
             # Test file processing
             valid, message, suggestions = FileProcessor.validate_dataframe(self.test_data)

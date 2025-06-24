@@ -79,7 +79,7 @@ def configure_services() -> None:
     container.register_singleton('database', DatabaseManager.from_environment)
     
     # Register analytics service
-    from services.analytics_service import create_analytics_service
+    from services.analytics import create_analytics_service
     container.register_singleton(
         'analytics_service',
         lambda: create_analytics_service(None, container.get('database')),
