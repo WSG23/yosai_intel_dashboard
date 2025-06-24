@@ -12,9 +12,13 @@ import uuid
 import logging
 import re
 from typing import Dict, List, Optional, Any, Tuple
+import json
 from datetime import datetime
 import tempfile
 import os
+
+USER_MAPPING_FILE = os.path.join("data", "user_mappings.json")
+SESSION_FILE = os.path.join("data", "verified_session.json")
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +50,32 @@ class AIColumnMapper:
 
     def __init__(self, min_confidence: float = 0.3):
         self.min_confidence = min_confidence
+        self.user_mappings: Dict[str, str] = {}
+        self._load_user_mappings()
+
+    def _load_user_mappings(self) -> None:
+        """Load user confirmed mappings from disk"""
+        if os.path.exists(USER_MAPPING_FILE):
+            try:
+                with open(USER_MAPPING_FILE, "r", encoding="utf-8") as f:
+                    self.user_mappings = json.load(f)
+            except Exception:
+                self.user_mappings = {}
+
+    def _save_user_mappings(self) -> None:
+        """Persist user mappings to disk"""
+        try:
+            os.makedirs(os.path.dirname(USER_MAPPING_FILE), exist_ok=True)
+            with open(USER_MAPPING_FILE, "w", encoding="utf-8") as f:
+                json.dump(self.user_mappings, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Failed to save user mappings: {e}")
+
+    def learn_user_mapping(self, mapping: Dict[str, str]) -> None:
+        """Update mapping knowledge from user input"""
+        for field, column in mapping.items():
+            self.user_mappings[column.lower()] = field
+        self._save_user_mappings()
 
     def analyze_columns(self, column_names: List[str]) -> Dict[str, any]:
         """Analyze column names and return AI suggestions"""
@@ -53,6 +83,13 @@ class AIColumnMapper:
         confidence_scores = {}
 
         for column in column_names:
+            column_key = column.lower().strip()
+            if column_key in self.user_mappings:
+                field_type = self.user_mappings[column_key]
+                suggestions[field_type] = column
+                confidence_scores[column] = 1.0
+                continue
+
             match = self._find_best_match(column)
             if match and match['confidence'] >= self.min_confidence:
                 suggestions[match['field_type']] = column
@@ -225,6 +262,15 @@ class FileUploadController:
             session_data['confirmed_mapping'] = mapping
             session_data['mapping_verified'] = True
             session_data['verified_at'] = datetime.now().isoformat()
+
+            # learn from user mapping and persist
+            self.ai_mapper.learn_user_mapping(mapping)
+            try:
+                os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+                with open(SESSION_FILE, "w", encoding="utf-8") as f:
+                    json.dump(session_data, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.error(f"Failed to save session data: {e}")
 
             return {
                 'success': True,
@@ -781,8 +827,18 @@ def _handle_mapping_verification(timestamp_col, device_col, user_col, event_col,
     return [
         {"display": "none"},
         success_msg,
-    ] + [no_update] * 10 + [
-        {"display": "block"}
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        verification_result.get('session_data', processed_store),
+        {"display": "block"},
     ]
 
 
