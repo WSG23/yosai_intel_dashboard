@@ -285,12 +285,18 @@ def _create_categorical_summary_charts(categorical_summary: Dict[str, Dict[str, 
 def _create_metric_card(title: str, value: str, color: str, small_text: bool = False) -> dbc.Col:
     """Create a metric display card"""
     value_class = "h6" if small_text else "h4"
-    
+    heading = html.H6 if small_text else html.H4
+
     return dbc.Col([
         dbc.Card([
             dbc.CardBody([
-                html.H4(value, className=f"card-title text-{color} {value_class}"),
-                html.P(title, className="card-text text-muted")
+                heading(value, className=f"card-title text-{color} {value_class}"),
+                html.P(title, className="card-text text-muted"),
             ])
-        ], color=color, outline=True)
+        ], color=color, outline=True),
     ], width=3)
+
+__all__ = [
+    "create_analytics_charts",
+    "create_summary_cards"
+]
