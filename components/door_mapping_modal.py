@@ -2,11 +2,12 @@
 Door Mapping Modal Component for Device Attribute Assignment
 Integrates with Yōsai Intel Dashboard modular architecture
 """
-from dash import html, dcc, Input, Output, State
-from dash import callback_context
+from dash import html, dcc
+from dash.dependencies import Input, Output, State
+from dash._callback_context import callback_context
 import dash
 import dash_bootstrap_components as dbc
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Union
 import logging
 import json
 
@@ -85,7 +86,7 @@ def create_door_mapping_modal() -> html.Div:
         return html.Div(f"Error creating door mapping modal: {str(e)}")
 
 
-def create_device_mapping_table(devices_data) -> html.Table:
+def create_device_mapping_table(devices_data) -> Union[html.Div, html.Table]:
     """Create the device mapping table.
 
     The input may be a list of dictionaries or a list of simple strings

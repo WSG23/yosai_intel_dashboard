@@ -34,7 +34,7 @@ class PluginMetadata:
     description: str
     author: str
     priority: PluginPriority = PluginPriority.NORMAL
-    dependencies: List[str] = None
+    dependencies: Optional[List[str]] = None
     config_section: Optional[str] = None
     enabled_by_default: bool = True
     min_yosai_version: Optional[str] = None
