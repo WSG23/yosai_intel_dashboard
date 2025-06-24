@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import json
 from datetime import datetime
 import tempfile
+from dash.exceptions import PreventUpdate
 import os
 
 USER_MAPPING_FILE = os.path.join("data", "user_mappings.json")
@@ -861,7 +862,20 @@ def _handle_modal_close():
     """Handle modal close action"""
     return [
         {"display": "none"},
-    ] + [no_update] * 12
+        "",
+        "",
+        [],
+        [],
+        [],
+        [],
+        None,
+        None,
+        None,
+        None,
+        {},
+        {},
+        {"display": "none"},
+    ]
 
 
 def enhanced_pattern_matching(headers):
