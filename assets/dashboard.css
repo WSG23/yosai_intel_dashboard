@@ -1318,3 +1318,84 @@ html, body, #root, .dash-app {
     justify-content: center !important;
     padding: 1rem !important;
 }
+
+/* ==============================================
+   SIMPLE TEXT VISIBILITY FIXES
+   Add these rules to the END of dashboard.css
+   ============================================== */
+
+/* Fix white text on white backgrounds */
+:root {
+    --color-text-primary: #f8f9fa !important;     /* Light gray instead of white */
+    --color-text-secondary: #e9ecef !important;   /* Slightly darker */
+    --color-text-tertiary: #adb5bd !important;    /* Medium gray */
+}
+
+/* Force readable text colors */
+.form-label,
+.modal__title,
+.settings-modal-title,
+.upload-box-title {
+    color: #f8f9fa !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Fix form inputs */
+.form-input {
+    color: #f8f9fa !important;
+    background-color: #2d3748 !important;
+    border: 1px solid #4a5568 !important;
+}
+
+.form-input::placeholder {
+    color: #a0aec0 !important;
+}
+
+/* Fix dropdown text */
+.form-select .Select-control {
+    background-color: #2d3748 !important;
+    color: #f8f9fa !important;
+}
+
+.form-select .Select-value-label {
+    color: #f8f9fa !important;
+}
+
+.form-select .Select-placeholder {
+    color: #a0aec0 !important;
+}
+
+.form-select .Select-option {
+    color: #f8f9fa !important;
+    background-color: #2d3748 !important;
+}
+
+/* Fix modal text */
+.modal__body {
+    color: #f8f9fa !important;
+}
+
+/* Fix upload box text */
+.upload-box-title {
+    color: #f8f9fa !important;
+    font-weight: 600;
+}
+
+/* Fix any remaining white text on light backgrounds */
+* {
+    text-shadow: none;
+}
+
+/* Ensure buttons have proper contrast */
+button {
+    color: #ffffff !important;
+}
+
+/* Fix table/data text if present */
+table, .data-table {
+    color: #f8f9fa !important;
+}
+
+td, th {
+    color: #f8f9fa !important;
+}
