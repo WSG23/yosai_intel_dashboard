@@ -45,14 +45,14 @@ class TestAnalyticsService:
     
     def test_analytics_service_creation(self):
         """Test analytics service can be created independently"""
-        from services.analytics_service import AnalyticsService
+        from services.analytics import AnalyticsService
         
         service = AnalyticsService()
         assert service is not None
     
     def test_access_pattern_analysis(self):
         """Test access pattern analysis in isolation"""
-        from services.analytics_service import AnalyticsService
+        from services.analytics import AnalyticsService
         
         service = AnalyticsService()
         result = service.analyze_access_patterns(self.sample_data)
@@ -66,7 +66,7 @@ class TestAnalyticsService:
     
     def test_anomaly_detection(self):
         """Test anomaly detection in isolation"""
-        from services.analytics_service import AnalyticsService
+        from services.analytics import AnalyticsService
         
         service = AnalyticsService()
         events = self.sample_data.to_dict('records')

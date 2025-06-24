@@ -42,7 +42,7 @@ from core.service_registry import (
     get_configured_container,
     EnhancedHealthMonitor as HealthMonitor,
 )
-from core.di_container import DIContainer
+from core.container import Container as DIContainer
 
 # Try to import error handling, use basic if not available
 try:
@@ -68,7 +68,7 @@ except (ImportError, AttributeError) as e:
     logging.warning(f"Enhanced analytics not available: {e}")
     # Use basic analytics if enhanced not available
     try:
-        from services.analytics_service import (
+        from services.analytics import (
             AnalyticsService as EnhancedAnalyticsService,
         )
     except ImportError:
