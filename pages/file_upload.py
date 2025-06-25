@@ -104,7 +104,7 @@ def layout():
 
 @callback(
     [
-        Output('upload-results', 'children'),
+        Output('upload-results', 'children', allow_duplicate=True),
         Output('file-preview', 'children'),
         Output('file-info-store', 'data'),
         Output('upload-nav', 'children'),
