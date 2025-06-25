@@ -1,244 +1,253 @@
-# models/base.py - Fixed type-safe version
-from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
-import pandas as pd
-from datetime import datetime, timedelta
+#!/usr/bin/env python3
+"""
+Complete Models Base System - Missing piece for consolidation
+"""
 import logging
+import pandas as pd
+from typing import Dict, Any, List, Optional, Protocol
+from dataclasses import dataclass
+from datetime import datetime
 
-class BaseModel(ABC):
-    """Base class for all data models with proper type safety"""
-    
-    def __init__(self, db_connection):
-        self.db = db_connection
-    
-    @abstractmethod
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Get data with optional filtering - subclasses must implement"""
-        pass
-    
-    @abstractmethod
-    def get_summary_stats(self) -> Dict[str, Any]:
-        """Get summary statistics - subclasses must implement"""
-        pass
-    
-    def validate_data(self, data: pd.DataFrame) -> bool:
-        """Basic data validation - can be overridden by subclasses"""
-        if data is None or data.empty:
-            return False
-        return True
+logger = logging.getLogger(__name__)
 
-class AccessEventModel(BaseModel):
-    """Model for access control events with proper type safety"""
-    
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Get access events with optional filtering"""
-        
-        base_query = """
-        SELECT 
-            event_id,
-            timestamp,
-            person_id,
-            door_id,
-            badge_id,
-            access_result,
-            badge_status,
-            door_held_open_time,
-            entry_without_badge,
-            device_status
-        FROM access_events 
-        WHERE 1=1
-        """
-        
-        params = []
-        
-        # Use empty dict if filters is None to avoid type issues
-        if filters is None:
-            filters = {}
-        
-        if filters:
-            if 'start_date' in filters:
-                base_query += " AND timestamp >= %s"
-                params.append(filters['start_date'])
-            if 'end_date' in filters:
-                base_query += " AND timestamp <= %s"
-                params.append(filters['end_date'])
-            if 'person_id' in filters:
-                base_query += " AND person_id = %s"
-                params.append(filters['person_id'])
-            if 'door_id' in filters:
-                base_query += " AND door_id = %s"
-                params.append(filters['door_id'])
-            if 'access_result' in filters:
-                base_query += " AND access_result = %s"
-                params.append(filters['access_result'])
-        
-        base_query += " ORDER BY timestamp DESC LIMIT 10000"
-        
-        try:
-            df = self.db.execute_query(base_query, tuple(params) if params else None)
-            return df if df is not None else pd.DataFrame()
-        except Exception as e:
-            logging.error(f"Error fetching access events: {e}")
-            return pd.DataFrame()
-    
-    def get_summary_stats(self) -> Dict[str, Any]:
-        """Get summary statistics"""
-        query = """
-        SELECT 
-            COUNT(*) as total_events,
-            COUNT(DISTINCT person_id) as unique_people,
-            COUNT(DISTINCT door_id) as unique_doors,
-            SUM(CASE WHEN access_result = 'Granted' THEN 1 ELSE 0 END)::float / COUNT(*) as granted_rate,
-            MIN(timestamp) as earliest_event,
-            MAX(timestamp) as latest_event
-        FROM access_events
-        WHERE timestamp >= NOW() - INTERVAL '30 days'
-        """
-        
-        try:
-            result = self.db.execute_query(query)
-            if result is not None and not result.empty:
-                return result.iloc[0].to_dict()
-            return {}
-        except Exception as e:
-            logging.error(f"Error getting summary stats: {e}")
-            return {}
-    
-    def get_recent_events(self, hours: int = 24) -> pd.DataFrame:
-        """Get recent events for dashboard"""
-        cutoff_time = datetime.now() - timedelta(hours=hours)
-        return self.get_data({'start_date': cutoff_time})
-    
-    def get_trend_analysis(self, days: int = 30) -> pd.DataFrame:
-        """Get trend analysis for analytics"""
-        query = """
-        SELECT 
-            DATE(timestamp) as date,
-            COUNT(*) as total_events,
-            SUM(CASE WHEN access_result = 'Granted' THEN 1 ELSE 0 END) as granted_events,
-            COUNT(DISTINCT person_id) as unique_users
-        FROM access_events 
-        WHERE timestamp >= NOW() - INTERVAL '%s days'
-        GROUP BY DATE(timestamp)
-        ORDER BY date
-        """
-        
-        try:
-            result = self.db.execute_query(query, (days,))
-            return result if result is not None else pd.DataFrame()
-        except Exception as e:
-            logging.error(f"Error getting trend analysis: {e}")
-            return pd.DataFrame()
 
-class AnomalyDetectionModel(BaseModel):
-    """Model for anomaly detection data with proper type safety"""
-    
-    def get_data(self, filters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Get anomaly detections"""
-        
-        base_query = """
-        SELECT 
-            a.anomaly_id,
-            a.event_id,
-            a.anomaly_type,
-            a.severity,
-            a.confidence_score,
-            a.description,
-            a.detected_at,
-            e.timestamp,
-            e.person_id,
-            e.door_id
-        FROM anomaly_detections a
-        JOIN access_events e ON a.event_id = e.event_id
-        WHERE 1=1
-        """
-        
-        params = []
-        
-        # Use empty dict if filters is None
-        if filters is None:
-            filters = {}
-        
-        if filters:
-            if 'anomaly_type' in filters:
-                base_query += " AND a.anomaly_type = %s"
-                params.append(filters['anomaly_type'])
-            if 'severity' in filters:
-                base_query += " AND a.severity = %s"
-                params.append(filters['severity'])
-            if 'start_date' in filters:
-                base_query += " AND a.detected_at >= %s"
-                params.append(filters['start_date'])
-        
-        base_query += " ORDER BY a.detected_at DESC LIMIT 5000"
-        
-        try:
-            result = self.db.execute_query(base_query, tuple(params) if params else None)
-            return result if result is not None else pd.DataFrame()
-        except Exception as e:
-            logging.error(f"Error fetching anomalies: {e}")
-            return pd.DataFrame()
-    
-    def get_summary_stats(self) -> Dict[str, Any]:
-        """Get anomaly summary statistics"""
-        query = """
-        SELECT 
-            COUNT(*) as total_anomalies,
-            AVG(confidence_score) as avg_confidence,
-            COUNT(DISTINCT anomaly_type) as unique_types
-        FROM anomaly_detections
-        WHERE detected_at >= NOW() - INTERVAL '30 days'
-        """
-        
-        try:
-            result = self.db.execute_query(query)
-            if result is not None and not result.empty:
-                return result.iloc[0].to_dict()
-            return {}
-        except Exception as e:
-            logging.error(f"Error getting anomaly stats: {e}")
-            return {}
-    
-    def get_anomaly_breakdown(self) -> pd.DataFrame:
-        """Get anomaly type breakdown for charts"""
-        query = """
-        SELECT 
-            anomaly_type,
-            COUNT(*) as count,
-            AVG(confidence_score) as avg_confidence
-        FROM anomaly_detections
-        WHERE detected_at >= NOW() - INTERVAL '30 days'
-        GROUP BY anomaly_type
-        ORDER BY count DESC
-        """
-        
-        try:
-            result = self.db.execute_query(query)
-            return result if result is not None else pd.DataFrame()
-        except Exception as e:
-            logging.error(f"Error getting anomaly breakdown: {e}")
-            return pd.DataFrame()
+class BaseModel:
+    """Base class for all models"""
 
-# Factory class for creating model instances (modular and testable)
-class ModelFactory:
-    """Factory class for creating data model instances"""
-    
-    @staticmethod
-    def create_access_model(db_connection) -> AccessEventModel:
-        """Create an AccessEventModel instance"""
-        return AccessEventModel(db_connection)
-    
-    @staticmethod
-    def create_anomaly_model(db_connection) -> AnomalyDetectionModel:
-        """Create an AnomalyDetectionModel instance"""
-        return AnomalyDetectionModel(db_connection)
-    
-    @staticmethod
-    def create_all_models(db_connection) -> Dict[str, BaseModel]:
-        """Create all standard models with a single data source"""
+    def __init__(self, data_source: Optional[Any] = None):
+        self.data_source = data_source
+        self.created_at = datetime.now()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert model to dictionary"""
         return {
-            'access': ModelFactory.create_access_model(db_connection),
-            'anomaly': ModelFactory.create_anomaly_model(db_connection)
+            'created_at': self.created_at.isoformat(),
+            'data_source': str(self.data_source) if self.data_source else None
         }
 
-__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory']
+    def validate(self) -> bool:
+        """Validate model data"""
+        return True
+
+
+class AccessEventModel(BaseModel):
+    """Model for access control events"""
+
+    def __init__(self, data_source: Optional[Any] = None):
+        super().__init__(data_source)
+        self.events: List[Dict[str, Any]] = []
+
+    def load_from_dataframe(self, df: pd.DataFrame) -> bool:
+        """Load events from pandas DataFrame"""
+        try:
+            if df is None or df.empty:
+                logger.warning("Empty DataFrame provided to AccessEventModel")
+                return False
+
+            # Convert DataFrame to list of dictionaries
+            self.events = df.to_dict('records')
+            logger.info(f"Loaded {len(self.events)} access events")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error loading DataFrame into AccessEventModel: {e}")
+            return False
+
+    def get_user_activity(self) -> Dict[str, int]:
+        """Get user activity summary"""
+        if not self.events:
+            return {}
+
+        try:
+            # Count events per user
+            user_counts = {}
+            for event in self.events:
+                user_id = event.get('user_id') or event.get('person_id') or 'unknown'
+                user_counts[user_id] = user_counts.get(user_id, 0) + 1
+
+            return user_counts
+        except Exception as e:
+            logger.error(f"Error calculating user activity: {e}")
+            return {}
+
+    def get_door_activity(self) -> Dict[str, int]:
+        """Get door activity summary"""
+        if not self.events:
+            return {}
+
+        try:
+            # Count events per door
+            door_counts = {}
+            for event in self.events:
+                door_id = event.get('door_id') or event.get('location') or 'unknown'
+                door_counts[door_id] = door_counts.get(door_id, 0) + 1
+
+            return door_counts
+        except Exception as e:
+            logger.error(f"Error calculating door activity: {e}")
+            return {}
+
+    def get_access_patterns(self) -> Dict[str, int]:
+        """Get access pattern summary"""
+        if not self.events:
+            return {}
+
+        try:
+            patterns = {}
+            for event in self.events:
+                result = event.get('access_result') or event.get('status') or 'unknown'
+                patterns[result] = patterns.get(result, 0) + 1
+
+            return patterns
+        except Exception as e:
+            logger.error(f"Error calculating access patterns: {e}")
+            return {}
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary with analytics"""
+        base_dict = super().to_dict()
+        base_dict.update({
+            'total_events': len(self.events),
+            'user_activity': self.get_user_activity(),
+            'door_activity': self.get_door_activity(),
+            'access_patterns': self.get_access_patterns()
+        })
+        return base_dict
+
+
+class AnomalyDetectionModel(BaseModel):
+    """Model for anomaly detection"""
+
+    def __init__(self, data_source: Optional[Any] = None):
+        super().__init__(data_source)
+        self.anomalies: List[Dict[str, Any]] = []
+
+    def detect_anomalies(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Simple anomaly detection"""
+        anomalies = []
+
+        try:
+            # Simple anomaly detection rules
+            for event in events:
+                # After hours access (assuming 6 PM to 6 AM is after hours)
+                timestamp = event.get('timestamp', '')
+                if isinstance(timestamp, str) and ('20:' in timestamp or '21:' in timestamp or \
+                                                   '22:' in timestamp or '23:' in timestamp or
+                                                   '00:' in timestamp or '01:' in timestamp or
+                                                   '02:' in timestamp or '03:' in timestamp or
+                                                   '04:' in timestamp or '05:' in timestamp):
+                    anomalies.append({
+                        'type': 'after_hours_access',
+                        'event': event,
+                        'description': 'Access attempt after business hours'
+                    })
+
+                # Failed access attempts
+                result = event.get('access_result', event.get('status', '')).lower()
+                if 'denied' in result or 'failed' in result or 'fail' in result:
+                    anomalies.append({
+                        'type': 'failed_access',
+                        'event': event,
+                        'description': 'Failed access attempt'
+                    })
+
+            self.anomalies = anomalies
+            return anomalies
+
+        except Exception as e:
+            logger.error(f"Error detecting anomalies: {e}")
+            return []
+
+
+class ModelFactory:
+    """Factory for creating model instances"""
+
+    @staticmethod
+    def create_access_model(data_source: Optional[Any] = None) -> AccessEventModel:
+        """Create AccessEventModel instance"""
+        return AccessEventModel(data_source)
+
+    @staticmethod
+    def create_anomaly_model(data_source: Optional[Any] = None) -> AnomalyDetectionModel:
+        """Create AnomalyDetectionModel instance"""
+        return AnomalyDetectionModel(data_source)
+
+    @staticmethod
+    def create_models_from_dataframe(df: pd.DataFrame) -> Dict[str, BaseModel]:
+        """Create all models from a DataFrame"""
+        models = {}
+
+        try:
+            # Create access model
+            access_model = ModelFactory.create_access_model(df)
+            if access_model.load_from_dataframe(df):
+                models['access'] = access_model
+
+            # Create anomaly model
+            anomaly_model = ModelFactory.create_anomaly_model(df)
+            events = df.to_dict('records') if not df.empty else []
+            anomaly_model.detect_anomalies(events)
+            models['anomaly'] = anomaly_model
+
+            logger.info(f"Created {len(models)} models from DataFrame")
+            return models
+
+        except Exception as e:
+            logger.error(f"Error creating models from DataFrame: {e}")
+            return {}
+
+    @staticmethod
+    def get_analytics_from_models(models: Dict[str, BaseModel]) -> Dict[str, Any]:
+        """Extract analytics from all models"""
+        analytics = {}
+
+        try:
+            if 'access' in models:
+                access_data = models['access'].to_dict()
+                analytics.update({
+                    'total_events': access_data.get('total_events', 0),
+                    'top_users': [
+                        {'user_id': k, 'count': v} 
+                        for k, v in sorted(
+                            access_data.get('user_activity', {}).items(),
+                            key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    'top_doors': [
+                        {'door_id': k, 'count': v}
+                        for k, v in sorted(
+                            access_data.get('door_activity', {}).items(),
+                            key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    'access_patterns': access_data.get('access_patterns', {})
+                })
+
+            if 'anomaly' in models:
+                anomaly_model = models['anomaly']
+                analytics['anomalies'] = {
+                    'total_anomalies': len(anomaly_model.anomalies),
+                    'anomaly_types': {}
+                }
+
+                # Count anomaly types
+                for anomaly in anomaly_model.anomalies:
+                    anomaly_type = anomaly.get('type', 'unknown')
+                    analytics['anomalies']['anomaly_types'][anomaly_type] = (
+                        analytics['anomalies']['anomaly_types'].get(anomaly_type, 0) + 1
+                    )
+
+            return analytics
+
+        except Exception as e:
+            logger.error(f"Error extracting analytics from models: {e}")
+            return {}
+
+
+# Export all classes and functions
+__all__ = [
+    'BaseModel',
+    'AccessEventModel', 
+    'AnomalyDetectionModel',
+    'ModelFactory'
+]

@@ -17,6 +17,13 @@ except ImportError as e:
     logger.warning(f"Deep analytics page not available: {e}")
     _pages['deep_analytics'] = None
 
+try:
+    from . import file_upload
+    _pages['file_upload'] = file_upload
+except ImportError as e:
+    logger.warning(f"File upload page not available: {e}")
+    _pages['file_upload'] = None
+
 def get_page_layout(page_name: str) -> Optional[Callable]:
     """Get page layout function safely"""
     page_module = _pages.get(page_name)
