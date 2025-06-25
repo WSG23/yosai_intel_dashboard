@@ -7,6 +7,7 @@ Feeds back to AI training data
 
 import pandas as pd
 from dash import html, dcc, callback, Input, Output, State, ALL, MATCH
+import dash
 import dash_bootstrap_components as dbc
 from typing import Dict, List, Any
 import logging
@@ -131,7 +132,7 @@ def create_column_verification_modal(file_info: Dict[str, Any]) -> dbc.Modal:
 
     return dbc.Modal([
         dbc.ModalHeader(dbc.ModalTitle(f"AI Column Mapping - {filename}")),
-        dbc.ModalBody(modal_body),
+        dbc.ModalBody(modal_body, id="modal-body"),
         dbc.ModalFooter([
             dbc.Button("Cancel", id="column-verify-cancel", color="secondary", className="me-2"),
             dbc.Button("Confirm & Train AI", id="column-verify-confirm", color="success"),
@@ -534,8 +535,175 @@ def toggle_custom_field(selected_value):
     else:
         return {"display": "none"}
 
+
+# ---------------------------------------------------------------------------
+# Reversed Mapping Callbacks
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("modal-body", "children"),
+    Input("current-file-info-store", "data"),
+    prevent_initial_call=True
+)
+def update_modal_content(file_info):
+    """Generate dropdowns mapping analytics fields to CSV columns"""
+    if not file_info:
+        return "No file selected"
+
+    filename = file_info.get('filename', 'Unknown')
+    columns = file_info.get('columns', [])
+    ai_suggestions = file_info.get('ai_suggestions', {})
+
+    if not columns:
+        return f"No columns found in {filename}"
+
+    standard_fields = [
+        {"field": "person_id", "label": "Person/User ID", "description": "Identifies who accessed"},
+        {"field": "door_id", "label": "Door/Location ID", "description": "Identifies where access occurred"},
+        {"field": "timestamp", "label": "Timestamp", "description": "When access occurred"},
+        {"field": "access_result", "label": "Access Result", "description": "Success/failure of access"},
+        {"field": "token_id", "label": "Token/Badge ID", "description": "Badge or card identifier"},
+        {"field": "device_status", "label": "Device Status", "description": "Status of access device"},
+        {"field": "entry_type", "label": "Entry/Exit Type", "description": "Direction of access"}
+    ]
+
+    csv_column_options = [{"label": f'"{col}"', "value": col} for col in columns]
+    csv_column_options.append({"label": "Skip this field", "value": "skip"})
+
+    table_rows = []
+    for standard_field in standard_fields:
+        field_name = standard_field["field"]
+
+        suggested_csv_column = None
+        ai_confidence = 0.0
+        for csv_col, suggestion in ai_suggestions.items():
+            if suggestion.get('field') == field_name:
+                suggested_csv_column = csv_col
+                ai_confidence = suggestion.get('confidence', 0.0)
+                break
+
+        table_rows.append(
+            html.Tr([
+                html.Td([
+                    html.Strong(standard_field["label"]),
+                    html.Br(),
+                    html.Small(standard_field["description"], className="text-muted"),
+                    html.Br(),
+                    html.Code(field_name, className="bg-info text-white px-2 py-1 rounded small")
+                ], style={"width": "40%"}),
+                html.Td([
+                    dcc.Dropdown(
+                        id={"type": "standard-field-mapping", "field": field_name},
+                        options=csv_column_options,
+                        placeholder=f"Select CSV column for {field_name}",
+                        value=suggested_csv_column,
+                        style={"minWidth": "200px"}
+                    )
+                ], style={"width": "50%"}),
+                html.Td([
+                    dbc.Badge(
+                        f"AI: {ai_confidence:.0%}" if suggested_csv_column else "No AI suggestion",
+                        color="success" if ai_confidence > 0.7 else "warning" if ai_confidence > 0.4 else "secondary",
+                        className="small"
+                    )
+                ], style={"width": "10%"})
+            ])
+        )
+
+    return html.Div([
+        dbc.Alert([
+            html.H6(f"Map Analytics Fields to CSV Columns from {filename}", className="mb-2"),
+            html.P([
+                "Your CSV has these columns: ",
+                ", ".join([col for col in columns[:5]]),
+                f"{'...' if len(columns) > 5 else ''}"
+            ], className="mb-2"),
+            html.P([
+                html.Strong("Instructions: "),
+                "Each row below represents a field that our analytics system expects. ",
+                "Select which column from your CSV file should provide the data for each field."
+            ], className="mb-0")
+        ], color="primary", className="mb-3"),
+
+        dbc.Table([
+            html.Thead([
+                html.Tr([
+                    html.Th("Analytics Field (Fixed)", style={"width": "40%"}),
+                    html.Th("Maps to CSV Column (Variable)", style={"width": "50%"}),
+                    html.Th("AI Confidence", style={"width": "10%"})
+                ])
+            ]),
+            html.Tbody(table_rows)
+        ], striped=True, hover=True),
+
+        dbc.Card([
+            dbc.CardHeader(html.H6("Your CSV Columns", className="mb-0")),
+            dbc.CardBody([
+                html.P("Available columns from your uploaded file:"),
+                html.Div([
+                    dbc.Badge(col, color="light", text_color="dark", className="me-1 mb-1")
+                    for col in columns
+                ])
+            ])
+        ], className="mt-3")
+    ])
+
+
+@callback(
+    Output("upload-results", "children", allow_duplicate=True),
+    [Input("column-verify-confirm", "n_clicks")],
+    [State({"type": "standard-field-mapping", "field": ALL}, "value"),
+     State({"type": "standard-field-mapping", "field": ALL}, "id"),
+     State("current-file-info-store", "data")],
+    prevent_initial_call=True
+)
+def confirm_mappings(n_clicks, mapping_values, mapping_ids, file_info):
+    """Save mappings of standard fields to CSV columns"""
+    if not n_clicks or not file_info:
+        return dash.no_update
+
+    try:
+        filename = file_info.get('filename', 'unknown')
+
+        field_mappings = {}
+        for value, id_dict in zip(mapping_values or [], mapping_ids or []):
+            if value and value != "skip":
+                standard_field = id_dict["field"]
+                csv_column = value
+                field_mappings[standard_field] = csv_column
+                print(f"✅ {standard_field} -> '{csv_column}'")
+
+        print(f"🤖 AI will learn: {field_mappings}")
+
+        training_data = {
+            'filename': filename,
+            'mappings': field_mappings,
+            'reverse_mappings': {v: k for k, v in field_mappings.items()},
+            'timestamp': datetime.now().isoformat()
+        }
+
+        return dbc.Alert([
+            html.H6("Column Mappings Confirmed!", className="alert-heading mb-2"),
+            html.P([
+                f"Mapped {len(field_mappings)} fields for {filename}. ",
+                "AI will learn these patterns for future uploads."
+            ]),
+            html.Ul([
+                html.Li([
+                    html.Code(standard_field, className="bg-success text-white px-2 py-1 rounded me-2"),
+                    " ← ",
+                    html.Code(csv_column, className="bg-primary text-white px-2 py-1 rounded ms-2")
+                ]) for standard_field, csv_column in field_mappings.items()
+            ])
+        ], color="success", dismissable=True)
+
+    except Exception as e:
+        return dbc.Alert(f"Error saving mappings: {str(e)}", color="danger", dismissable=True)
+
 __all__ = [
     'create_column_verification_modal',
     'get_ai_column_suggestions',
-    'save_verified_mappings'
+    'save_verified_mappings',
+    'update_modal_content',
+    'confirm_mappings'
 ]
