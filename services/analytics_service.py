@@ -100,14 +100,14 @@ class AnalyticsService:
         return self._generate_basic_analytics(sample_data)
 
     def _generate_basic_analytics(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Generate basic analytics from DataFrame"""
+        """Generate basic analytics from DataFrame - JSON safe version"""
         try:
             analytics = {
                 'status': 'success',
                 'total_rows': len(df),
                 'total_columns': len(df.columns),
                 'summary': {},
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
             }
 
             # Basic statistics for each column
@@ -118,15 +118,16 @@ class AnalyticsService:
                         'mean': float(df[col].mean()),
                         'min': float(df[col].min()),
                         'max': float(df[col].max()),
-                        'null_count': int(df[col].isnull().sum())
+                        'null_count': int(df[col].isnull().sum()),
                     }
                 else:
                     value_counts = df[col].value_counts().head(10)
                     analytics['summary'][col] = {
                         'type': 'categorical',
                         'unique_values': int(df[col].nunique()),
-                        'top_values': value_counts.to_dict(),
-                        'null_count': int(df[col].isnull().sum())
+                        # Ensure keys/values are JSON serialisable
+                        'top_values': {str(k): int(v) for k, v in value_counts.items()},
+                        'null_count': int(df[col].isnull().sum()),
                     }
 
             return analytics

@@ -255,7 +255,7 @@ def generate_analytics_display(
     data_source: str,
     analysis_type: str,
 ):
-    """Generate and display complete analytics with service integration - FIXED VERSION"""
+    """Generate and display complete analytics with service integration - SIMPLIFIED VERSION"""
 
     if not n_clicks:
         return html.Div(), {}
@@ -269,14 +269,11 @@ def generate_analytics_display(
         analytics_results = analytics_service.get_analytics_by_source(data_source)
 
         if not analytics_results:
-            return (
-                create_info_alert(
-                    f"No data available from source: {data_source}. "
-                    "Try using sample data or upload files first.",
-                    "No Data Available",
-                ),
-                {},
-            )
+            return create_info_alert(
+                f"No data available from source: {data_source}. "
+                "Try using sample data or upload files first.",
+                "No Data Available"
+            ), {}
 
         enhanced_results = _enhance_analytics_by_type(
             analytics_results, analysis_type
@@ -285,13 +282,12 @@ def generate_analytics_display(
             enhanced_results, analysis_type, data_source
         )
 
-        sanitized_results = sanitize_for_json_store(enhanced_results)
-
         logger.info(
             f"Generated analytics for {data_source} source with {enhanced_results.get('total_events', 0)} events"
         )
 
-        return display_components, sanitized_results
+        # Return display components and results (now JSON-safe from source)
+        return display_components, enhanced_results
 
     except Exception as e:
         logger.error(f"Error generating analytics: {e}")
@@ -309,12 +305,13 @@ def generate_analytics_display(
 
 
 def _enhance_analytics_by_type(base_analytics: Dict[str, Any], analysis_type: str) -> Dict[str, Any]:
-    """Enhance analytics based on analysis type with complete integration"""
+    """Enhance analytics based on analysis type with complete integration - FIXED VERSION"""
     enhanced = base_analytics.copy()
 
     # Add analysis type metadata
     enhanced['analysis_type'] = analysis_type
-    enhanced['generated_at'] = pd.Timestamp.now().isoformat()
+    # CRITICAL FIX: Use datetime.now() instead of pd.Timestamp.now()
+    enhanced['generated_at'] = datetime.now().isoformat()
 
     if analysis_type == "security":
         enhanced['analysis_focus'] = "Security Patterns"
