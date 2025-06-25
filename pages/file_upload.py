@@ -506,12 +506,6 @@ def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_o
     Input("verify-columns-btn-simple", "n_clicks"),
     prevent_initial_call=True,
 )
-def test_modal_open(n_clicks):
-    """Simple test to open modal"""
-    print(f"\U0001F9EA Simple button clicked! n_clicks: {n_clicks}")
-    if n_clicks:
-        return True
-    return False
 
 
 # Export functions for integration with other modules
