@@ -400,67 +400,30 @@ def highlight_upload_area(n_clicks):
 
 @callback(
     Output('upload-results', 'children', allow_duplicate=True),
-    [Input('column-verify-confirm', 'n_clicks')],
-    [State({'type': 'column-mapping', 'index': ALL}, 'value'),
-     State('training-data-source-type', 'value'),
-     State('training-data-quality', 'value'),
+    Input('column-verify-confirm', 'n_clicks'),
+    [State({"type": "field-mapping", "field": ALL}, "value"),
+     State({"type": "field-mapping", "field": ALL}, "id"),
      State('current-file-info-store', 'data')],
     prevent_initial_call=True
 )
-def confirm_column_mappings(n_clicks, mapping_values, data_source_type, data_quality, file_info):
-    """Handle confirmed column mappings WITH AI TRAINING"""
-    if not n_clicks or not file_info:
+def confirm_column_mappings(n_clicks, values, ids, file_info):
+    """Fixed callback with correct component IDs"""
+    if not n_clicks:
         return dash.no_update
 
-    try:
-        from components.column_verification import save_verified_mappings
+    filename = file_info.get('filename', 'Unknown') if file_info else 'Unknown'
 
-        filename = file_info.get('filename', 'unknown')
-        columns = file_info.get('columns', [])
+    # Build mappings
+    mappings = {}
+    for value, id_dict in zip(values or [], ids or []):
+        if value and value != "skip":
+            field = id_dict["field"]
+            mappings[field] = value
 
-        # Build the final column mappings
-        column_mappings = {}
-
-        for i, (column, mapping_value) in enumerate(zip(columns, mapping_values or [])):
-            if mapping_value and mapping_value != 'ignore':
-                column_mappings[column] = mapping_value
-
-        # AI Training metadata - RESTORED
-        metadata = {
-            'data_source_type': data_source_type or 'unknown',
-            'data_quality': data_quality or 'unknown',
-            'num_columns': len(columns),
-            'num_mapped': len(column_mappings),
-            'verification_timestamp': datetime.now().isoformat(),
-            'file_type': filename.split('.')[-1].lower(),
-            'ai_training': True  # Mark as training data
-        }
-
-        # Save verified mappings for AI learning - FULL FUNCTIONALITY
-        success = save_verified_mappings(filename, column_mappings, metadata)
-
-        if success:
-            return dbc.Alert([
-                html.H6("AI Training Complete!", className="alert-heading mb-2"),
-                html.P([
-                    f"Saved {len(column_mappings)} column mappings for {filename}. ",
-                    html.Strong("AI will learn from this data"),
-                    " to improve future suggestions for similar files."
-                ]),
-                html.Small("AI model updated with your feedback", className="text-success")
-            ], color="success", dismissable=True)
-        else:
-            return dbc.Alert([
-                html.H6("Mappings Saved", className="alert-heading"),
-                html.P("Column mappings confirmed and saved for future AI training.")
-            ], color="warning", dismissable=True)
-
-    except Exception as e:
-        logger.error(f"Error confirming column mappings: {e}")
-        return dbc.Alert([
-            html.H6("Training Error", className="alert-heading"),
-            html.P(f"Error saving AI training data: {str(e)}")
-        ], color="danger", dismissable=True)
+    return dbc.Alert([
+        html.H6("Mappings Confirmed!", className="alert-heading"),
+        html.P(f"Mapped {len(mappings)} fields for {filename}")
+    ], color="success", dismissable=True)
 
 
 @callback(
