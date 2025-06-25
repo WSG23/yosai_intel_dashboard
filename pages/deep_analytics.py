@@ -19,7 +19,17 @@ from components import (
     create_info_alert,
     create_success_alert
 )
+from data_diagnostics import fix_zero_actives_issue
 from services.analytics_service import get_analytics_service
+
+def debug_data_before_analysis(df, source_name):
+    """Debug function to check data before analysis"""
+    print(f"\n🔍 DEBUG - {source_name} data:")
+    print(f"   Shape: {df.shape}")
+    print(f"   Columns: {list(df.columns)}")
+    print(f"   Sample data:")
+    print(df.head(2))
+    return df
 
 logger = logging.getLogger(__name__)
 
@@ -300,6 +310,23 @@ def generate_analytics_display(
                 f"Available keys: {list(analytics_results.keys()) if isinstance(analytics_results, dict) else 'Not a dict'}",
                 "No Data Found"
             ), {}
+
+        # ADD DEBUG BEFORE PROCESSING
+        if isinstance(analytics_results, dict) and 'data' in analytics_results:
+            df = analytics_results['data']
+            df = debug_data_before_analysis(df, data_source)
+
+            # FIX THE ZERO ACTIVES ISSUE
+            fixed_results = fix_zero_actives_issue(df)
+            print(f"✅ FIXED - Active Users: {fixed_results['active_users']}, Active Doors: {fixed_results['active_doors']}")
+
+            # Update the analytics results with fixed data
+            analytics_results.update({
+                'total_events': fixed_results['total_events'],
+                'active_users': fixed_results['active_users'],
+                'active_doors': fixed_results['active_doors'],
+                'fixed_dataframe': fixed_results['fixed_dataframe']
+            })
 
         enhanced_results = _enhance_analytics_by_type(
             analytics_results, analysis_type

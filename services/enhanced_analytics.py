@@ -74,7 +74,23 @@ class EnhancedAnalyticsService:
     @measure_performance("analytics.dashboard_summary", MetricType.ANALYTICS)
     @with_error_handling(ErrorCategory.ANALYTICS, ErrorSeverity.MEDIUM)
     def get_dashboard_summary(self, time_range_hours: int = 24) -> Dict[str, Any]:
-        """Get comprehensive dashboard summary with enhanced metrics"""
+        """Get comprehensive dashboard summary"""
+
+        # ADD COLUMN MAPPING FIX HERE
+        def fix_column_names(df):
+            column_mapping = {
+                'person_id': ['person_id', 'user_id', 'user_name', 'badge_id', 'person'],
+                'door_id': ['door_id', 'access_point', 'location', 'access_location', 'door'],
+                'access_result': ['access_result', 'result', 'status'],
+                'timestamp': ['timestamp', 'event_time', 'time', 'datetime']
+            }
+
+            for standard_name, variations in column_mapping.items():
+                for col in df.columns:
+                    if col in variations:
+                        df = df.rename(columns={col: standard_name})
+                        break
+            return df
         
         with PerformanceContext("dashboard_summary_data_fetch"):
             # Get recent access events
@@ -91,6 +107,7 @@ class EnhancedAnalyticsService:
             """
             
             events_df = self.db.execute_query(query, (cutoff_time,))
+            events_df = fix_column_names(events_df)
         
         if events_df.empty:
             return self._get_empty_summary()
@@ -521,23 +538,48 @@ class EnhancedAnalyticsService:
         }
     
     def _analyze_user_patterns(self, data: pd.DataFrame) -> Dict[str, Any]:
-        """Analyze user behavior patterns"""
+        """Analyze user behavior patterns - FIXED VERSION"""
+
+        # FIX: Apply column standardization first
+        data = self._fix_column_names(data)
+
+        if 'person_id' not in data.columns:
+            return {'total_active_users': 0, 'error': 'No person_id column found'}
+
+        # FIX: Use all-time count instead of time-filtered
+        active_users = data['person_id'].nunique()
+
         user_stats = data.groupby('person_id').agg({
-            'event_id': 'count',
-            'access_result': lambda x: (x == 'Granted').mean() * 100,
+            'timestamp': 'count',  # Changed from 'event_id'
+            'access_result': lambda x: (x == 'Granted').mean() * 100 if len(x) > 0 else 0,
             'door_id': 'nunique'
         }).rename(columns={
-            'event_id': 'total_attempts',
+            'timestamp': 'total_attempts',
             'access_result': 'success_rate',
             'door_id': 'doors_accessed'
         })
-        
+
         return {
+            'total_active_users': active_users,
             'most_active_users': user_stats.nlargest(10, 'total_attempts').to_dict('index'),
-            'users_with_failures': user_stats[user_stats['success_rate'] < 100].to_dict('index'),
-            'user_statistics': user_stats.describe().to_dict(),
-            'total_unique_users': len(user_stats)
+            'user_statistics': user_stats.describe().to_dict()
         }
+
+    def _fix_column_names(self, df):
+        """Fix column names to standard format"""
+        column_mapping = {
+            'person_id': ['person_id', 'user_id', 'user_name', 'badge_id', 'person'],
+            'door_id': ['door_id', 'access_point', 'location', 'access_location', 'door'],
+            'access_result': ['access_result', 'result', 'status'],
+            'timestamp': ['timestamp', 'event_time', 'time', 'datetime']
+        }
+
+        for standard_name, variations in column_mapping.items():
+            for col in df.columns:
+                if col in variations:
+                    df = df.rename(columns={col: standard_name})
+                    break
+        return df
     
     def _analyze_door_patterns(self, data: pd.DataFrame) -> Dict[str, Any]:
         """Analyze door utilization patterns"""
