@@ -274,12 +274,31 @@ def generate_analytics_display(
         if analytics_results.get('source_info'):
             logger.info(f"Source info: {analytics_results['source_info']}")
 
-        if not analytics_results or analytics_results.get('total_events', 0) == 0:
-            error_info = analytics_results.get('error', 'Unknown error') if analytics_results else 'No results'
-            return create_error_alert(
-                f"File processing issue: {error_info}. "
-                "Check column names match expected format (person_id, door_id, access_result, timestamp).",
-                "Data Processing Error"
+        # DEBUG: Print what we actually received
+        print(f"[DASHBOARD DEBUG] Analytics results: {analytics_results}")
+        print(f"[DASHBOARD DEBUG] Type: {type(analytics_results)}")
+        if analytics_results:
+            print(f"[DASHBOARD DEBUG] Keys: {list(analytics_results.keys())}")
+            print(f"[DASHBOARD DEBUG] total_events value: {analytics_results.get('total_events', 'KEY_NOT_FOUND')}")
+            print(f"[DASHBOARD DEBUG] total_events type: {type(analytics_results.get('total_events', 'KEY_NOT_FOUND'))}")
+
+        # Check for actual errors, not just 0 events
+        if not analytics_results:
+            return create_error_alert("No analytics results returned", "Analytics Error"), {}
+
+        if analytics_results.get('status') == 'error':
+            error_info = analytics_results.get('message', 'Unknown error')
+            return create_error_alert(f"Analytics error: {error_info}", "Analytics Error"), {}
+
+        # Check for 0 events but with better debugging
+        total_events = analytics_results.get('total_events', 0)
+        if total_events == 0:
+            print(f"[DASHBOARD DEBUG] Zero events detected!")
+            print(f"[DASHBOARD DEBUG] Full analytics_results: {analytics_results}")
+            return create_info_alert(
+                f"Analytics returned 0 events. Status: {analytics_results.get('status', 'unknown')}. "
+                f"Available keys: {list(analytics_results.keys()) if isinstance(analytics_results, dict) else 'Not a dict'}",
+                "No Data Found"
             ), {}
 
         enhanced_results = _enhance_analytics_by_type(
