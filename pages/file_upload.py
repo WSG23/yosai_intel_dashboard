@@ -6,10 +6,20 @@ Integrates with analytics system
 import logging
 import base64
 import io
+import json
+from datetime import datetime
+
 import pandas as pd
 from typing import Optional, Dict, Any, List
-from dash import html, dcc, callback, Input, Output, State
+from dash import html, dcc, callback, Input, Output, State, ALL
+import dash
 import dash_bootstrap_components as dbc
+
+from components.column_verification import (
+    create_column_verification_modal,
+    get_ai_column_suggestions,
+    save_verified_mappings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +76,7 @@ def layout():
         # Upload status and file list
         dbc.Row([
             dbc.Col([
-                html.Div(id='upload-status')
+                html.Div(id='upload-results')
             ])
         ], className="mb-4"),
 
@@ -86,13 +96,17 @@ def layout():
 
         # Store for uploaded data info
         dcc.Store(id='uploaded-files-store', data=[]),
+        dcc.Store(id='current-file-info-store'),
+
+        # Container for column verification modal
+        html.Div(id='column-verification-modal-container'),
 
     ], fluid=True)
 
 
 @callback(
     [
-        Output('upload-status', 'children'),
+        Output('upload-results', 'children'),
         Output('file-preview-area', 'children'),
         Output('uploaded-files-store', 'data'),
         Output('analytics-navigation', 'children')
@@ -127,11 +141,21 @@ def handle_file_upload(contents, filenames, existing_files):
             result = process_uploaded_file(content, filename)
 
             if result['success']:
+                rows = result['rows']
+                cols = result['columns']
                 upload_results.append(
                     dbc.Alert([
-                        html.I(className="fas fa-check-circle me-2"),
-                        f"✅ Successfully uploaded {filename} ({result['rows']} rows, {result['columns']} columns)"
-                    ], color="success", className="mb-2")
+                        html.H6([
+                            f"Successfully uploaded {filename} ({rows:,} rows, {cols} columns)"
+                        ], className="alert-heading mb-2"),
+                        dbc.Button(
+                            "Verify Column Mappings",
+                            id={"type": "verify-columns-btn", "filename": filename},
+                            color="info",
+                            size="sm",
+                            className="mt-2"
+                        )
+                    ], color="success")
                 )
 
                 # Store file info
@@ -139,7 +163,8 @@ def handle_file_upload(contents, filenames, existing_files):
                     'filename': filename,
                     'rows': result['rows'],
                     'columns': result['columns'],
-                    'upload_time': result['upload_time']
+                    'upload_time': result['upload_time'],
+                    'column_names': list(result['data'].columns)
                 })
 
                 # Create preview
@@ -344,6 +369,113 @@ def highlight_upload_area(n_clicks):
         'cursor': 'pointer',
         'backgroundColor': '#f8f9fa'
     }
+
+
+@callback(
+    Output('column-verification-modal-container', 'children'),
+    Output('current-file-info-store', 'data'),
+    Input({'type': 'verify-columns-btn', 'filename': ALL}, 'n_clicks'),
+    prevent_initial_call=True
+)
+def show_column_verification(n_clicks_list):
+    """Display column verification modal when user opts to verify"""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+
+    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
+    try:
+        btn_id = json.loads(triggered)
+        filename = btn_id.get('filename')
+    except Exception:
+        return dash.no_update, dash.no_update
+
+    df = _uploaded_data_store.get(filename)
+    if df is None:
+        return dash.no_update, dash.no_update
+
+    sample_data = {col: df[col].dropna().astype(str).head(5).tolist() for col in df.columns}
+    file_info = {
+        'filename': filename,
+        'columns': list(df.columns),
+        'sample_data': sample_data,
+        'ai_suggestions': get_ai_column_suggestions(df, filename)
+    }
+    modal = create_column_verification_modal(file_info)
+    modal.is_open = True
+    return modal, file_info
+
+
+@callback(
+    Output('column-verification-modal-container', 'children'),
+    [Input('column-verify-cancel', 'n_clicks'), Input('column-verify-confirm', 'n_clicks')],
+    prevent_initial_call=True
+)
+def close_column_verification(cancel_clicks, confirm_clicks):
+    """Close verification modal on cancel or confirm"""
+    if cancel_clicks or confirm_clicks:
+        return ''
+    return dash.no_update
+
+
+@callback(
+    Output('upload-results', 'children', allow_duplicate=True),
+    [Input('column-verify-confirm', 'n_clicks')],
+    [State({'type': 'column-mapping', 'index': ALL}, 'value'),
+     State({'type': 'custom-field', 'index': ALL}, 'value'),
+     State('training-data-source-type', 'value'),
+     State('training-data-quality', 'value'),
+     State('current-file-info-store', 'data')],
+    prevent_initial_call=True
+)
+def confirm_column_mappings(n_clicks, mapping_values, custom_values, data_source_type, data_quality, file_info):
+    """Handle confirmed column mappings"""
+    if not n_clicks or not file_info:
+        return dash.no_update
+
+    try:
+        filename = file_info.get('filename', 'unknown')
+        columns = file_info.get('columns', [])
+
+        column_mappings = {}
+        for column, mapping_value, custom_value in zip(columns, mapping_values, custom_values):
+            if mapping_value == 'other' and custom_value:
+                column_mappings[column] = custom_value.strip()
+            elif mapping_value and mapping_value != 'ignore':
+                column_mappings[column] = mapping_value
+
+        metadata = {
+            'data_source_type': data_source_type,
+            'data_quality': data_quality,
+            'num_columns': len(columns),
+            'num_mapped': len(column_mappings),
+            'verification_timestamp': datetime.now().isoformat()
+        }
+
+        success = save_verified_mappings(filename, column_mappings, metadata)
+
+        if success:
+            return dbc.Alert([
+                html.H6('Column Mappings Verified Successfully!', className='alert-heading mb-2'),
+                html.P([
+                    f'Saved {len(column_mappings)} column mappings for ',
+                    html.Strong(filename),
+                    '. This data will help improve AI suggestions for future uploads.'
+                ]),
+                html.Small('AI training data updated', className='text-muted')
+            ], color='success', dismissable=True)
+        else:
+            return dbc.Alert([
+                html.H6('Verification Saved Locally', className='alert-heading'),
+                html.P("Column mappings confirmed but couldn't save to AI training system.")
+            ], color='warning', dismissable=True)
+
+    except Exception as e:
+        logger.error(f'Error confirming column mappings: {e}')
+        return dbc.Alert([
+            html.H6('Verification Error', className='alert-heading'),
+            html.P(f'Error saving column mappings: {str(e)}')
+        ], color='danger', dismissable=True)
 
 
 # Export functions for integration with other modules
