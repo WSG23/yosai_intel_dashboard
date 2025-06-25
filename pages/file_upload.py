@@ -21,6 +21,7 @@ from components.column_verification import (
     save_verified_mappings,
 )
 
+
 logger = logging.getLogger(__name__)
 
 # Global storage for uploaded data (in production, use database or session storage)
@@ -409,29 +410,87 @@ def highlight_upload_area(n_clicks):
 @callback(
     Output('upload-results', 'children', allow_duplicate=True),
     Input('column-verify-confirm', 'n_clicks'),
-    [State({"type": "field-mapping", "field": ALL}, "value"),
-     State({"type": "field-mapping", "field": ALL}, "id"),
+    [State({"type": "field-mapping", "column": ALL}, "value"),
+     State({"type": "field-mapping", "column": ALL}, "id"),
      State('current-file-info-store', 'data')],
     prevent_initial_call=True
 )
-def confirm_column_mappings(n_clicks, values, ids, file_info):
-    """Fixed callback with correct component IDs"""
+def confirm_column_mappings(n_clicks, dropdown_values, dropdown_ids, file_info):
+    """Fixed: Read dropdown values and save mappings"""
     if not n_clicks:
         return dash.no_update
 
+    print(f"🔧 Confirm callback fired!")
+    print(f"   dropdown_values: {dropdown_values}")
+    print(f"   dropdown_ids: {dropdown_ids}")
+
     filename = file_info.get('filename', 'Unknown') if file_info else 'Unknown'
 
-    # Build mappings
+    # Build mappings: csv_column -> analytics_field
     mappings = {}
-    for value, id_dict in zip(values or [], ids or []):
+
+    for value, id_dict in zip(dropdown_values or [], dropdown_ids or []):
         if value and value != "skip":
-            field = id_dict["field"]
-            mappings[field] = value
+            csv_column = id_dict["column"]
+            analytics_field = value
+            mappings[csv_column] = analytics_field
+            print(f"   ✅ '{csv_column}' -> {analytics_field}")
+
+    print(f"📊 Total mappings: {len(mappings)}")
+
+    # Save to AI training
+    if mappings:
+        save_ai_training_data(filename, mappings, file_info)
 
     return dbc.Alert([
         html.H6("Mappings Confirmed!", className="alert-heading"),
-        html.P(f"Mapped {len(mappings)} fields for {filename}")
-    ], color="success", dismissable=True)
+        html.P(f"Mapped {len(mappings)} fields for {filename}"),
+        html.Ul([
+            html.Li(f"'{csv_col}' → {analytics_field}")
+            for csv_col, analytics_field in mappings.items()
+        ]) if mappings else [html.Li("No mappings selected")]
+    ], color="success" if mappings else "warning", dismissable=True)
+
+
+def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Dict):
+    """Save confirmed mappings for AI training"""
+    try:
+        print(f"🤖 Saving AI training data for {filename}")
+
+        # Prepare training data
+        training_data = {
+            'filename': filename,
+            'timestamp': datetime.now().isoformat(),
+            'mappings': mappings,
+            'reverse_mappings': {v: k for k, v in mappings.items()},
+            'column_count': len(file_info.get('columns', [])),
+            'ai_suggestions': file_info.get('ai_suggestions', {}),
+            'user_verified': True
+        }
+
+        try:
+            from plugins.ai_classification.plugin import AIClassificationPlugin
+            from plugins.ai_classification.config import get_ai_config
+
+            ai_plugin = AIClassificationPlugin(get_ai_config())
+            if ai_plugin.start():
+                session_id = f"verified_{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                ai_mappings = {v: k for k, v in mappings.items()}
+                ai_plugin.confirm_column_mapping(ai_mappings, session_id)
+                print(f"✅ AI training data saved: {ai_mappings}")
+        except Exception as ai_e:
+            print(f"⚠️ AI training save failed: {ai_e}")
+
+        import os
+        import json
+        os.makedirs('data/training', exist_ok=True)
+        with open(f"data/training/mappings_{datetime.now().strftime('%Y%m%d')}.jsonl", 'a') as f:
+            f.write(json.dumps(training_data) + '\n')
+
+        print(f"✅ Training data saved locally")
+
+    except Exception as e:
+        print(f"❌ Error saving training data: {e}")
 
 
 @callback(
@@ -489,6 +548,20 @@ def handle_verify_button(n_clicks):
 
 
 @callback(
+    Output("column-verification-modal", "is_open", allow_duplicate=True),
+    [Input("column-verify-cancel", "n_clicks"),
+     Input("column-verify-confirm", "n_clicks")],
+    prevent_initial_call=True
+)
+def close_modal(cancel_clicks, confirm_clicks):
+    """Close modal when cancel or confirm is clicked"""
+    if cancel_clicks or confirm_clicks:
+        print("🚪 Closing modal")
+        return False
+    return dash.no_update
+
+
+@callback(
     Output("modal-body", "children", allow_duplicate=True),
     Input("column-verification-modal", "is_open"),
     State("current-file-info-store", "data"),
@@ -507,6 +580,16 @@ def populate_modal_content(is_open, file_info):
 
     if not columns:
         return f"No columns found in {filename}"
+
+    def map_ai_to_dropdown_values(ai_field):
+        """Convert AI suggestions to dropdown values"""
+        ai_to_dropdown = {
+            'user_id': 'person_id',
+            'location': 'door_id',
+            'access_type': 'access_result',
+            'timestamp': 'timestamp'
+        }
+        return ai_to_dropdown.get(ai_field, ai_field)
 
     mapping_rows = []
     for i, column in enumerate(columns):
@@ -535,7 +618,10 @@ def populate_modal_content(is_open, file_info):
                             {"label": "Token/Badge ID", "value": "token_id"},
                             {"label": "Skip this column", "value": "skip"}
                         ],
-                        value=suggested_field if suggested_field else None,
+                        value=(map_ai_to_dropdown_values(suggested_field)
+                               if map_ai_to_dropdown_values(suggested_field) in
+                               ['person_id', 'door_id', 'timestamp', 'access_result', 'token_id']
+                               else None),
                         placeholder=f"Map {column} to..."
                     )
                 ])
@@ -568,7 +654,8 @@ __all__ = [
     'get_uploaded_filenames',
     'clear_uploaded_data',
     'get_file_info',
-    'process_uploaded_file'
+    'process_uploaded_file',
+    'save_ai_training_data'
 ]
 
 print(f"\U0001F50D FILE_UPLOAD.PY LOADED - Callbacks should be registered")
