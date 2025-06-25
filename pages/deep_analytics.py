@@ -3,10 +3,12 @@
 Complete Analytics Integration - Fixed analytics page with full service integration
 """
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
+from datetime import datetime
+import json
 
 # Import complete integration components
 from components import (
@@ -20,6 +22,48 @@ from components import (
 from services.analytics_service import get_analytics_service
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_json_store(data: Any) -> Any:
+    """Sanitize data for JSON serialization in dcc.Store components."""
+    if data is None:
+        return None
+
+    if isinstance(data, (str, int, float, bool)):
+        return data
+
+    if isinstance(data, datetime):
+        return data.isoformat()
+
+    if isinstance(data, pd.Timestamp):
+        return data.isoformat()
+
+    if isinstance(data, pd.DataFrame):
+        return {
+            "type": "dataframe",
+            "shape": data.shape,
+            "columns": list(data.columns),
+            "data": data.head(100).to_dict("records"),
+            "dtypes": {col: str(dtype) for col, dtype in data.dtypes.items()},
+            "total_rows": len(data),
+        }
+
+    if isinstance(data, (pd.Series, list)):
+        return [sanitize_for_json_store(item) for item in data]
+
+    if isinstance(data, dict):
+        return {key: sanitize_for_json_store(value) for key, value in data.items()}
+
+    if isinstance(data, tuple):
+        return [sanitize_for_json_store(item) for item in data]
+
+    if hasattr(data, "__dict__"):
+        return {
+            "type": type(data).__name__,
+            "data": sanitize_for_json_store(data.__dict__),
+        }
+
+    return str(data)
 
 
 def layout():
@@ -211,43 +255,57 @@ def generate_analytics_display(
     data_source: str,
     analysis_type: str,
 ):
-    """Generate and display complete analytics with service integration"""
+    """Generate and display complete analytics with service integration - FIXED VERSION"""
 
     if not n_clicks:
         return html.Div(), {}
 
-    # Show loading spinner
-    loading_component = create_loading_spinner("Generating analytics from integrated services...")
+    loading_component = create_loading_spinner(
+        "Generating analytics from integrated services..."
+    )
 
     try:
-        # Get analytics service
         analytics_service = get_analytics_service()
-
-        # Get analytics from selected source
         analytics_results = analytics_service.get_analytics_by_source(data_source)
 
         if not analytics_results:
-            return create_info_alert(
-                f"No data available from source: {data_source}. "
-                "Try using sample data or upload files first.",
-                "No Data Available"
-            ), {}
+            return (
+                create_info_alert(
+                    f"No data available from source: {data_source}. "
+                    "Try using sample data or upload files first.",
+                    "No Data Available",
+                ),
+                {},
+            )
 
-        # Enhance analytics based on type
-        enhanced_results = _enhance_analytics_by_type(analytics_results, analysis_type)
+        enhanced_results = _enhance_analytics_by_type(
+            analytics_results, analysis_type
+        )
+        display_components = _create_complete_analytics_display(
+            enhanced_results, analysis_type, data_source
+        )
 
-        # Create complete display
-        display_components = _create_complete_analytics_display(enhanced_results, analysis_type, data_source)
+        sanitized_results = sanitize_for_json_store(enhanced_results)
 
-        logger.info(f"Generated analytics for {data_source} source with {enhanced_results.get('total_events', 0)} events")
-        return display_components, enhanced_results
+        logger.info(
+            f"Generated analytics for {data_source} source with {enhanced_results.get('total_events', 0)} events"
+        )
+
+        return display_components, sanitized_results
 
     except Exception as e:
         logger.error(f"Error generating analytics: {e}")
-        return create_error_alert(
-            f"Analytics generation failed: {str(e)}",
-            "Analytics Error"
-        ), {}
+        error_data = {
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat(),
+        }
+        return (
+            create_error_alert(
+                f"Analytics generation failed: {str(e)}", "Analytics Error"
+            ),
+            error_data,
+        )
 
 
 def _enhance_analytics_by_type(base_analytics: Dict[str, Any], analysis_type: str) -> Dict[str, Any]:
