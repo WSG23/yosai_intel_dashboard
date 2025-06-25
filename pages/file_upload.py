@@ -507,6 +507,13 @@ def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_o
     prevent_initial_call=True,
 )
 
+def test_modal_open(n_clicks):
+    """Open modal when button clicked"""
+    if n_clicks:
+        return True
+    return False
+
+
 
 # Export functions for integration with other modules
 __all__ = [
