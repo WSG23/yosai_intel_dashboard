@@ -11,8 +11,8 @@ from datetime import datetime
 
 import pandas as pd
 from typing import Optional, Dict, Any, List
-from dash import html, dcc, callback, Input, Output, State, ALL
 import dash
+from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
 import dash_bootstrap_components as dbc
 
 from components.column_verification import (
@@ -154,7 +154,7 @@ def upload_callback(contents_list, filenames_list):
                         ], className="alert-heading mb-2"),
                         dbc.Button(
                             "Verify Column Mappings",
-                            id={"type": "verify-columns-btn", "filename": filename},
+                            id="verify-columns-btn-simple",
                             color="info",
                             size="sm",
                             className="mt-2"
@@ -184,8 +184,10 @@ def upload_callback(contents_list, filenames_list):
                 try:
                     from components.column_verification import create_column_verification_modal
                     verification_modal = create_column_verification_modal(current_file_info)
+                    print(f"✅ Modal created successfully for {filename}")
+                    print(f"   Modal type: {type(verification_modal)}")
                 except Exception as e:
-                    logger.error(f"Error creating verification modal: {e}")
+                    logger.error(f"❌ Error creating verification modal: {e}")
                     verification_modal = ""
 
                 preview_components.append(create_file_preview(df, filename))
@@ -495,6 +497,61 @@ def confirm_column_mappings(n_clicks, mapping_values, custom_values, data_source
             html.H6('Verification Error', className='alert-heading'),
             html.P(f'Error saving column mappings: {str(e)}')
         ], color='danger', dismissable=True)
+
+
+@callback(
+    Output("column-verification-modal", "is_open"),
+    [
+        Input("verify-columns-btn-simple", "n_clicks"),
+        Input("column-verify-cancel", "n_clicks"),
+        Input("column-verify-confirm", "n_clicks"),
+    ],
+    [State("column-verification-modal", "is_open")],
+    prevent_initial_call=True,
+)
+def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_open):
+    """Toggle the column verification modal with debugging"""
+    import dash
+
+    print(f"\U0001F527 Modal callback triggered!")
+    print(f"   verify_clicks: {verify_clicks}")
+    print(f"   cancel_clicks: {cancel_clicks}")
+    print(f"   confirm_clicks: {confirm_clicks}")
+    print(f"   current is_open: {is_open}")
+
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        print("   \u274C No trigger context")
+        return False
+
+    trigger_id = ctx.triggered[0]['prop_id']
+    trigger_value = ctx.triggered[0]['value']
+
+    print(f"   \U0001F3AF Triggered by: {trigger_id}")
+    print(f"   \U0001F4CA Trigger value: {trigger_value}")
+
+    if "verify-columns-btn" in trigger_id and trigger_value:
+        print("   \u2705 Opening modal!")
+        return True
+    elif cancel_clicks or confirm_clicks:
+        print("   \u274C Closing modal!")
+        return False
+
+    print("   \U0001F504 No change to modal state")
+    return is_open
+
+
+@callback(
+    Output("column-verification-modal", "is_open", allow_duplicate=True),
+    Input("verify-columns-btn-simple", "n_clicks"),
+    prevent_initial_call=True,
+)
+def test_modal_open(n_clicks):
+    """Simple test to open modal"""
+    print(f"\U0001F9EA Simple button clicked! n_clicks: {n_clicks}")
+    if n_clicks:
+        return True
+    return False
 
 
 # Export functions for integration with other modules
