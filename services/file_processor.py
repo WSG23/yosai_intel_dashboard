@@ -174,9 +174,11 @@ class FileProcessor:
                 print("[SUCCESS] Applying column mappings...")
                 try:
                     df_mapped = df.copy()
-                    df_mapped = df_mapped.rename(columns=fuzzy_matches)
+                    # Invert the dictionary: fuzzy_matches maps target->source, but rename needs source->target
+                    rename_dict = {source_col: target_col for target_col, source_col in fuzzy_matches.items()}
+                    df_mapped = df_mapped.rename(columns=rename_dict)
 
-                    print(f"[SUCCESS] Applied mappings: {fuzzy_matches}")
+                    print(f"[SUCCESS] Applied rename dict: {rename_dict}")
                     print(f"[INFO] New columns: {list(df_mapped.columns)}")
 
                     # Validate the mapped dataframe and ensure column names are preserved
