@@ -109,7 +109,8 @@ def layout():
         Output('upload-results', 'children'),
         Output('file-preview-area', 'children'),
         Output('uploaded-files-store', 'data'),
-        Output('analytics-navigation', 'children')
+        Output('analytics-navigation', 'children'),
+        Output('current-file-info-store', 'data')
     ],
     [
         Input('upload-data', 'contents')
@@ -123,7 +124,7 @@ def layout():
 def handle_file_upload(contents, filenames, existing_files):
     """Handle file upload and processing"""
     if not contents:
-        return "", "", existing_files, ""
+        return "", "", existing_files, "", {}
 
     # Ensure contents and filenames are lists
     if not isinstance(contents, list):
@@ -134,6 +135,7 @@ def handle_file_upload(contents, filenames, existing_files):
     upload_results = []
     file_info = existing_files.copy() if existing_files else []
     preview_components = []
+    current_file_info = {}
 
     for content, filename in zip(contents, filenames):
         try:
@@ -210,7 +212,11 @@ def handle_file_upload(contents, filenames, existing_files):
             ])
         ], className="mt-4")
 
-    return upload_results, preview_components, file_info, analytics_nav
+    # If any files were processed, store info for the last one as the current file
+    if file_info:
+        current_file_info = file_info[-1]
+
+    return upload_results, preview_components, file_info, analytics_nav, current_file_info
 
 
 def process_uploaded_file(contents, filename):
