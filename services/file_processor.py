@@ -140,79 +140,149 @@ class FileProcessor:
         return df
     
     def _validate_data(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Validate data format for access control events"""
-        
+        """Enhanced validation with automatic column mapping"""
+
         if df.empty:
             return {'valid': False, 'error': 'File is empty'}
-        
-        # Required columns for access control data
-        required_columns = ['person_id', 'door_id', 'access_result']
-        missing_columns = []
-        
-        # Check for exact matches first
-        for col in required_columns:
-            if col not in df.columns:
-                missing_columns.append(col)
-        
-        # If exact matches not found, try fuzzy matching
+
+        required_columns = ['person_id', 'door_id', 'access_result', 'timestamp']
+
+        exact_matches = [col for col in required_columns if col in df.columns]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+
+        if len(exact_matches) == len(required_columns):
+            return self._validate_data_content(df)
+
         if missing_columns:
             fuzzy_matches = self._fuzzy_match_columns(list(df.columns), required_columns)
-            
-            if fuzzy_matches:
+
+            print(f"\ud83d\udd27 Fuzzy matching found: {fuzzy_matches}")
+
+            if len(fuzzy_matches) >= len(missing_columns):
+                df_mapped = df.copy()
+                df_mapped = df_mapped.rename(columns=fuzzy_matches)
+
+                print(f"\u2705 Applied column mappings: {fuzzy_matches}")
+
+                return self._validate_data_content(df_mapped)
+            else:
                 return {
                     'valid': False,
-                    'error': f'Missing required columns: {missing_columns}',
-                    'suggestions': fuzzy_matches
+                    'error': f'Could not map required columns. Found: {fuzzy_matches}',
+                    'suggestions': fuzzy_matches,
+                    'available_columns': list(df.columns),
+                    'required_columns': required_columns
                 }
-        
-        # Validate data types and content
+
+        return {'valid': True}
+
+    def _validate_data_content(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Validate the actual data content"""
         validation_errors = []
-        
-        # Check for timestamp column
-        timestamp_cols = [col for col in df.columns if 'time' in col.lower() or 'date' in col.lower()]
-        if not timestamp_cols:
-            validation_errors.append("No timestamp column found")
-        
-        # Check for reasonable data ranges
+
         if 'access_result' in df.columns:
-            valid_results = ['granted', 'denied', 'timeout', 'error']
+            df['access_result'] = df['access_result'].astype(str).str.replace('Access ', '', regex=False)
+
+            valid_results = ['granted', 'denied', 'timeout', 'error', 'failed']
             invalid_results = df['access_result'].str.lower().unique()
             invalid_results = [r for r in invalid_results if r not in valid_results]
-            
+
             if invalid_results:
-                validation_errors.append(f"Invalid access results found: {invalid_results}")
-        
+                print(f"\u26a0\ufe0f  Non-standard access results found: {invalid_results} (will be processed anyway)")
+
+        if 'timestamp' in df.columns:
+            try:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            except Exception as e:
+                validation_errors.append(f"Cannot parse timestamp column: {e}")
+
+        if len(df) == 0:
+            validation_errors.append("No data rows found")
+
         if validation_errors:
             return {
                 'valid': False,
                 'error': '; '.join(validation_errors)
             }
-        
-        return {'valid': True}
+
+        return {'valid': True, 'data': df}
     
     def _fuzzy_match_columns(self, available_columns: Sequence[str], required_columns: Sequence[str]) -> Dict[str, str]:
-        """Suggest column mappings based on fuzzy matching"""
-        
+        """Enhanced fuzzy matching based on your actual data"""
+
         suggestions = {}
-        
-        # Simple fuzzy matching based on common patterns
+
         mapping_patterns = {
-            'person_id': ['user', 'employee', 'badge', 'card', 'id'],
-            'door_id': ['door', 'reader', 'device', 'access_point'],
-            'access_result': ['result', 'status', 'outcome', 'decision'],
-            'timestamp': ['time', 'date', 'when', 'occurred']
+            'person_id': [
+                'person id', 'userid', 'user id',
+                'user', 'employee', 'badge', 'card', 'person', 'emp',
+                'employee_id', 'badge_id', 'card_id'
+            ],
+            'door_id': [
+                'device name', 'devicename', 'device_name',
+                'door', 'reader', 'device', 'access_point', 'gate', 'entry',
+                'door_name', 'reader_id', 'access_device'
+            ],
+            'access_result': [
+                'access result', 'accessresult', 'access_result',
+                'result', 'status', 'outcome', 'decision', 'success',
+                'granted', 'denied', 'access_status'
+            ],
+            'timestamp': [
+                'timestamp', 'time', 'datetime', 'date',
+                'when', 'occurred', 'event_time', 'access_time',
+                'date_time', 'event_date'
+            ]
         }
-        
+
+        available_lower = {col.lower(): col for col in available_columns}
+
         for required_col, patterns in mapping_patterns.items():
-            for available_col in available_columns:
-                for pattern in patterns:
-                    if pattern in available_col.lower():
-                        suggestions[required_col] = available_col
-                        break
-                if required_col in suggestions:
+            best_match = None
+
+            for pattern in patterns:
+                if pattern.lower() in available_lower:
+                    best_match = available_lower[pattern.lower()]
                     break
-        
+
+            if not best_match:
+                for pattern in patterns:
+                    for available_col_lower, original_col in available_lower.items():
+                        if pattern in available_col_lower or available_col_lower in pattern:
+                            best_match = original_col
+                            break
+                    if best_match:
+                        break
+            if best_match:
+                suggestions[required_col] = best_match
+
         return suggestions
+
+    def apply_manual_mapping(self, df: pd.DataFrame, column_mapping: Dict[str, str]) -> pd.DataFrame:
+        """Apply manual column mapping provided by user"""
+
+        print(f"\ud83d\udd27 Applying manual mapping: {column_mapping}")
+
+        missing_source_cols = [source for source in column_mapping.values() if source not in df.columns]
+        if missing_source_cols:
+            raise ValueError(f"Source columns not found: {missing_source_cols}")
+
+        df_mapped = df.rename(columns={v: k for k, v in column_mapping.items()})
+
+        return df_mapped
+
+    def get_mapping_suggestions(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Get mapping suggestions for user interface"""
+
+        required_columns = ['person_id', 'door_id', 'access_result', 'timestamp']
+        fuzzy_matches = self._fuzzy_match_columns(list(df.columns), required_columns)
+
+        return {
+            'available_columns': list(df.columns),
+            'required_columns': required_columns,
+            'suggested_mappings': fuzzy_matches,
+            'missing_mappings': [col for col in required_columns if col not in fuzzy_matches]
+        }
     
     def _is_allowed_file(self, filename: str) -> bool:
         """Check if file extension is allowed"""
