@@ -19,14 +19,17 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
-    """Create summary statistic cards"""
+    """Create summary statistic cards - FIXED for uploaded data"""
     if not analytics_data:
-        return html.Div()
-    
+        return html.Div("No analytics data available")
+
+    print(f"📊 Creating summary cards from: {analytics_data.keys()}")
+
     cards = []
-    
-    # Total Events Card
+
+    # Total Events Card - FIXED
     total_events = analytics_data.get('total_events', 0)
+    print(f"   Total events: {total_events}")
     cards.append(
         dbc.Col([
             dbc.Card([
@@ -37,58 +40,44 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
             ])
         ], width=3)
     )
-    
-    # Active Users - FIXED to use multiple data sources
-    top_users = analytics_data.get('top_users', [])
-    user_patterns = analytics_data.get('user_patterns', {})
-    most_active_users = user_patterns.get('most_active_users', {})
 
-    # Calculate active users from multiple sources
-    if top_users:
-        user_count = len(top_users)
-    elif most_active_users:
-        user_count = len(most_active_users)  # Use analytics service data
-    elif analytics_data.get('total_unique_users'):
-        user_count = analytics_data.get('total_unique_users', 0)
-    else:
-        user_count = analytics_data.get('unique_users', 0)  # Fallback
+    # Active Users - FIXED with multiple fallbacks
+    active_users = (
+        analytics_data.get('active_users', 0) or
+        analytics_data.get('unique_users', 0) or
+        len(analytics_data.get('top_users', []))
+    )
+    print(f"   Active users: {active_users}")
     cards.append(
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(str(user_count), className="text-success mb-0"),
+                    html.H4(str(active_users), className="text-success mb-0"),
                     html.P("Active Users", className="text-muted mb-0")
                 ])
             ])
         ], width=3)
     )
-    
-    # Active Doors - FIXED to use multiple data sources
-    top_doors = analytics_data.get('top_doors', [])
-    door_patterns = analytics_data.get('door_patterns', {})
-    busiest_doors = door_patterns.get('busiest_doors', {})
 
-    # Calculate active doors from multiple sources
-    if top_doors:
-        door_count = len(top_doors)
-    elif busiest_doors:
-        door_count = len(busiest_doors)  # Use analytics service data
-    elif analytics_data.get('total_doors'):
-        door_count = analytics_data.get('total_doors', 0)
-    else:
-        door_count = analytics_data.get('unique_doors', 0)  # Fallback
+    # Active Doors - FIXED with multiple fallbacks
+    active_doors = (
+        analytics_data.get('active_doors', 0) or
+        analytics_data.get('unique_doors', 0) or
+        len(analytics_data.get('top_doors', []))
+    )
+    print(f"   Active doors: {active_doors}")
     cards.append(
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(str(door_count), className="text-warning mb-0"),
+                    html.H4(str(active_doors), className="text-warning mb-0"),
                     html.P("Active Doors", className="text-muted mb-0")
                 ])
             ])
         ], width=3)
     )
-    
-    # Date Range
+
+    # Date Range Card
     date_range = analytics_data.get('date_range', {})
     if date_range and date_range.get('start'):
         date_text = f"{date_range['start']} to {date_range.get('end', 'now')}"
@@ -102,8 +91,8 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
                 ])
             ], width=3)
         )
-    
-    return dbc.Row(cards, className="mb-4") if cards else html.Div()
+
+    return dbc.Row(cards, className="mb-4") if cards else html.Div("No data for summary cards")
 
 
 def create_analytics_charts(analytics_data: Dict[str, Any]) -> html.Div:
