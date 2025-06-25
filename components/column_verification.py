@@ -649,61 +649,9 @@ def update_modal_content(file_info):
     ])
 
 
-@callback(
-    Output("upload-results", "children", allow_duplicate=True),
-    [Input("column-verify-confirm", "n_clicks")],
-    [State({"type": "standard-field-mapping", "field": ALL}, "value"),
-     State({"type": "standard-field-mapping", "field": ALL}, "id"),
-     State("current-file-info-store", "data")],
-    prevent_initial_call=True
-)
-def confirm_mappings(n_clicks, mapping_values, mapping_ids, file_info):
-    """Save mappings of standard fields to CSV columns"""
-    if not n_clicks or not file_info:
-        return dash.no_update
-
-    try:
-        filename = file_info.get('filename', 'unknown')
-
-        field_mappings = {}
-        for value, id_dict in zip(mapping_values or [], mapping_ids or []):
-            if value and value != "skip":
-                standard_field = id_dict["field"]
-                csv_column = value
-                field_mappings[standard_field] = csv_column
-                print(f"✅ {standard_field} -> '{csv_column}'")
-
-        print(f"🤖 AI will learn: {field_mappings}")
-
-        training_data = {
-            'filename': filename,
-            'mappings': field_mappings,
-            'reverse_mappings': {v: k for k, v in field_mappings.items()},
-            'timestamp': datetime.now().isoformat()
-        }
-
-        return dbc.Alert([
-            html.H6("Column Mappings Confirmed!", className="alert-heading mb-2"),
-            html.P([
-                f"Mapped {len(field_mappings)} fields for {filename}. ",
-                "AI will learn these patterns for future uploads."
-            ]),
-            html.Ul([
-                html.Li([
-                    html.Code(standard_field, className="bg-success text-white px-2 py-1 rounded me-2"),
-                    " ← ",
-                    html.Code(csv_column, className="bg-primary text-white px-2 py-1 rounded ms-2")
-                ]) for standard_field, csv_column in field_mappings.items()
-            ])
-        ], color="success", dismissable=True)
-
-    except Exception as e:
-        return dbc.Alert(f"Error saving mappings: {str(e)}", color="danger", dismissable=True)
-
 __all__ = [
     'create_column_verification_modal',
     'get_ai_column_suggestions',
     'save_verified_mappings',
     'update_modal_content',
-    'confirm_mappings'
 ]
