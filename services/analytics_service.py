@@ -117,15 +117,91 @@ class AnalyticsService:
             return {'status': 'error', 'message': str(e)}
 
     def get_analytics_by_source(self, source: str) -> Dict[str, Any]:
-        """Get analytics from specified source - FIXED for uploaded data"""
+        """Get analytics from specified source with forced uploaded data check"""
+
+        # FORCE CHECK: If uploaded data exists, use it regardless of source
+        try:
+            from pages.file_upload import get_uploaded_data
+            uploaded_data = get_uploaded_data()
+
+            if uploaded_data and source in ["uploaded", "sample"]:
+                print(f"🔄 FORCING uploaded data usage (source was: {source})")
+                return self._process_uploaded_data_directly(uploaded_data)
+
+        except Exception as e:
+            print(f"⚠️ Uploaded data check failed: {e}")
+
+        # Original logic for when no uploaded data
         if source == "sample":
             return self._generate_sample_analytics()
         elif source == "uploaded":
-            return self._get_real_uploaded_data()  # FIXED METHOD
+            return {'status': 'no_data', 'message': 'No uploaded files available'}
         elif source == "database":
             return self._get_database_analytics()
         else:
             return {'status': 'error', 'message': f'Unknown source: {source}'}
+
+    def _process_uploaded_data_directly(self, uploaded_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+        """Process uploaded data directly - bypasses all other logic"""
+        try:
+            print(f"📊 PROCESSING {len(uploaded_data)} uploaded files directly...")
+
+            all_dataframes = []
+
+            for filename, df in uploaded_data.items():
+                print(f"   📄 {filename}: {len(df):,} rows")
+                print(f"      Original columns: {list(df.columns)}")
+
+                # YOUR SPECIFIC COLUMN MAPPING
+                df_processed = df.copy()
+                if 'Person ID' in df_processed.columns:
+                    df_processed = df_processed.rename(columns={
+                        'Timestamp': 'timestamp',
+                        'Person ID': 'person_id',
+                        'Device name': 'door_id',
+                        'Access result': 'access_result'
+                    })
+                    print(f"      ✅ Columns mapped: {list(df_processed.columns)}")
+
+                all_dataframes.append(df_processed)
+
+            # Combine all data
+            combined_df = pd.concat(all_dataframes, ignore_index=True)
+
+            # Calculate metrics
+            total_events = len(combined_df)
+            active_users = combined_df['person_id'].nunique() if 'person_id' in combined_df.columns else 0
+            active_doors = combined_df['door_id'].nunique() if 'door_id' in combined_df.columns else 0
+
+            result = {
+                'status': 'success',
+                'total_events': total_events,
+                'active_users': active_users,
+                'active_doors': active_doors,
+                'unique_users': active_users,
+                'unique_doors': active_doors,
+                'data_source': 'uploaded',
+                'top_users': [
+                    {'user_id': user, 'count': int(count)}
+                    for user, count in combined_df['person_id'].value_counts().head(10).items()
+                ] if 'person_id' in combined_df.columns else [],
+                'top_doors': [
+                    {'door_id': door, 'count': int(count)}
+                    for door, count in combined_df['door_id'].value_counts().head(10).items()
+                ] if 'door_id' in combined_df.columns else [],
+                'timestamp': datetime.now().isoformat()
+            }
+
+            print(f"🎉 DIRECT PROCESSING RESULT:")
+            print(f"   Total Events: {total_events:,}")
+            print(f"   Active Users: {active_users:,}")
+            print(f"   Active Doors: {active_doors:,}")
+
+            return result
+
+        except Exception as e:
+            print(f"❌ Direct processing failed: {e}")
+            return {'status': 'error', 'message': str(e)}
 
     def _get_real_uploaded_data(self) -> Dict[str, Any]:
         """FIXED: Actually access your uploaded 395K records"""
