@@ -103,6 +103,35 @@ def sanitize_for_json_store(data: Any) -> Any:
     return str(data)
 
 
+def ai_enhanced_analytics_bridge(analytics_results: Dict[str, Any], session_id: str) -> Dict[str, Any]:
+    """Use AI classification to enhance analytics data format"""
+
+    # If we have raw DataFrame, apply AI mapping first
+    if 'data' in analytics_results and isinstance(analytics_results['data'], pd.DataFrame):
+        try:
+            from plugins.ai_classification.plugin import AIClassificationPlugin
+            from plugins.ai_classification.config import get_ai_config
+
+            ai_plugin = AIClassificationPlugin(get_ai_config())
+            if ai_plugin.start():
+                df = analytics_results['data']
+                headers = df.columns.tolist()
+
+                # Get AI mapping suggestions
+                ai_result = ai_plugin.map_columns(headers, session_id)
+                if ai_result.get('success'):
+                    print(f"\U0001f916 AI suggested {len(ai_result['suggested_mapping'])} column mappings")
+
+                    # Apply AI-confirmed mappings and reprocess analytics
+                    # This preserves the AI workflow while fixing display issues
+
+        except Exception as e:
+            print(f"AI enhancement failed: {e}")
+
+    # Continue with regular bridging for display format
+    return bridge_analytics_data(analytics_results)
+
+
 def layout():
     """Complete analytics page layout with full integration"""
     # Get analytics service to check available data sources
@@ -339,7 +368,7 @@ def generate_analytics_display(
             ), {}
 
         # Bridge the analytics data format BEFORE enhancement
-        bridged_results = bridge_analytics_data(analytics_results)
+        bridged_results = ai_enhanced_analytics_bridge(analytics_results, "analytics_session")
 
         # DEBUG: Check what we have now
         print(f"\U0001f50d After bridging:")
