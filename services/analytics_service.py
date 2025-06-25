@@ -175,6 +175,51 @@ class AnalyticsService:
 
         return health
 
+    def get_data_source_options(self) -> List[Dict[str, str]]:
+        """Get available data source options"""
+        options = [
+            {"label": "Sample Data", "value": "sample"}
+        ]
+
+        # Check for uploaded data
+        try:
+            from pages.file_upload import get_uploaded_filenames
+            uploaded_files = get_uploaded_filenames()
+            if uploaded_files:
+                options.append({"label": f"Uploaded Files ({len(uploaded_files)})", "value": "uploaded"})
+        except ImportError:
+            pass
+
+        # Check for database
+        if self.database_manager and self.database_manager.health_check():
+            options.append({"label": "Database", "value": "database"})
+
+        return options
+
+    def get_date_range_options(self) -> Dict[str, str]:
+        """Get default date range options"""
+        from datetime import datetime, timedelta
+        return {
+            'start': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+            'end': datetime.now().strftime('%Y-%m-%d')
+        }
+
+    def get_analytics_status(self) -> Dict[str, Any]:
+        """Get current analytics status"""
+        status = {
+            'timestamp': datetime.now().isoformat(),
+            'data_sources_available': len(self.get_data_source_options()),
+            'service_health': self.health_check()
+        }
+
+        try:
+            from pages.file_upload import get_uploaded_filenames
+            status['uploaded_files'] = len(get_uploaded_filenames())
+        except ImportError:
+            status['uploaded_files'] = 0
+
+        return status
+
 # Global service instance
 _analytics_service: Optional[AnalyticsService] = None
 
