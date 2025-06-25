@@ -95,7 +95,7 @@ def layout():
         ]),
 
         # Store for uploaded data info
-        dcc.Store(id='uploaded-files-store', data=[]),
+        dcc.Store(id='uploaded-files-store', data={}),
         dcc.Store(id='current-file-info-store'),
 
         # Container for column verification modal
@@ -110,6 +110,7 @@ def layout():
         Output('file-preview-area', 'children'),
         Output('uploaded-files-store', 'data'),
         Output('analytics-navigation', 'children'),
+        Output('column-verification-modal-container', 'children'),
         Output('current-file-info-store', 'data')
     ],
     [
@@ -124,7 +125,7 @@ def layout():
 def handle_file_upload(contents, filenames, existing_files):
     """Handle file upload and processing"""
     if not contents:
-        return "", "", existing_files, "", {}
+        return "", "", existing_files, "", "", {}
 
     # Ensure contents and filenames are lists
     if not isinstance(contents, list):
@@ -133,8 +134,9 @@ def handle_file_upload(contents, filenames, existing_files):
         filenames = [filenames]
 
     upload_results = []
-    file_info = existing_files.copy() if existing_files else []
+    file_info = existing_files.copy() if isinstance(existing_files, dict) else {}
     preview_components = []
+    verification_modal = ""
     current_file_info = {}
 
     for content, filename in zip(contents, filenames):
@@ -143,6 +145,7 @@ def handle_file_upload(contents, filenames, existing_files):
             result = process_uploaded_file(content, filename)
 
             if result['success']:
+                df = result['data']
                 rows = result['rows']
                 cols = result['columns']
                 upload_results.append(
@@ -160,17 +163,38 @@ def handle_file_upload(contents, filenames, existing_files):
                     ], color="success")
                 )
 
-                # Store file info
-                file_info.append({
-                    'filename': filename,
-                    'rows': result['rows'],
-                    'columns': result['columns'],
-                    'upload_time': result['upload_time'],
-                    'column_names': list(result['data'].columns)
-                })
+                sample_data = {col: df[col].dropna().astype(str).head(5).tolist() for col in df.columns}
 
-                # Create preview
-                preview_components.append(create_file_preview(result['data'], filename))
+                try:
+                    from components.column_verification import get_ai_column_suggestions
+                    ai_suggestions = get_ai_column_suggestions(df, filename)
+                except Exception as e:
+                    logger.warning(f"Could not get AI suggestions: {e}")
+                    ai_suggestions = {}
+
+                current_file_info = {
+                    'filename': filename,
+                    'columns': df.columns.tolist(),
+                    'sample_data': sample_data,
+                    'ai_suggestions': ai_suggestions,
+                    'dataframe_shape': df.shape
+                }
+
+                try:
+                    from components.column_verification import create_column_verification_modal
+                    verification_modal = create_column_verification_modal(current_file_info)
+                except Exception as e:
+                    logger.error(f"Error creating verification modal: {e}")
+                    verification_modal = ""
+
+                preview_components.append(create_file_preview(df, filename))
+
+                file_info[filename] = {
+                    'rows': rows,
+                    'columns': cols,
+                    'column_names': df.columns.tolist(),
+                    'upload_time': result['upload_time']
+                }
 
             else:
                 upload_results.append(
@@ -212,11 +236,14 @@ def handle_file_upload(contents, filenames, existing_files):
             ])
         ], className="mt-4")
 
-    # If any files were processed, store info for the last one as the current file
-    if file_info:
-        current_file_info = file_info[-1]
-
-    return upload_results, preview_components, file_info, analytics_nav, current_file_info
+    return (
+        upload_results,
+        preview_components,
+        file_info,
+        analytics_nav,
+        verification_modal,
+        current_file_info,
+    )
 
 
 def process_uploaded_file(contents, filename):
@@ -378,7 +405,7 @@ def highlight_upload_area(n_clicks):
 
 
 @callback(
-    Output('column-verification-modal-container', 'children'),
+    Output('column-verification-modal-container', 'children', allow_duplicate=True),
     Output('current-file-info-store', 'data'),
     Input({'type': 'verify-columns-btn', 'filename': ALL}, 'n_clicks'),
     prevent_initial_call=True
@@ -413,7 +440,7 @@ def show_column_verification(n_clicks_list):
 
 
 @callback(
-    Output('column-verification-modal-container', 'children'),
+    Output('column-verification-modal-container', 'children', allow_duplicate=True),
     [Input('column-verify-cancel', 'n_clicks'), Input('column-verify-confirm', 'n_clicks')],
     prevent_initial_call=True
 )
