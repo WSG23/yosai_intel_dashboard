@@ -29,40 +29,87 @@ class AnalyticsService:
             self.database_manager = None
 
     def get_analytics_from_uploaded_data(self) -> Dict[str, Any]:
-        """Get analytics from uploaded files using fixed processing"""
+        """Get analytics from uploaded files using the FIXED file processor"""
         try:
+            # Get uploaded file paths (not pre-processed data)
             from pages.file_upload import get_uploaded_filenames
-            from file_processor_fix import process_uploaded_file_fixed
-
             uploaded_files = get_uploaded_filenames()
+
             if not uploaded_files:
-                return {'status': 'no_data', 'message': 'No uploaded data available'}
+                return {'status': 'no_data', 'message': 'No uploaded files available'}
 
-            all_data = []
-            total_events = 0
+            # Use the FIXED FileProcessor to process files
+            from services.file_processor import FileProcessor
+            processor = FileProcessor(upload_folder="temp", allowed_extensions={'csv', 'json', 'xlsx'})
 
+            all_data: List[pd.DataFrame] = []
+            processing_info: List[str] = []
+            total_records = 0
+
+            # Process each uploaded file with the FIXED processor
             for file_path in uploaded_files:
-                result = process_uploaded_file_fixed(file_path)
-                if result['total_events'] > 0:
-                    all_data.append(result['data'])
-                    total_events += result['total_events']
-                else:
-                    logger.warning(
-                        f"No data extracted from {file_path}: {result.get('error', 'Unknown error')}"
-                    )
+                try:
+                    print(f"[INFO] Processing uploaded file: {file_path}")
+
+                    # Read the file
+                    if file_path.endswith('.csv'):
+                        df = pd.read_csv(file_path)
+                    elif file_path.endswith('.json'):
+                        import json
+                        with open(file_path, 'r') as f:
+                            json_data = json.load(f)
+                        df = pd.DataFrame(json_data)
+                    elif file_path.endswith(('.xlsx', '.xls')):
+                        df = pd.read_excel(file_path)
+                    else:
+                        continue
+
+                    # Use the FIXED validation (which includes column mapping)
+                    validation_result = processor._validate_data(df)
+
+                    if validation_result['valid']:
+                        processed_df = validation_result.get('data', df)
+                        processed_df['source_file'] = file_path
+                        all_data.append(processed_df)
+                        total_records += len(processed_df)
+                        processing_info.append(f"✅ {file_path}: {len(processed_df)} records")
+                        print(f"[SUCCESS] Processed {len(processed_df)} records from {file_path}")
+                    else:
+                        error_msg = validation_result.get('error', 'Unknown error')
+                        processing_info.append(f"❌ {file_path}: {error_msg}")
+                        print(f"[ERROR] Failed to process {file_path}: {error_msg}")
+
+                except Exception as e:
+                    processing_info.append(f"❌ {file_path}: Exception - {str(e)}")
+                    print(f"[ERROR] Exception processing {file_path}: {e}")
 
             if not all_data:
-                return {'status': 'empty', 'message': 'All uploaded files are empty'}
+                return {
+                    'status': 'error',
+                    'message': 'No files could be processed successfully',
+                    'processing_info': processing_info
+                }
 
+            # Combine all successfully processed data
             combined_df = pd.concat(all_data, ignore_index=True)
-            analytics_results = self._generate_basic_analytics(combined_df)
-            analytics_results['source_info'] = {
-                'source_type': 'uploaded_files',
-                'total_files': len(uploaded_files),
-                'files_with_data': len(all_data),
-                'total_events': total_events
-            }
-            return analytics_results
+            print(f"[SUCCESS] Combined data: {len(combined_df)} total records")
+
+            # Generate analytics from the properly processed data
+            analytics = self._generate_basic_analytics(combined_df)
+
+            # Add processing information
+            analytics.update({
+                'data_source': 'uploaded_files_fixed',
+                'total_files_processed': len(all_data),
+                'total_files_attempted': len(uploaded_files),
+                'processing_info': processing_info,
+                'total_events': total_records,
+                'active_users': combined_df['person_id'].nunique() if 'person_id' in combined_df.columns else 0,
+                'active_doors': combined_df['door_id'].nunique() if 'door_id' in combined_df.columns else 0,
+                'timestamp': datetime.now().isoformat()
+            })
+
+            return analytics
 
         except Exception as e:
             logger.error(f"Error getting analytics from uploaded data: {e}")
