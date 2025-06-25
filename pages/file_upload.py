@@ -458,49 +458,6 @@ def apply_ai_suggestions(n_clicks, file_info):
 
     return [suggested_values]
 
-
-@callback(
-    Output("column-verification-modal", "is_open"),
-    [
-        Input("verify-columns-btn-simple", "n_clicks"),
-        Input("column-verify-cancel", "n_clicks"),
-        Input("column-verify-confirm", "n_clicks"),
-    ],
-    [State("column-verification-modal", "is_open")],
-    prevent_initial_call=True,
-)
-def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_open):
-    """Toggle the column verification modal with debugging"""
-    import dash
-
-    print(f"\U0001F527 Modal callback triggered!")
-    print(f"   verify_clicks: {verify_clicks}")
-    print(f"   cancel_clicks: {cancel_clicks}")
-    print(f"   confirm_clicks: {confirm_clicks}")
-    print(f"   current is_open: {is_open}")
-
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        print("   \u274C No trigger context")
-        return False
-
-    trigger_id = ctx.triggered[0]['prop_id']
-    trigger_value = ctx.triggered[0]['value']
-
-    print(f"   \U0001F3AF Triggered by: {trigger_id}")
-    print(f"   \U0001F4CA Trigger value: {trigger_value}")
-
-    if "verify-columns-btn" in trigger_id and trigger_value:
-        print("   \u2705 Opening modal!")
-        return True
-    elif cancel_clicks or confirm_clicks:
-        print("   \u274C Closing modal!")
-        return False
-
-    print("   \U0001F504 No change to modal state")
-    return is_open
-
-
 @callback(
     Output("column-verification-modal", "is_open", allow_duplicate=True),
     Input("verify-columns-btn-simple", "n_clicks"),
