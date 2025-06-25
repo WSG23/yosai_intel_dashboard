@@ -179,12 +179,13 @@ class FileProcessor:
                     print(f"[SUCCESS] Applied mappings: {fuzzy_matches}")
                     print(f"[INFO] New columns: {list(df_mapped.columns)}")
 
-                    # Validate the mapped dataframe and ensure it returns the mapped data
+                    # Validate the mapped dataframe and ensure column names are preserved
                     validation_result = self._validate_data_content(df_mapped)
 
-                    # Make sure we return the properly mapped dataframe
+                    # Force the renamed dataframe to be returned
                     if validation_result['valid']:
-                        validation_result['data'] = df_mapped  # Ensure mapped data is returned
+                        validation_result['data'] = df_mapped  # Ensure the renamed df is returned
+                        print(f"[DEBUG] Returning dataframe with columns: {list(df_mapped.columns)}")
 
                     return validation_result
 
