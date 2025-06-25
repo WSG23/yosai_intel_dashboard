@@ -29,48 +29,40 @@ class AnalyticsService:
             self.database_manager = None
 
     def get_analytics_from_uploaded_data(self) -> Dict[str, Any]:
-        """Get analytics from uploaded files"""
+        """Get analytics from uploaded files using fixed processing"""
         try:
-            from pages.file_upload import get_uploaded_data
-            uploaded_data = get_uploaded_data()
+            from pages.file_upload import get_uploaded_filenames
+            from file_processor_fix import process_uploaded_file_fixed
 
-            if not uploaded_data:
+            uploaded_files = get_uploaded_filenames()
+            if not uploaded_files:
                 return {'status': 'no_data', 'message': 'No uploaded data available'}
 
-            # Combine all uploaded DataFrames
             all_data = []
-            for filename, df in uploaded_data.items():
-                if not df.empty:
-                    df_copy = df.copy()
-                    df_copy['source_file'] = filename
-                    all_data.append(df_copy)
+            total_events = 0
+
+            for file_path in uploaded_files:
+                result = process_uploaded_file_fixed(file_path)
+                if result['total_events'] > 0:
+                    all_data.append(result['data'])
+                    total_events += result['total_events']
+                else:
+                    logger.warning(
+                        f"No data extracted from {file_path}: {result.get('error', 'Unknown error')}"
+                    )
 
             if not all_data:
                 return {'status': 'empty', 'message': 'All uploaded files are empty'}
 
-            # Combine all data
             combined_df = pd.concat(all_data, ignore_index=True)
-
-            # Generate analytics using models
-            try:
-                from models.base import ModelFactory
-                models = ModelFactory.create_models_from_dataframe(combined_df)
-                analytics = ModelFactory.get_analytics_from_models(models)
-
-                analytics.update({
-                    'status': 'success',
-                    'data_source': 'uploaded_files',
-                    'total_files': len(uploaded_data),
-                    'total_rows': len(combined_df),
-                    'columns': list(combined_df.columns),
-                    'timestamp': datetime.now().isoformat()
-                })
-
-                return analytics
-
-            except ImportError:
-                # Fallback analytics without models
-                return self._generate_basic_analytics(combined_df)
+            analytics_results = self._generate_basic_analytics(combined_df)
+            analytics_results['source_info'] = {
+                'source_type': 'uploaded_files',
+                'total_files': len(uploaded_files),
+                'files_with_data': len(all_data),
+                'total_events': total_events
+            }
+            return analytics_results
 
         except Exception as e:
             logger.error(f"Error getting analytics from uploaded data: {e}")
