@@ -10,6 +10,10 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, callback
 import pandas as pd
 
+from config.config import get_config
+from core.container import Container
+from core.plugins.manager import PluginManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,11 +30,25 @@ def create_app() -> dash.Dash:
 
         app.title = "Yōsai Intel Dashboard"
 
+        # Initialize configuration and dependency container
+        config_manager = get_config()
+        container = Container()
+
+        # Add plugin manager (from integrations/plugin_integration.txt)
+        plugin_manager = PluginManager(container, config_manager)
+        plugin_results = plugin_manager.load_all_plugins()
+        app._yosai_plugin_manager = plugin_manager
+        logger.info(f"Loaded plugins: {plugin_results}")
+
         # Set main layout
         app.layout = _create_main_layout()
 
         # Register all callbacks (this will register page-specific callbacks automatically)
         _register_global_callbacks(app)
+
+        # Register plugin callbacks
+        plugin_callback_results = plugin_manager.register_plugin_callbacks(app)
+        logger.info(f"Registered plugin callbacks: {plugin_callback_results}")
 
         # Initialize services
         _initialize_services()
