@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Core package initialization
+Core package initialization - Fixed for streamlined architecture
 """
 import logging
 
@@ -9,7 +10,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Import the main app factory function
-from .app_factory import create_app, create_application
+# Import the main app factory function (only what exists)
+from .app_factory import create_app
 
-__all__ = ['create_app', 'create_application']
+__all__ = ['create_app']
