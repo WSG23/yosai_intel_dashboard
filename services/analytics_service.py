@@ -117,16 +117,132 @@ class AnalyticsService:
             return {'status': 'error', 'message': str(e)}
 
     def get_analytics_by_source(self, source: str) -> Dict[str, Any]:
-        """Get analytics from specified source - UPDATED TO USE FIXED PROCESSOR"""
+        """Get analytics from specified source - FIXED for uploaded data"""
         if source == "sample":
             return self._generate_sample_analytics()
         elif source == "uploaded":
-            # Use the FIXED file processor approach
-            return self._get_analytics_with_fixed_processor()
+            return self._get_real_uploaded_data()  # FIXED METHOD
         elif source == "database":
             return self._get_database_analytics()
         else:
             return {'status': 'error', 'message': f'Unknown source: {source}'}
+
+    def _get_real_uploaded_data(self) -> Dict[str, Any]:
+        """FIXED: Actually access your uploaded 395K records"""
+        try:
+            from pages.file_upload import get_uploaded_data
+
+            uploaded_data = get_uploaded_data()
+            if not uploaded_data:
+                return {'status': 'no_data', 'message': 'No uploaded files available'}
+
+            print(f"🔍 Processing {len(uploaded_data)} uploaded files...")
+
+            all_dfs = []
+            total_original_rows = 0
+
+            for filename, df in uploaded_data.items():
+                print(f"📄 Processing {filename}: {len(df):,} rows")
+
+                # Map YOUR specific column names (Demo3_data.csv format)
+                column_mapping = {
+                    'Timestamp': 'timestamp',
+                    'Person ID': 'person_id',
+                    'Token ID': 'token_id',
+                    'Device name': 'door_id',
+                    'Access result': 'access_result'
+                }
+
+                # Apply column mapping
+                df_mapped = df.rename(columns=column_mapping)
+
+                # Clean timestamp
+                if 'timestamp' in df_mapped.columns:
+                    df_mapped['timestamp'] = pd.to_datetime(df_mapped['timestamp'], errors='coerce')
+
+                # Clean string columns
+                for col in ['person_id', 'door_id', 'access_result']:
+                    if col in df_mapped.columns:
+                        df_mapped[col] = df_mapped[col].astype(str).str.strip()
+
+                all_dfs.append(df_mapped)
+                total_original_rows += len(df)
+                print(f"✅ Mapped columns: {list(df_mapped.columns)}")
+
+            # Combine all data
+            combined_df = pd.concat(all_dfs, ignore_index=True)
+
+            print(f"🎉 COMBINED: {len(combined_df):,} total rows")
+
+            # Generate analytics from YOUR actual data
+            total_events = len(combined_df)
+            active_users = combined_df['person_id'].nunique() if 'person_id' in combined_df.columns else 0
+            active_doors = combined_df['door_id'].nunique() if 'door_id' in combined_df.columns else 0
+
+            # Date range
+            date_range = {'start': 'Unknown', 'end': 'Unknown'}
+            if 'timestamp' in combined_df.columns:
+                valid_timestamps = combined_df['timestamp'].dropna()
+                if not valid_timestamps.empty:
+                    date_range = {
+                        'start': str(valid_timestamps.min().date()),
+                        'end': str(valid_timestamps.max().date())
+                    }
+
+            # Access patterns
+            access_patterns = {}
+            if 'access_result' in combined_df.columns:
+                access_patterns = combined_df['access_result'].value_counts().to_dict()
+
+            # Top users for display
+            top_users = []
+            if 'person_id' in combined_df.columns:
+                user_counts = combined_df['person_id'].value_counts().head(10)
+                top_users = [
+                    {'user_id': user_id, 'count': int(count)}
+                    for user_id, count in user_counts.items()
+                ]
+
+            # Top doors for display
+            top_doors = []
+            if 'door_id' in combined_df.columns:
+                door_counts = combined_df['door_id'].value_counts().head(10)
+                top_doors = [
+                    {'door_id': door_id, 'count': int(count)}
+                    for door_id, count in door_counts.items()
+                ]
+
+            analytics_result = {
+                'total_events': total_events,
+                'active_users': active_users,
+                'active_doors': active_doors,
+                'unique_users': active_users,  # Fallback
+                'unique_doors': active_doors,  # Fallback
+                'data_source': 'uploaded',  # CRITICAL: Mark as uploaded
+                'date_range': date_range,
+                'access_patterns': access_patterns,
+                'top_users': top_users,
+                'top_doors': top_doors,
+                'status': 'success',
+                'timestamp': datetime.now().isoformat(),
+                'files_processed': len(uploaded_data),
+                'original_total_rows': total_original_rows
+            }
+
+            print(f"📊 ANALYTICS RESULT:")
+            print(f"   Total Events: {total_events:,}")
+            print(f"   Active Users: {active_users:,}")
+            print(f"   Active Doors: {active_doors:,}")
+
+            return analytics_result
+
+        except Exception as e:
+            logger.error(f"Error processing uploaded data: {e}")
+            return {
+                'status': 'error',
+                'message': f'Error processing uploaded data: {str(e)}',
+                'total_events': 0
+            }
 
     def _generate_sample_analytics(self) -> Dict[str, Any]:
         """Generate sample analytics data"""

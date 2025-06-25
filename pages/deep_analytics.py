@@ -61,6 +61,59 @@ def bridge_analytics_data(analytics_results: Dict[str, Any]) -> Dict[str, Any]:
 logger = logging.getLogger(__name__)
 
 
+def generate_analytics(data_source, analysis_type):
+    """Generate analytics with uploaded data debugging"""
+
+    # DEBUG: Check what data source we're actually using
+    print(f"🔧 generate_analytics called with source: '{data_source}'")
+
+    try:
+        from services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService()
+
+        # Get analytics results
+        analytics_results = analytics_service.get_analytics_by_source(data_source)
+
+        # DEBUG: Check the results
+        print(f"📊 Analytics results summary:")
+        print(f"   Status: {analytics_results.get('status', 'unknown')}")
+        print(f"   Total events: {analytics_results.get('total_events', 0)}")
+        print(f"   Data source: {analytics_results.get('data_source', 'unknown')}")
+
+        # If no events, show detailed debug info
+        if analytics_results.get('total_events', 0) == 0:
+            print(f"❌ Zero events detected!")
+            print(f"   All keys in result: {list(analytics_results.keys())}")
+
+            # Try to access uploaded data directly
+            if data_source == "uploaded":
+                try:
+                    from pages.file_upload import get_uploaded_data, get_uploaded_filenames
+                    uploaded_data = get_uploaded_data()
+                    filenames = get_uploaded_filenames()
+
+                    print(f"🔍 Direct check of uploaded data:")
+                    print(f"   Filenames: {filenames}")
+                    print(f"   Data store size: {len(uploaded_data)}")
+
+                    for filename, df in uploaded_data.items():
+                        print(f"   File '{filename}': {len(df):,} rows, columns: {list(df.columns)}")
+
+                except Exception as debug_e:
+                    print(f"❌ Direct data access failed: {debug_e}")
+
+        # Continue with existing logic...
+        if analytics_results.get('total_events', 0) == 0:
+            # REST OF YOUR EXISTING ERROR HANDLING
+            pass
+
+        return analytics_results
+
+    except Exception as e:
+        print(f"Error generating analytics: {e}")
+        return {'status': 'error', 'message': str(e)}
+
+
 def sanitize_for_json_store(data: Any) -> Any:
     """Sanitize data for JSON serialization in dcc.Store components."""
     if data is None:
