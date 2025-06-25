@@ -34,119 +34,75 @@ STANDARD_FIELD_OPTIONS = [
 ]
 
 def create_column_verification_modal(file_info: Dict[str, Any]) -> dbc.Modal:
-    """Create column verification modal for uploaded file"""
+    """Simple modal"""
     filename = file_info.get('filename', 'Unknown File')
     columns = file_info.get('columns', [])
     sample_data = file_info.get('sample_data', {})
     ai_suggestions = file_info.get('ai_suggestions', {})
 
     return dbc.Modal([
-        dbc.ModalHeader([
-            dbc.ModalTitle(f"Verify Column Mappings - {filename}")
-        ]),
+        dbc.ModalHeader(dbc.ModalTitle(f"Map Columns - {filename}")),
         dbc.ModalBody([
             create_verification_interface(columns, sample_data, ai_suggestions)
         ]),
         dbc.ModalFooter([
-            dbc.Button(
-                "Cancel",
-                id="column-verify-cancel",
-                color="secondary",
-                className="me-2"
-            ),
-            dbc.Button(
-                "Use AI Suggestions",
-                id="column-verify-ai-auto",
-                color="info",
-                className="me-2"
-            ),
-            dbc.Button(
-                "Confirm Mappings",
-                id="column-verify-confirm",
-                color="success"
-            )
+            dbc.Button("Cancel", id="column-verify-cancel", color="secondary", className="me-2"),
+            dbc.Button("Confirm", id="column-verify-confirm", color="success")
         ])
     ],
     id="column-verification-modal",
-    size="xl",
-    is_open=False,
-    backdrop="static"
+    size="lg",
+    is_open=False
     )
 
 def create_verification_interface(columns: List[str], sample_data: Dict, ai_suggestions: Dict) -> html.Div:
-    """Create the main verification interface"""
+    """Simple column verification - CSV headers in dropdowns"""
+
     if not columns:
         return dbc.Alert("No columns found in uploaded file", color="warning")
 
-    header_cards = []
+    # Create simple mapping rows
+    mapping_rows = []
+
     for i, column in enumerate(columns):
+        # Get AI suggestion
         ai_suggestion = ai_suggestions.get(column, {})
         suggested_field = ai_suggestion.get('field', '')
         confidence = ai_suggestion.get('confidence', 0.0)
-        sample_values = list(sample_data.get(column, []))[:5]
-        confidence_badge = create_confidence_badge(confidence)
-        card = create_column_mapping_card(
-            column_index=i,
-            column_name=column,
-            sample_values=sample_values,
-            ai_suggestion=suggested_field,
-            confidence_badge=confidence_badge
+
+        # Simple row for each standard field
+        mapping_rows.append(
+            dbc.Row([
+                # Standard field name
+                dbc.Col([
+                    dbc.Label(f"Map '{column}' to:", className="fw-bold")
+                ], width=4),
+
+                # Dropdown with CSV column headers
+                dbc.Col([
+                    dcc.Dropdown(
+                        id={"type": "column-mapping", "index": i},
+                        options=[{"label": col, "value": col} for col in columns] +
+                               [{"label": "Skip this column", "value": "ignore"}],
+                        value=column if confidence > 0.5 else None,
+                        placeholder=f"Select column for {column}",
+                        className="mb-2"
+                    )
+                ], width=6),
+
+                # Confidence
+                dbc.Col([
+                    dbc.Badge(f"{confidence:.0%}",
+                             color="success" if confidence > 0.7 else "warning" if confidence > 0.4 else "secondary")
+                ], width=2)
+
+            ], className="mb-3")
         )
-        header_cards.append(card)
 
     return html.Div([
-        dbc.Alert([
-            html.H5("Column Mapping Verification", className="alert-heading mb-3"),
-            html.P([
-                "Please verify the AI-suggested column mappings below. Your feedback will help improve future suggestions. ",
-                html.Strong("Green badges"), " indicate high AI confidence, ",
-                html.Strong("yellow badges"), " indicate medium confidence, and ",
-                html.Strong("red badges"), " indicate low confidence or no suggestion."
-            ])
-        ], color="info", className="mb-4"),
-        html.Div(header_cards, className="column-mapping-cards"),
-        dbc.Card([
-            dbc.CardHeader([
-                html.H6("AI Training Feedback", className="mb-0")
-            ]),
-            dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Label("Data Source Type:"),
-                        dcc.Dropdown(
-                            id="training-data-source-type",
-                            options=[
-                                {"label": "Corporate Access Control", "value": "corporate"},
-                                {"label": "Educational Institution", "value": "education"},
-                                {"label": "Healthcare Facility", "value": "healthcare"},
-                                {"label": "Manufacturing/Industrial", "value": "manufacturing"},
-                                {"label": "Retail/Commercial", "value": "retail"},
-                                {"label": "Government/Public", "value": "government"},
-                                {"label": "Residential", "value": "residential"},
-                                {"label": "Other", "value": "other"}
-                            ],
-                            value="corporate",
-                            className="mb-3"
-                        )
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Label("Data Quality:"),
-                        dcc.Dropdown(
-                            id="training-data-quality",
-                            options=[
-                                {"label": "Excellent - Clean, consistent data", "value": "excellent"},
-                                {"label": "Good - Minor inconsistencies", "value": "good"},
-                                {"label": "Average - Some data issues", "value": "average"},
-                                {"label": "Poor - Many inconsistencies", "value": "poor"},
-                                {"label": "Very Poor - Major data quality issues", "value": "very_poor"}
-                            ],
-                            value="good",
-                            className="mb-3"
-                        )
-                    ], width=6)
-                ])
-            ])
-        ], className="mt-4")
+        dbc.Alert(f"Found {len(columns)} columns: {', '.join(columns)}", color="info", className="mb-4"),
+        html.H5("Map your CSV columns:", className="mb-3"),
+        html.Div(mapping_rows)
     ])
 
 def create_column_mapping_card(column_index: int, column_name: str, sample_values: List, ai_suggestion: str, confidence_badge: html.Span) -> dbc.Card:
