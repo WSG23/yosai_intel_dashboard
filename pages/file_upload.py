@@ -459,34 +459,26 @@ def apply_ai_suggestions(n_clicks, file_info):
     return [suggested_values]
 
 @callback(
-    Output("column-verification-modal", "is_open", allow_duplicate=True),
-    Input("verify-columns-btn-simple", "n_clicks"),
-    prevent_initial_call=True,
-)
-def test_modal_open(n_clicks):
-    """Open modal when button clicked"""
-    print(f"\U0001F6A8 MODAL CALLBACK FIRED! n_clicks: {n_clicks}")
-    print(f"\U0001F4CA n_clicks type: {type(n_clicks)}")
-
-    if n_clicks and n_clicks > 0:
-        print("\u2705 Opening modal!")
-        return True
-
-    print("\u274C Modal stays closed")
-    return False
-
-
-@callback(
-    Output("upload-results", "children", allow_duplicate=True),
+    [Output("upload-results", "children", allow_duplicate=True),
+     Output("column-verification-modal", "is_open", allow_duplicate=True)],
     Input("verify-columns-btn-simple", "n_clicks"),
     prevent_initial_call=True
 )
-def simple_test(n_clicks):
-    print(f"\U0001F9EA SIMPLE TEST CALLBACK: {n_clicks}")
-    if n_clicks:
-        print(f"\U0001F3AF Button clicked {n_clicks} times!")
-        return dbc.Alert(f"BUTTON WORKS! Clicked {n_clicks} times", color="success")
-    return dash.no_update
+def handle_verify_button(n_clicks):
+    """Handle button click - show alert AND open modal"""
+    print(f"\U0001F525 COMBINED CALLBACK FIRED! n_clicks: {n_clicks}")
+
+    if n_clicks and n_clicks > 0:
+        print("\u2705 Opening modal AND showing alert!")
+        alert = dbc.Alert(
+            f"Opening column mapping! Click #{n_clicks}",
+            color="success",
+            dismissable=True,
+        )
+        return alert, True
+
+    print("\u274C No action")
+    return dash.no_update, False
 
 
 
