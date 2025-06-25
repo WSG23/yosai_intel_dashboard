@@ -467,22 +467,97 @@ def apply_ai_suggestions(n_clicks, file_info):
     return [suggested_values]
 
 @callback(
-    Output("upload-results", "children", allow_duplicate=True),
+    [Output("upload-results", "children", allow_duplicate=True),
+     Output("column-verification-modal", "is_open", allow_duplicate=True)],
     Input("verify-columns-btn-simple", "n_clicks"),
-    prevent_initial_call=True,
+    prevent_initial_call=True
 )
 def handle_verify_button(n_clicks):
-    """Just test the button first"""
-    print(f"\U0001F525 BUTTON CALLBACK: {n_clicks}")
+    """Button works - now open modal too"""
+    print(f"\U0001F525 BUTTON + MODAL CALLBACK: {n_clicks}")
 
     if n_clicks and n_clicks > 0:
-        return dbc.Alert(
-            "Button works! Now add modal control",
+        print("✅ Opening modal!")
+        alert = dbc.Alert(
+            "Opening column mapping modal!",
             color="success",
-            dismissable=True,
+            dismissable=True
+        )
+        return alert, True
+
+    return dash.no_update, False
+
+
+@callback(
+    Output("modal-body", "children"),
+    Input("column-verification-modal", "is_open"),
+    State("current-file-info-store", "data"),
+    prevent_initial_call=True
+)
+def populate_modal_content(is_open, file_info):
+    """Populate modal with column mapping interface"""
+    if not is_open or not file_info:
+        return "No file selected"
+
+    filename = file_info.get('filename', 'Unknown')
+    columns = file_info.get('columns', [])
+    ai_suggestions = file_info.get('ai_suggestions', {})
+
+    print(f"🔧 Populating modal for {filename} with {len(columns)} columns")
+
+    if not columns:
+        return f"No columns found in {filename}"
+
+    mapping_rows = []
+    for i, column in enumerate(columns):
+        ai_suggestion = ai_suggestions.get(column, {})
+        suggested_field = ai_suggestion.get('field', '')
+        confidence = ai_suggestion.get('confidence', 0.0)
+
+        mapping_rows.append(
+            html.Tr([
+                html.Td([
+                    html.Strong(column),
+                    html.Br(),
+                    html.Small(
+                        f"AI suggests: {suggested_field} ({confidence:.0%})",
+                        className="text-success" if confidence > 0.7 else "text-muted"
+                    )
+                ]),
+                html.Td([
+                    dcc.Dropdown(
+                        id={"type": "field-mapping", "column": column},
+                        options=[
+                            {"label": "Person/User ID", "value": "person_id"},
+                            {"label": "Door/Location ID", "value": "door_id"},
+                            {"label": "Timestamp", "value": "timestamp"},
+                            {"label": "Access Result", "value": "access_result"},
+                            {"label": "Token/Badge ID", "value": "token_id"},
+                            {"label": "Skip this column", "value": "skip"}
+                        ],
+                        value=suggested_field if suggested_field else None,
+                        placeholder=f"Map {column} to..."
+                    )
+                ])
+            ])
         )
 
-    return dash.no_update
+    return html.Div([
+        html.H5(f"Map columns from {filename}"),
+        dbc.Alert(
+            "Select how each CSV column should map to analytics fields",
+            color="info"
+        ),
+        dbc.Table([
+            html.Thead([
+                html.Tr([
+                    html.Th("Your CSV Column"),
+                    html.Th("Maps To Analytics Field")
+                ])
+            ]),
+            html.Tbody(mapping_rows)
+        ], striped=True)
+    ])
 
 
 
