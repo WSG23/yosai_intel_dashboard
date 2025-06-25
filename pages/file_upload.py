@@ -83,19 +83,19 @@ def layout():
         # Data preview area
         dbc.Row([
             dbc.Col([
-                html.Div(id='file-preview-area')
+                html.Div(id='file-preview')
             ])
         ]),
 
         # Navigation to analytics
         dbc.Row([
             dbc.Col([
-                html.Div(id='analytics-navigation')
+                html.Div(id='upload-nav')
             ])
         ]),
 
         # Store for uploaded data info
-        dcc.Store(id='uploaded-files-store', data={}),
+        dcc.Store(id='file-info-store', data={}),
         dcc.Store(id='current-file-info-store'),
 
         # Container for column verification modal
@@ -107,39 +107,38 @@ def layout():
 @callback(
     [
         Output('upload-results', 'children'),
-        Output('file-preview-area', 'children'),
-        Output('uploaded-files-store', 'data'),
-        Output('analytics-navigation', 'children'),
-        Output('column-verification-modal-container', 'children'),
-        Output('current-file-info-store', 'data')
+        Output('file-preview', 'children'),
+        Output('file-info-store', 'data'),
+        Output('upload-nav', 'children'),
+        Output('column-verification-modal-container', 'children', allow_duplicate=True),
+        Output('current-file-info-store', 'data', allow_duplicate=True)
     ],
     [
         Input('upload-data', 'contents')
     ],
     [
-        State('upload-data', 'filename'),
-        State('uploaded-files-store', 'data')
+        State('upload-data', 'filename')
     ],
     prevent_initial_call=True
 )
-def handle_file_upload(contents, filenames, existing_files):
+def upload_callback(contents_list, filenames_list):
     """Handle file upload and processing"""
-    if not contents:
-        return "", "", existing_files, "", "", {}
+    if not contents_list:
+        return "", "", {}, "", "", {}
 
     # Ensure contents and filenames are lists
-    if not isinstance(contents, list):
-        contents = [contents]
-    if not isinstance(filenames, list):
-        filenames = [filenames]
+    if not isinstance(contents_list, list):
+        contents_list = [contents_list]
+    if not isinstance(filenames_list, list):
+        filenames_list = [filenames_list]
 
     upload_results = []
-    file_info = existing_files.copy() if isinstance(existing_files, dict) else {}
+    file_info = {}
     preview_components = []
     verification_modal = ""
     current_file_info = {}
 
-    for content, filename in zip(contents, filenames):
+    for content, filename in zip(contents_list, filenames_list):
         try:
             # Process uploaded file
             result = process_uploaded_file(content, filename)
@@ -163,7 +162,9 @@ def handle_file_upload(contents, filenames, existing_files):
                     ], color="success")
                 )
 
-                sample_data = {col: df[col].dropna().astype(str).head(5).tolist() for col in df.columns}
+                sample_data = {}
+                for col in df.columns[:10]:
+                    sample_data[col] = df[col].dropna().head(5).tolist()
 
                 try:
                     from components.column_verification import get_ai_column_suggestions
@@ -199,9 +200,9 @@ def handle_file_upload(contents, filenames, existing_files):
             else:
                 upload_results.append(
                     dbc.Alert([
-                        html.I(className="fas fa-exclamation-triangle me-2"),
-                        f"❌ Failed to upload {filename}: {result['error']}"
-                    ], color="danger", className="mb-2")
+                        html.H6("Upload Failed", className="alert-heading"),
+                        html.P(result['error'])
+                    ], color="danger")
                 )
 
         except Exception as e:
@@ -214,27 +215,12 @@ def handle_file_upload(contents, filenames, existing_files):
             )
 
     # Create analytics navigation if files were uploaded successfully
-    analytics_nav = ""
-    if any('success' in str(result) for result in upload_results):
-        analytics_nav = dbc.Card([
-            dbc.CardBody([
-                html.H5("🚀 Ready for Analytics", className="text-success mb-3"),
-                html.P("Your files have been uploaded successfully. Ready to analyze?"),
-                dbc.Button(
-                    "📊 Go to Analytics",
-                    href="/analytics", 
-                    color="primary",
-                    size="lg",
-                    className="me-2"
-                ),
-                dbc.Button(
-                    "📁 Upload More Files",
-                    id="upload-more-btn",
-                    color="outline-secondary",
-                    size="lg"
-                )
-            ])
-        ], className="mt-4")
+    analytics_nav = html.Div([
+        html.Hr(),
+        html.H5("Ready to analyze?"),
+        dbc.Button("Go to Analytics", href="/analytics", color="primary", size="lg", className="me-2"),
+        dbc.Button("Upload More Files", id="upload-more-btn", color="outline-secondary", size="lg")
+    ], className="mt-4")
 
     return (
         upload_results,
