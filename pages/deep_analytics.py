@@ -21,6 +21,43 @@ from components import (
 )
 from services.analytics_service import get_analytics_service
 
+
+def bridge_analytics_data(analytics_results: Dict[str, Any]) -> Dict[str, Any]:
+    """Bridge analytics service output to display component format"""
+    bridged = analytics_results.copy()
+
+    # Convert user_patterns to top_users format
+    user_patterns = analytics_results.get('user_patterns', {})
+    if user_patterns and 'most_active_users' in user_patterns:
+        most_active = user_patterns['most_active_users']
+        top_users = []
+        for user_id, stats in most_active.items():
+            top_users.append({
+                'user_id': user_id,
+                'count': stats.get('total_attempts', 0)
+            })
+        bridged['top_users'] = top_users
+
+    # Convert door_patterns to top_doors format
+    door_patterns = analytics_results.get('door_patterns', {})
+    if door_patterns and 'busiest_doors' in door_patterns:
+        busiest = door_patterns['busiest_doors']
+        top_doors = []
+        for door_id, stats in busiest.items():
+            top_doors.append({
+                'door_id': door_id,
+                'count': stats.get('total_events', 0)
+            })
+        bridged['top_doors'] = top_doors
+
+    # Add summary counts from analytics service
+    if user_patterns:
+        bridged['total_unique_users'] = user_patterns.get('total_unique_users', 0)
+    if door_patterns:
+        bridged['total_doors'] = door_patterns.get('total_doors', 0)
+
+    return bridged
+
 logger = logging.getLogger(__name__)
 
 
@@ -301,8 +338,17 @@ def generate_analytics_display(
                 "No Data Found"
             ), {}
 
+        # Bridge the analytics data format BEFORE enhancement
+        bridged_results = bridge_analytics_data(analytics_results)
+
+        # DEBUG: Check what we have now
+        print(f"\U0001f50d After bridging:")
+        print(f"   top_users count: {len(bridged_results.get('top_users', []))}")
+        print(f"   top_doors count: {len(bridged_results.get('top_doors', []))}")
+        print(f"   total_unique_users: {bridged_results.get('total_unique_users', 'None')}")
+
         enhanced_results = _enhance_analytics_by_type(
-            analytics_results, analysis_type
+            bridged_results, analysis_type
         )
         display_components = _create_complete_analytics_display(
             enhanced_results, analysis_type, data_source
