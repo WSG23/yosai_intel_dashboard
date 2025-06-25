@@ -268,11 +268,18 @@ def generate_analytics_display(
         analytics_service = get_analytics_service()
         analytics_results = analytics_service.get_analytics_by_source(data_source)
 
-        if not analytics_results:
-            return create_info_alert(
-                f"No data available from source: {data_source}. "
-                "Try using sample data or upload files first.",
-                "No Data Available"
+        logger.info(
+            f"Analytics results: {analytics_results.get('total_events', 0)} events from {data_source}"
+        )
+        if analytics_results.get('source_info'):
+            logger.info(f"Source info: {analytics_results['source_info']}")
+
+        if not analytics_results or analytics_results.get('total_events', 0) == 0:
+            error_info = analytics_results.get('error', 'Unknown error') if analytics_results else 'No results'
+            return create_error_alert(
+                f"File processing issue: {error_info}. "
+                "Check column names match expected format (person_id, door_id, access_result, timestamp).",
+                "Data Processing Error"
             ), {}
 
         enhanced_results = _enhance_analytics_by_type(
