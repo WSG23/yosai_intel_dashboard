@@ -140,35 +140,61 @@ class FileProcessor:
         return df
     
     def _validate_data(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Enhanced validation with automatic column mapping"""
+        """Enhanced validation with automatic column mapping - NO EMOJIS"""
 
         if df.empty:
             return {'valid': False, 'error': 'File is empty'}
 
+        # Required columns for access control data
         required_columns = ['person_id', 'door_id', 'access_result', 'timestamp']
 
+        print(f"[INFO] Validating data: {len(df)} rows, columns: {list(df.columns)}")
+
+        # Check for exact matches first
         exact_matches = [col for col in required_columns if col in df.columns]
         missing_columns = [col for col in required_columns if col not in df.columns]
 
+        print(f"[INFO] Exact matches: {exact_matches}, Missing: {missing_columns}")
+
+        # If we have all exact matches, proceed with validation
         if len(exact_matches) == len(required_columns):
+            print("[SUCCESS] All columns found exactly, proceeding with validation")
             return self._validate_data_content(df)
 
+        # Try fuzzy matching for missing columns
         if missing_columns:
+            print("[INFO] Attempting fuzzy matching...")
             fuzzy_matches = self._fuzzy_match_columns(list(df.columns), required_columns)
 
-            print(f"\ud83d\udd27 Fuzzy matching found: {fuzzy_matches}")
+            print(f"[INFO] Fuzzy matches found: {fuzzy_matches}")
 
+            # Check if we found matches for all required columns
             if len(fuzzy_matches) >= len(missing_columns):
-                df_mapped = df.copy()
-                df_mapped = df_mapped.rename(columns=fuzzy_matches)
+                # Apply column mappings
+                print("[SUCCESS] Applying column mappings...")
+                try:
+                    df_mapped = df.copy()
+                    df_mapped = df_mapped.rename(columns=fuzzy_matches)
 
-                print(f"\u2705 Applied column mappings: {fuzzy_matches}")
+                    print(f"[SUCCESS] Applied mappings: {fuzzy_matches}")
+                    print(f"[INFO] New columns: {list(df_mapped.columns)}")
 
-                return self._validate_data_content(df_mapped)
+                    # Validate the mapped dataframe
+                    return self._validate_data_content(df_mapped)
+
+                except Exception as e:
+                    print(f"[ERROR] Error applying column mappings: {e}")
+                    return {
+                        'valid': False,
+                        'error': f'Error applying column mappings: {str(e)}',
+                        'suggestions': fuzzy_matches
+                    }
             else:
+                missing_after_fuzzy = [col for col in required_columns if col not in fuzzy_matches]
+                print(f"[WARNING] Could not map all columns. Still missing: {missing_after_fuzzy}")
                 return {
                     'valid': False,
-                    'error': f'Could not map required columns. Found: {fuzzy_matches}',
+                    'error': f'Could not map required columns. Missing: {missing_after_fuzzy}',
                     'suggestions': fuzzy_matches,
                     'available_columns': list(df.columns),
                     'required_columns': required_columns
@@ -177,74 +203,110 @@ class FileProcessor:
         return {'valid': True}
 
     def _validate_data_content(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Validate the actual data content"""
+        """Validate the actual data content after column mapping - NO EMOJIS"""
+
+        print("[INFO] Validating data content...")
         validation_errors = []
 
+        # Standardize access_result values if present
         if 'access_result' in df.columns:
-            df['access_result'] = df['access_result'].astype(str).str.replace('Access ', '', regex=False)
+            print("[INFO] Standardizing access_result values...")
+            original_values = df['access_result'].unique()
+            print(f"[INFO] Original access results: {original_values}")
 
+            # Handle your specific format: "Access Granted" -> "Granted"
+            df['access_result'] = df['access_result'].astype(str).str.replace('Access ', '', regex=False)
+            standardized_values = df['access_result'].unique()
+            print(f"[INFO] Standardized access results: {standardized_values}")
+
+            # Check for valid results (be more permissive)
             valid_results = ['granted', 'denied', 'timeout', 'error', 'failed']
-            invalid_results = df['access_result'].str.lower().unique()
-            invalid_results = [r for r in invalid_results if r not in valid_results]
+            invalid_results = [r for r in df['access_result'].str.lower().unique() 
+                              if r not in valid_results and r != 'nan']
 
             if invalid_results:
-                print(f"\u26a0\ufe0f  Non-standard access results found: {invalid_results} (will be processed anyway)")
+                print(f"[WARNING] Non-standard access results found: {invalid_results} (will be processed anyway)")
 
+        # Validate timestamp if present
         if 'timestamp' in df.columns:
+            print("[INFO] Validating timestamp column...")
             try:
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
+                print("[SUCCESS] Timestamp conversion successful")
             except Exception as e:
+                print(f"[ERROR] Timestamp conversion failed: {e}")
                 validation_errors.append(f"Cannot parse timestamp column: {e}")
 
+        # Check for reasonable data
         if len(df) == 0:
             validation_errors.append("No data rows found")
 
+        # Return results
         if validation_errors:
+            print(f"[ERROR] Validation failed: {validation_errors}")
             return {
                 'valid': False,
                 'error': '; '.join(validation_errors)
             }
-
-        return {'valid': True, 'data': df}
+        else:
+            print(f"[SUCCESS] Validation successful: {len(df)} records")
+            return {
+                'valid': True, 
+                'data': df,
+                'processed_records': len(df)
+            }
     
     def _fuzzy_match_columns(self, available_columns: Sequence[str], required_columns: Sequence[str]) -> Dict[str, str]:
-        """Enhanced fuzzy matching based on your actual data"""
+        """Enhanced fuzzy matching that handles your actual column names - NO EMOJIS"""
 
         suggestions = {}
 
+        # Enhanced mapping patterns that match your actual data
         mapping_patterns = {
             'person_id': [
+                # Exact matches for your data
                 'person id', 'userid', 'user id',
+                # General patterns  
                 'user', 'employee', 'badge', 'card', 'person', 'emp',
                 'employee_id', 'badge_id', 'card_id'
             ],
             'door_id': [
+                # Exact matches for your data
                 'device name', 'devicename', 'device_name',
+                # General patterns
                 'door', 'reader', 'device', 'access_point', 'gate', 'entry',
                 'door_name', 'reader_id', 'access_device'
             ],
             'access_result': [
+                # Exact matches for your data  
                 'access result', 'accessresult', 'access_result',
+                # General patterns
                 'result', 'status', 'outcome', 'decision', 'success',
                 'granted', 'denied', 'access_status'
             ],
             'timestamp': [
+                # Exact matches for your data
                 'timestamp', 'time', 'datetime', 'date',
+                # General patterns  
                 'when', 'occurred', 'event_time', 'access_time',
                 'date_time', 'event_date'
             ]
         }
 
+        # Convert available columns to lowercase for matching
         available_lower = {col.lower(): col for col in available_columns}
 
+        # Find best matches
         for required_col, patterns in mapping_patterns.items():
             best_match = None
 
+            # Try exact pattern matches first
             for pattern in patterns:
                 if pattern.lower() in available_lower:
                     best_match = available_lower[pattern.lower()]
                     break
 
+            # If no exact match, try substring matching
             if not best_match:
                 for pattern in patterns:
                     for available_col_lower, original_col in available_lower.items():
@@ -253,9 +315,11 @@ class FileProcessor:
                             break
                     if best_match:
                         break
+
             if best_match:
                 suggestions[required_col] = best_match
 
+        print(f"[INFO] Fuzzy matching suggestions: {suggestions}")
         return suggestions
 
     def apply_manual_mapping(self, df: pd.DataFrame, column_mapping: Dict[str, str]) -> pd.DataFrame:
