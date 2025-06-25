@@ -34,25 +34,112 @@ STANDARD_FIELD_OPTIONS = [
 ]
 
 def create_column_verification_modal(file_info: Dict[str, Any]) -> dbc.Modal:
-    """Simple modal"""
+    """Simple modal WITH AI training components"""
     filename = file_info.get('filename', 'Unknown File')
     columns = file_info.get('columns', [])
-    sample_data = file_info.get('sample_data', {})
     ai_suggestions = file_info.get('ai_suggestions', {})
 
+    if not columns:
+        return html.Div()
+
+    # Create simple table with AI suggestions
+    table_rows = []
+    for i, column in enumerate(columns):
+        ai_suggestion = ai_suggestions.get(column, {})
+        suggested_field = ai_suggestion.get('field', '')
+        confidence = ai_suggestion.get('confidence', 0.0)
+        default_value = suggested_field if suggested_field else None
+
+        table_rows.append(
+            html.Tr([
+                html.Td([
+                    html.Strong(column),
+                    html.Br(),
+                    html.Small(
+                        f"AI Confidence: {confidence:.0%}",
+                        className="text-muted" if confidence < 0.5 else "text-success"
+                    )
+                ]),
+                html.Td(
+                    dcc.Dropdown(
+                        id={"type": "column-mapping", "index": i},
+                        options=STANDARD_FIELD_OPTIONS,
+                        placeholder=f"Map {column} to...",
+                        value=default_value
+                    )
+                )
+            ])
+        )
+
+    modal_body = html.Div([
+        html.H5(f"Map columns from {filename}"),
+        dbc.Alert([
+            "AI has analyzed your columns and made suggestions. ",
+            dbc.Button(
+                "Use All AI Suggestions",
+                id="column-verify-ai-auto",
+                color="info",
+                size="sm",
+                className="ms-2",
+            ),
+        ], color="info", className="mb-3"),
+
+        dbc.Table([
+            html.Thead([
+                html.Tr([html.Th("CSV Column"), html.Th("Maps To")])
+            ]),
+            html.Tbody(table_rows)
+        ], striped=True),
+
+        dbc.Card([
+            dbc.CardHeader(html.H6("Help AI Learn", className="mb-0")),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Data Source Type:"),
+                        dcc.Dropdown(
+                            id="training-data-source-type",
+                            options=[
+                                {"label": "Corporate Access Control", "value": "corporate"},
+                                {"label": "Educational Institution", "value": "education"},
+                                {"label": "Healthcare Facility", "value": "healthcare"},
+                                {"label": "Manufacturing/Industrial", "value": "manufacturing"},
+                                {"label": "Retail/Commercial", "value": "retail"},
+                                {"label": "Government/Public", "value": "government"},
+                                {"label": "Other", "value": "other"},
+                            ],
+                            value="corporate",
+                        ),
+                    ], width=6),
+                    dbc.Col([
+                        dbc.Label("Data Quality:"),
+                        dcc.Dropdown(
+                            id="training-data-quality",
+                            options=[
+                                {"label": "Excellent - Clean, consistent data", "value": "excellent"},
+                                {"label": "Good - Minor inconsistencies", "value": "good"},
+                                {"label": "Average - Some data issues", "value": "average"},
+                                {"label": "Poor - Many inconsistencies", "value": "poor"},
+                            ],
+                            value="good",
+                        ),
+                    ], width=6),
+                ])
+            ])
+        ], className="mt-3"),
+    ])
+
     return dbc.Modal([
-        dbc.ModalHeader(dbc.ModalTitle(f"Map Columns - {filename}")),
-        dbc.ModalBody([
-            create_verification_interface(columns, sample_data, ai_suggestions)
-        ]),
+        dbc.ModalHeader(dbc.ModalTitle(f"AI Column Mapping - {filename}")),
+        dbc.ModalBody(modal_body),
         dbc.ModalFooter([
             dbc.Button("Cancel", id="column-verify-cancel", color="secondary", className="me-2"),
-            dbc.Button("Confirm", id="column-verify-confirm", color="success")
+            dbc.Button("Confirm & Train AI", id="column-verify-confirm", color="success"),
         ])
     ],
     id="column-verification-modal",
-    size="lg",
-    is_open=False
+    size="xl",
+    is_open=False,
     )
 
 def create_verification_interface(columns: List[str], sample_data: Dict, ai_suggestions: Dict) -> html.Div:
