@@ -1,223 +1,297 @@
-"""Simplified database connection management.
-
-This module replaces the previous over engineered abstraction with a small set
-of utilities for obtaining database connections.  SQLite and a mock database
-are supported out of the box.  PostgreSQL can be implemented later if needed.
+#!/usr/bin/env python3
 """
-
-from __future__ import annotations
-
+Database Manager - Fixed imports for streamlined architecture
+"""
+import logging
 import os
 import sqlite3
-from contextlib import contextmanager
+from pathlib import Path
+from typing import Optional, Any, Dict, Protocol
 from dataclasses import dataclass
-from typing import Optional, Protocol
 
-import pandas as pd
+logger = logging.getLogger(__name__)
 
 
-from core.exceptions import DatabaseError
+# Local exception definitions (avoid circular imports)
+class DatabaseError(Exception):
+    """Database operation errors"""
+    pass
 
 
 @dataclass
 class DatabaseConfig:
-    """Minimal database configuration."""
-
-    type: str = "mock"
+    """Database configuration dataclass"""
+    type: str = "sqlite"
     host: str = "localhost"
     port: int = 5432
-    name: str = "yosai_db"
-    user: str = "yosai_user"
+    name: str = "yosai.db"
+    user: str = "user"
     password: str = ""
-
-    # Backwards compatible alias used in some tests
-    @property
-    def db_type(self) -> str:  # pragma: no cover - simple alias
-        return self.type
 
 
 class DatabaseConnection(Protocol):
-    """Protocol all database connections must follow."""
+    """Protocol for database connections"""
 
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> Any:
+        """Execute a query and return results"""
         ...
 
-    def execute_command(self, command: str, params: Optional[tuple] = None) -> int:
+    def execute_command(self, command: str, params: Optional[tuple] = None) -> None:
+        """Execute a command (INSERT, UPDATE, DELETE)"""
         ...
 
     def health_check(self) -> bool:
+        """Verify database connectivity"""
         ...
-
-
-class SQLiteConnection:
-    """Lightweight SQLite connection wrapper."""
-
-    def __init__(self, database_path: str) -> None:
-        self.database_path = database_path
-        self._ensure_database_exists()
-
-    def _ensure_database_exists(self) -> None:
-        try:
-            with sqlite3.connect(self.database_path) as conn:
-                conn.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS access_events (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        user_id TEXT,
-                        event_type TEXT,
-                        location TEXT,
-                        status TEXT,
-                        details TEXT
-                    )
-                    """
-                )
-                conn.commit()
-        except sqlite3.Error as exc:  # pragma: no cover - initialization failure
-            raise DatabaseError(f"Failed to initialize database: {exc}") from exc
-
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
-        try:
-            with sqlite3.connect(self.database_path) as conn:
-                return pd.read_sql_query(query, conn, params=params)
-        except (sqlite3.Error, pd.errors.DatabaseError) as exc:
-            raise DatabaseError(f"Query failed: {exc}") from exc
-
-    def execute_command(self, command: str, params: Optional[tuple] = None) -> int:
-        try:
-            with sqlite3.connect(self.database_path) as conn:
-                cursor = conn.execute(command, params or ())
-                conn.commit()
-                return cursor.rowcount
-        except sqlite3.Error as exc:
-            raise DatabaseError(f"Command failed: {exc}") from exc
-
-    def health_check(self) -> bool:
-        try:
-            with sqlite3.connect(self.database_path) as conn:
-                conn.execute("SELECT 1")
-            return True
-        except sqlite3.Error:
-            return False
 
 
 class MockConnection:
-    """In-memory mock connection used for unit tests."""
+    """Mock database connection for testing"""
 
-    def __init__(self) -> None:
-        self._data = self._generate_mock_data()
+    def __init__(self):
+        self._connected = True
+        logger.info("Mock database connection created")
 
-    def _generate_mock_data(self) -> pd.DataFrame:
-        import datetime
-        import random
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> list:
+        """Execute mock query"""
+        logger.debug(f"Mock query: {query}")
+        return [{"id": 1, "result": "mock_data"}]
 
-        data = []
-        base_time = datetime.datetime.now()
-
-        for i in range(100):
-            data.append(
-                {
-                    "id": i + 1,
-                    "timestamp": base_time - datetime.timedelta(hours=random.randint(0, 168)),
-                    "user_id": f"user_{random.randint(1, 20):03d}",
-                    "event_type": random.choice(["entry", "exit", "access_denied"]),
-                    "location": random.choice(["main_entrance", "parking_gate", "office_door"]),
-                    "status": random.choice(["success", "failed", "pending"]),
-                    "details": f"Event details {i + 1}",
-                }
-            )
-
-        return pd.DataFrame(data)
-
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> pd.DataFrame:
-        if "LIMIT" in query.upper():
-            limit = int(query.upper().split("LIMIT")[-1].strip())
-            return self._data.head(limit)
-        return self._data
-
-    def execute_command(self, command: str, params: Optional[tuple] = None) -> int:
-        return 1
+    def execute_command(self, command: str, params: Optional[tuple] = None) -> None:
+        """Execute mock command"""
+        logger.debug(f"Mock command: {command}")
 
     def health_check(self) -> bool:
-        return True
+        """Mock health check"""
+        return self._connected
 
+    def close(self) -> None:
+        """Close mock connection"""
+        self._connected = False
+        logger.info("Mock database connection closed")
+
+
+class SQLiteConnection:
+    """SQLite database connection"""
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._connection: Optional[sqlite3.Connection] = None
+        self._connect()
+
+    def _connect(self) -> None:
+        """Create SQLite connection"""
+        try:
+            # Ensure directory exists
+            db_file = Path(self.db_path)
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+
+            self._connection = sqlite3.connect(self.db_path)
+            self._connection.row_factory = sqlite3.Row  # Enable dict-like access
+            logger.info(f"SQLite connection created: {self.db_path}")
+        except Exception as e:
+            logger.error(f"Failed to connect to SQLite: {e}")
+            raise DatabaseError(f"SQLite connection failed: {e}")
+
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> list:
+        """Execute SQLite query"""
+        if not self._connection:
+            raise DatabaseError("No database connection")
+
+        try:
+            cursor = self._connection.cursor()
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"SQLite query error: {e}")
+            raise DatabaseError(f"Query failed: {e}")
+
+    def execute_command(self, command: str, params: Optional[tuple] = None) -> None:
+        """Execute SQLite command"""
+        if not self._connection:
+            raise DatabaseError("No database connection")
+
+        try:
+            cursor = self._connection.cursor()
+            if params:
+                cursor.execute(command, params)
+            else:
+                cursor.execute(command)
+
+            self._connection.commit()
+        except Exception as e:
+            logger.error(f"SQLite command error: {e}")
+            raise DatabaseError(f"Command failed: {e}")
+
+    def health_check(self) -> bool:
+        """Check SQLite connection health"""
+        try:
+            if not self._connection:
+                return False
+
+            cursor = self._connection.cursor()
+            cursor.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+    def close(self) -> None:
+        """Close SQLite connection"""
+        if self._connection:
+            self._connection.close()
+            self._connection = None
+            logger.info("SQLite connection closed")
+
+
+class PostgreSQLConnection:
+    """PostgreSQL database connection (requires psycopg2)"""
+
+    def __init__(self, config: DatabaseConfig):
+        self.config = config
+        self._connection = None
+        self._connect()
+
+    def _connect(self) -> None:
+        """Create PostgreSQL connection"""
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+
+            self._connection = psycopg2.connect(
+                host=self.config.host,
+                port=self.config.port,
+                database=self.config.name,
+                user=self.config.user,
+                password=self.config.password,
+                cursor_factory=RealDictCursor
+            )
+            logger.info(f"PostgreSQL connection created: {self.config.host}:{self.config.port}")
+        except ImportError:
+            raise DatabaseError("psycopg2 not installed - cannot connect to PostgreSQL")
+        except Exception as e:
+            logger.error(f"Failed to connect to PostgreSQL: {e}")
+            raise DatabaseError(f"PostgreSQL connection failed: {e}")
+
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> list:
+        """Execute PostgreSQL query"""
+        if not self._connection:
+            raise DatabaseError("No database connection")
+
+        try:
+            with self._connection.cursor() as cursor:
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
+
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"PostgreSQL query error: {e}")
+            raise DatabaseError(f"Query failed: {e}")
+
+    def execute_command(self, command: str, params: Optional[tuple] = None) -> None:
+        """Execute PostgreSQL command"""
+        if not self._connection:
+            raise DatabaseError("No database connection")
+
+        try:
+            with self._connection.cursor() as cursor:
+                if params:
+                    cursor.execute(command, params)
+                else:
+                    cursor.execute(command)
+
+            self._connection.commit()
+        except Exception as e:
+            logger.error(f"PostgreSQL command error: {e}")
+            self._connection.rollback()
+            raise DatabaseError(f"Command failed: {e}")
+
+    def health_check(self) -> bool:
+        """Check PostgreSQL connection health"""
+        try:
+            if not self._connection:
+                return False
+
+            with self._connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                return True
+        except Exception:
+            return False
+
+    def close(self) -> None:
+        """Close PostgreSQL connection"""
+        if self._connection:
+            self._connection.close()
+            self._connection = None
+            logger.info("PostgreSQL connection closed")
 
 
 class DatabaseManager:
-    """Create and manage database connections."""
+    """Database manager factory"""
 
-    def __init__(self, config: DatabaseConfig) -> None:
+    def __init__(self, config: DatabaseConfig):
         self.config = config
         self._connection: Optional[DatabaseConnection] = None
 
     def get_connection(self) -> DatabaseConnection:
+        """Get database connection"""
         if self._connection is None:
             self._connection = self._create_connection()
         return self._connection
 
-    # ------------------------------------------------------------------
-    # Compatibility helpers
-    # ------------------------------------------------------------------
-    @staticmethod
-    def create_connection(config: DatabaseConfig) -> DatabaseConnection:
-        """Create a connection without instantiating ``DatabaseManager``."""
-
-        return DatabaseManager(config).get_connection()
-
-    @staticmethod
-    def from_environment() -> DatabaseConfig:
-        """Load configuration from environment variables."""
-
-        return DatabaseConfig(
-            type=os.getenv("DB_TYPE", "mock"),
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            name=os.getenv("DB_NAME", "yosai_db"),
-            user=os.getenv("DB_USER", "yosai_user"),
-            password=os.getenv("DB_PASSWORD", ""),
-        )
-
-    # ------------------------------------------------------------------
-
     def _create_connection(self) -> DatabaseConnection:
-        cfg_type = getattr(self.config, "type", getattr(self.config, "db_type", "mock"))
-        if cfg_type == "sqlite":
-            return SQLiteConnection(self.config.name)
-        if cfg_type == "mock":
+        """Create appropriate database connection"""
+        db_type = self.config.type.lower()
+
+        if db_type == "mock":
             return MockConnection()
-        if cfg_type == "postgresql":  # pragma: no cover - future work
-            raise DatabaseError("PostgreSQL support not implemented yet")
-        raise DatabaseError(f"Unsupported database type: {cfg_type}")
 
-    @contextmanager
-    def transaction(self):
-        connection = self.get_connection()
+        elif db_type == "sqlite":
+            return SQLiteConnection(self.config.name)
+
+        elif db_type in ["postgresql", "postgres"]:
+            return PostgreSQLConnection(self.config)
+
+        else:
+            logger.warning(f"Unknown database type: {db_type}, using mock")
+            return MockConnection()
+
+    def health_check(self) -> bool:
+        """Check database health"""
         try:
-            yield connection
-        except Exception as exc:  # pragma: no cover - basic pass-through
-            raise DatabaseError(f"Transaction failed: {exc}") from exc
+            connection = self.get_connection()
+            return connection.health_check()
+        except Exception:
+            return False
+
+    def close(self) -> None:
+        """Close database connection"""
+        if self._connection and hasattr(self._connection, 'close'):
+            self._connection.close()
+            self._connection = None
 
 
-def get_database() -> DatabaseConnection:
-    """Convenience helper to obtain a connection from environment settings."""
-
-    config = DatabaseManager.from_environment()
-    return DatabaseManager.create_connection(config)
-
-
+# Factory function
 def create_database_manager(config: DatabaseConfig) -> DatabaseManager:
-    """Factory function used by dependency injection systems."""
-
+    """Create database manager from config"""
     return DatabaseManager(config)
 
 
+# Export main classes
 __all__ = [
-    "DatabaseConfig",
-    "DatabaseConnection",
-    "SQLiteConnection",
-    "MockConnection",
-    "DatabaseManager",
-    "create_database_manager",
-    "get_database",
+    'DatabaseConfig',
+    'DatabaseConnection', 
+    'MockConnection',
+    'SQLiteConnection',
+    'PostgreSQLConnection',
+    'DatabaseManager',
+    'DatabaseError',
+    'create_database_manager'
 ]
-

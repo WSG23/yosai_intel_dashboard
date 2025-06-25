@@ -6,14 +6,14 @@ Simplified configuration package - Fixed imports
 # Import the main configuration system
 from .config import (
     Config,
-    AppConfig,
+    AppConfig, 
     DatabaseConfig,
     SecurityConfig,
     ConfigManager,
     get_config,
     reload_config,
     get_app_config,
-    get_database_config,
+    get_database_config, 
     get_security_config
 )
 
@@ -31,7 +31,7 @@ except ImportError as e:
 __all__ = [
     'Config',
     'AppConfig',
-    'DatabaseConfig',
+    'DatabaseConfig', 
     'SecurityConfig',
     'ConfigManager',
     'get_config',

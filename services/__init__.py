@@ -15,4 +15,18 @@ except ImportError:
     FILE_PROCESSOR_AVAILABLE = False
     FileProcessor = None
 
-__all__ = ['FileProcessor', 'FILE_PROCESSOR_AVAILABLE']
+try:
+    from .analytics_service import get_analytics_service, create_analytics_service, AnalyticsService
+    ANALYTICS_SERVICE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Analytics service not available: {e}")
+    get_analytics_service = None
+    create_analytics_service = None
+    AnalyticsService = None
+    ANALYTICS_SERVICE_AVAILABLE = False
+
+__all__ = [
+    'FileProcessor', 'FILE_PROCESSOR_AVAILABLE',
+    'get_analytics_service', 'create_analytics_service', 'AnalyticsService',
+    'ANALYTICS_SERVICE_AVAILABLE'
+]
