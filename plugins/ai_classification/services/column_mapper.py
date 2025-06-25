@@ -15,10 +15,43 @@ class ColumnMappingService:
     """Suggest mappings from CSV headers to standard fields."""
 
     STANDARD_FIELDS = {
-        "timestamp": ["time", "date", "datetime", "timestamp"],
-        "user_id": ["user", "id", "card", "employee"],
-        "location": ["location", "door", "room", "area"],
-        "access_type": ["access", "type", "action", "entry", "exit"],
+        "timestamp": [
+            "time",
+            "date",
+            "datetime",
+            "timestamp",
+            "event_time",
+            "created_at",
+        ],
+        "user_id": [
+            "user",
+            "id",
+            "card",
+            "employee",
+            "person_id",
+            "user_name",
+            "badge_id",
+            "person",
+        ],
+        "location": [
+            "location",
+            "door",
+            "room",
+            "area",
+            "door_id",
+            "access_location",
+            "access_point",
+        ],
+        "access_type": [
+            "access",
+            "type",
+            "action",
+            "entry",
+            "exit",
+            "result",
+            "access_result",
+            "status",
+        ],
     }
 
     def __init__(self, repository: CSVStorageRepository, config: ColumnMappingConfig) -> None:
@@ -72,6 +105,57 @@ class ColumnMappingService:
         except Exception as exc:
             self.logger.error("mapping confirmation failed: %s", exc)
             return False
+
+    def get_enhanced_mapping_with_fallbacks(self, headers: List[str], session_id: str) -> Dict[str, Any]:
+        """Enhanced mapping with intelligent fallbacks for common issues"""
+
+        # First, get AI predictions
+        ai_result = self.map_columns(headers, session_id)
+        suggested_mapping = ai_result.get('suggested_mapping', {})
+        confidence_scores = ai_result.get('confidence_scores', {})
+
+        # Apply intelligent fallbacks for unmapped critical columns
+        enhanced_mapping = suggested_mapping.copy()
+        enhanced_confidence = confidence_scores.copy()
+
+        # Critical column fallbacks
+        critical_mappings = {
+            'person_id': ['user_name', 'person_name', 'badge_holder', 'employee_name'],
+            'door_id': ['access_location', 'location_name', 'door_name', 'entry_point'],
+            'access_result': ['result', 'status', 'outcome'],
+            'timestamp': ['event_time', 'datetime', 'time_stamp']
+        }
+
+        for target_field, candidate_headers in critical_mappings.items():
+            # If AI didn't map this critical field, try fallbacks
+            if target_field not in suggested_mapping.values():
+                for header in headers:
+                    if header.lower() in [c.lower() for c in candidate_headers]:
+                        enhanced_mapping[header] = target_field
+                        enhanced_confidence[header] = 0.85  # High confidence for direct matches
+                        self.logger.info(f"Applied fallback mapping: '{header}' -> '{target_field}'")
+                        break
+
+        # Store enhanced mapping
+        enhanced_data = {
+            "session_id": session_id,
+            "suggested_mapping": enhanced_mapping,
+            "confidence_scores": enhanced_confidence,
+            "ai_enhanced": True,
+            "fallbacks_applied": len(enhanced_mapping) - len(suggested_mapping),
+            "status": "pending_confirmation",
+            "created_at": datetime.now().isoformat(),
+        }
+        self.repository.store_column_mapping(session_id, enhanced_data)
+
+        return {
+            "success": True,
+            "suggested_mapping": enhanced_mapping,
+            "confidence_scores": enhanced_confidence,
+            "requires_confirmation": True,
+            "ai_enhanced": True,
+            "fallbacks_applied": len(enhanced_mapping) - len(suggested_mapping)
+        }
 
     def _predict_field_type_heuristic(self, header: str) -> Tuple[Optional[str], float]:
         h = header.lower()

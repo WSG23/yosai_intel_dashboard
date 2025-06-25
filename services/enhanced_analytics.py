@@ -70,6 +70,81 @@ class EnhancedAnalyticsService:
         
         # Suppress pandas warnings for cleaner output
         warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+
+    def get_enhanced_dashboard_summary(self, time_range_hours: int = 24) -> Dict[str, Any]:
+        """Get comprehensive dashboard summary with AI column mapping"""
+
+        def apply_ai_column_mapping(df, session_id="analytics_session"):
+            """Use AI mapping service instead of manual mapping"""
+            try:
+                # Try to get AI classification plugin
+                from plugins.ai_classification.plugin import AIClassificationPlugin
+                from plugins.ai_classification.config import get_ai_config
+
+                # Initialize AI plugin if available
+                ai_plugin = AIClassificationPlugin(get_ai_config())
+                if ai_plugin.start():
+                    # Get AI column mapping
+                    headers = df.columns.tolist()
+                    ai_mapping_result = ai_plugin.map_columns(headers, session_id)
+
+                    if ai_mapping_result.get('success'):
+                        suggested_mapping = ai_mapping_result['suggested_mapping']
+                        confidence_scores = ai_mapping_result['confidence_scores']
+
+                        # Apply AI mappings with high confidence
+                        column_renames = {}
+                        for header, target_field in suggested_mapping.items():
+                            confidence = confidence_scores.get(header, 0)
+                            if confidence > 0.7:  # High confidence threshold
+                                # Map AI fields to our expected fields
+                                field_mapping = {
+                                    'user_id': 'person_id',
+                                    'location': 'door_id',
+                                    'access_type': 'access_result'
+                                }
+                                final_field = field_mapping.get(target_field, target_field)
+                                column_renames[header] = final_field
+                                print(f"\U0001f916 AI mapped '{header}' -> '{final_field}' (confidence: {confidence:.2f})")
+
+                        # Apply the AI-suggested renames
+                        if column_renames:
+                            df = df.rename(columns=column_renames)
+
+                            # Auto-confirm high-confidence mappings
+                            ai_plugin.confirm_column_mapping(suggested_mapping, session_id)
+
+                            return df
+
+            except ImportError:
+                print("\U0001f4dd AI plugin not available, using fallback mapping")
+            except Exception as e:
+                print(f"\u26a0\ufe0f AI mapping failed: {e}, using fallback")
+
+            # Fallback to simple mapping if AI fails
+            fallback_mapping = {
+                'user_name': 'person_id',
+                'access_location': 'door_id',
+                'result': 'access_result',
+                'event_time': 'timestamp'
+            }
+
+            for old_col, new_col in fallback_mapping.items():
+                if old_col in df.columns:
+                    df = df.rename(columns={old_col: new_col})
+                    print(f"\U0001f4cb Fallback mapped '{old_col}' -> '{new_col}'")
+
+            return df
+
+        # REST OF YOUR METHOD - apply the AI mapping first
+        # Get your data...
+        # data = your_data_loading_code
+
+        # Apply AI column mapping
+        # if isinstance(data, pd.DataFrame):
+        #     data = apply_ai_column_mapping(data)
+
+        # Continue with your existing analytics logic...
     
     @measure_performance("analytics.dashboard_summary", MetricType.ANALYTICS)
     @with_error_handling(ErrorCategory.ANALYTICS, ErrorSeverity.MEDIUM)
