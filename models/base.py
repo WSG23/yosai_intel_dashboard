@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """
-Complete Models Base System - Missing piece for consolidation
+Complete Models Base System - FIXED VERSION
 """
 import logging
 import pandas as pd
-from typing import Dict, Any, List, Optional, Protocol
-from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-
 
 class BaseModel:
     """Base class for all models"""
@@ -29,7 +27,6 @@ class BaseModel:
         """Validate model data"""
         return True
 
-
 class AccessEventModel(BaseModel):
     """Model for access control events"""
 
@@ -44,7 +41,6 @@ class AccessEventModel(BaseModel):
                 logger.warning("Empty DataFrame provided to AccessEventModel")
                 return False
 
-            # Convert DataFrame to list of dictionaries
             self.events = df.to_dict('records')
             logger.info(f"Loaded {len(self.events)} access events")
             return True
@@ -59,12 +55,10 @@ class AccessEventModel(BaseModel):
             return {}
 
         try:
-            # Count events per user
             user_counts = {}
             for event in self.events:
                 user_id = event.get('user_id') or event.get('person_id') or 'unknown'
                 user_counts[user_id] = user_counts.get(user_id, 0) + 1
-
             return user_counts
         except Exception as e:
             logger.error(f"Error calculating user activity: {e}")
@@ -76,31 +70,13 @@ class AccessEventModel(BaseModel):
             return {}
 
         try:
-            # Count events per door
             door_counts = {}
             for event in self.events:
                 door_id = event.get('door_id') or event.get('location') or 'unknown'
                 door_counts[door_id] = door_counts.get(door_id, 0) + 1
-
             return door_counts
         except Exception as e:
             logger.error(f"Error calculating door activity: {e}")
-            return {}
-
-    def get_access_patterns(self) -> Dict[str, int]:
-        """Get access pattern summary"""
-        if not self.events:
-            return {}
-
-        try:
-            patterns = {}
-            for event in self.events:
-                result = event.get('access_result') or event.get('status') or 'unknown'
-                patterns[result] = patterns.get(result, 0) + 1
-
-            return patterns
-        except Exception as e:
-            logger.error(f"Error calculating access patterns: {e}")
             return {}
 
     def to_dict(self) -> Dict[str, Any]:
@@ -110,10 +86,47 @@ class AccessEventModel(BaseModel):
             'total_events': len(self.events),
             'user_activity': self.get_user_activity(),
             'door_activity': self.get_door_activity(),
-            'access_patterns': self.get_access_patterns()
+            'access_patterns': self._get_access_patterns()
         })
         return base_dict
 
+    def _get_access_patterns(self) -> Dict[str, Any]:
+        """Analyze access patterns"""
+        if not self.events:
+            return {}
+
+        try:
+            patterns = {
+                'total_access_attempts': len(self.events),
+                'successful_attempts': 0,
+                'failed_attempts': 0,
+                'hourly_distribution': {}
+            }
+
+            for event in self.events:
+                # Count success/failure
+                result = str(event.get('access_result', '')).lower()
+                if 'grant' in result or 'success' in result:
+                    patterns['successful_attempts'] += 1
+                elif 'den' in result or 'fail' in result:
+                    patterns['failed_attempts'] += 1
+
+                # Hour distribution
+                timestamp = event.get('timestamp', '')
+                if timestamp:
+                    try:
+                        if isinstance(timestamp, str):
+                            hour = pd.to_datetime(timestamp).hour
+                        else:
+                            hour = timestamp.hour
+                        patterns['hourly_distribution'][hour] = patterns['hourly_distribution'].get(hour, 0) + 1
+                    except:
+                        pass
+
+            return patterns
+        except Exception as e:
+            logger.error(f"Error analyzing access patterns: {e}")
+            return {}
 
 class AnomalyDetectionModel(BaseModel):
     """Model for anomaly detection"""
@@ -123,32 +136,32 @@ class AnomalyDetectionModel(BaseModel):
         self.anomalies: List[Dict[str, Any]] = []
 
     def detect_anomalies(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Simple anomaly detection"""
-        anomalies = []
+        """Detect anomalies in access events"""
+        if not events:
+            return []
 
         try:
-            # Simple anomaly detection rules
+            anomalies = []
+
             for event in events:
-                # After hours access (assuming 6 PM to 6 AM is after hours)
-                timestamp = event.get('timestamp', '')
-                if isinstance(timestamp, str) and ('20:' in timestamp or '21:' in timestamp or \
-                                                   '22:' in timestamp or '23:' in timestamp or
-                                                   '00:' in timestamp or '01:' in timestamp or
-                                                   '02:' in timestamp or '03:' in timestamp or
-                                                   '04:' in timestamp or '05:' in timestamp):
+                # After hours access (simple check)
+                timestamp = str(event.get('timestamp', ''))
+                if any(hour in timestamp for hour in ['22:', '23:', '00:', '01:', '02:', '03:', '04:', '05:']):
                     anomalies.append({
                         'type': 'after_hours_access',
                         'event': event,
-                        'description': 'Access attempt after business hours'
+                        'description': 'Access attempt after business hours',
+                        'severity': 'medium'
                     })
 
                 # Failed access attempts
-                result = event.get('access_result', event.get('status', '')).lower()
-                if 'denied' in result or 'failed' in result or 'fail' in result:
+                result = str(event.get('access_result', '')).lower()
+                if any(fail_word in result for fail_word in ['denied', 'failed', 'fail', 'reject']):
                     anomalies.append({
                         'type': 'failed_access',
                         'event': event,
-                        'description': 'Failed access attempt'
+                        'description': 'Failed access attempt',
+                        'severity': 'high'
                     })
 
             self.anomalies = anomalies
@@ -158,6 +171,31 @@ class AnomalyDetectionModel(BaseModel):
             logger.error(f"Error detecting anomalies: {e}")
             return []
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        base_dict = super().to_dict()
+        base_dict.update({
+            'total_anomalies': len(self.anomalies),
+            'anomaly_types': self._count_anomaly_types(),
+            'severity_distribution': self._count_severity()
+        })
+        return base_dict
+
+    def _count_anomaly_types(self) -> Dict[str, int]:
+        """Count anomalies by type"""
+        counts = {}
+        for anomaly in self.anomalies:
+            anomaly_type = anomaly.get('type', 'unknown')
+            counts[anomaly_type] = counts.get(anomaly_type, 0) + 1
+        return counts
+
+    def _count_severity(self) -> Dict[str, int]:
+        """Count anomalies by severity"""
+        counts = {}
+        for anomaly in self.anomalies:
+            severity = anomaly.get('severity', 'unknown')
+            counts[severity] = counts.get(severity, 0) + 1
+        return counts
 
 class ModelFactory:
     """Factory for creating model instances"""
@@ -211,31 +249,25 @@ class ModelFactory:
                         for k, v in sorted(
                             access_data.get('user_activity', {}).items(),
                             key=lambda x: x[1], reverse=True
-                        )
+                        )[:10]
                     ],
                     'top_doors': [
                         {'door_id': k, 'count': v}
                         for k, v in sorted(
                             access_data.get('door_activity', {}).items(),
                             key=lambda x: x[1], reverse=True
-                        )
+                        )[:10]
                     ],
                     'access_patterns': access_data.get('access_patterns', {})
                 })
 
             if 'anomaly' in models:
-                anomaly_model = models['anomaly']
+                anomaly_data = models['anomaly'].to_dict()
                 analytics['anomalies'] = {
-                    'total_anomalies': len(anomaly_model.anomalies),
-                    'anomaly_types': {}
+                    'total_anomalies': anomaly_data.get('total_anomalies', 0),
+                    'anomaly_types': anomaly_data.get('anomaly_types', {}),
+                    'severity_distribution': anomaly_data.get('severity_distribution', {})
                 }
-
-                # Count anomaly types
-                for anomaly in anomaly_model.anomalies:
-                    anomaly_type = anomaly.get('type', 'unknown')
-                    analytics['anomalies']['anomaly_types'][anomaly_type] = (
-                        analytics['anomalies']['anomaly_types'].get(anomaly_type, 0) + 1
-                    )
 
             return analytics
 
@@ -243,11 +275,4 @@ class ModelFactory:
             logger.error(f"Error extracting analytics from models: {e}")
             return {}
 
-
-# Export all classes and functions
-__all__ = [
-    'BaseModel',
-    'AccessEventModel', 
-    'AnomalyDetectionModel',
-    'ModelFactory'
-]
+__all__ = ['BaseModel', 'AccessEventModel', 'AnomalyDetectionModel', 'ModelFactory']

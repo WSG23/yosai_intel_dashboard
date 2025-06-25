@@ -303,6 +303,20 @@ def clear_uploaded_data():
     """Clear all uploaded data"""
     global _uploaded_data_store
     _uploaded_data_store.clear()
+    logger.info("Uploaded data cleared")
+
+
+def get_file_info() -> Dict[str, Dict[str, Any]]:
+    """Get information about uploaded files"""
+    info = {}
+    for filename, df in _uploaded_data_store.items():
+        info[filename] = {
+            'rows': len(df),
+            'columns': len(df.columns),
+            'column_names': list(df.columns),
+            'size_mb': round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2)
+        }
+    return info
 
 
 @callback(
@@ -336,7 +350,8 @@ def highlight_upload_area(n_clicks):
 __all__ = [
     'layout',
     'get_uploaded_data',
-    'get_uploaded_filenames', 
+    'get_uploaded_filenames',
     'clear_uploaded_data',
+    'get_file_info',
     'process_uploaded_file'
 ]
