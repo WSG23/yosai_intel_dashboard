@@ -98,6 +98,14 @@ def layout():
         dcc.Store(id='file-info-store', data={}),
         dcc.Store(id='current-file-info-store'),
 
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Column Mapping")),
+            dbc.ModalBody("Configure column mappings here", id="modal-body"),
+            dbc.ModalFooter([
+                dbc.Button("Cancel", id="column-verify-cancel", color="secondary"),
+                dbc.Button("Confirm", id="column-verify-confirm", color="success"),
+            ]),
+        ], id="column-verification-modal", is_open=False, size="xl"),
 
     ], fluid=True)
 
@@ -459,26 +467,22 @@ def apply_ai_suggestions(n_clicks, file_info):
     return [suggested_values]
 
 @callback(
-    [Output("upload-results", "children", allow_duplicate=True),
-     Output("column-verification-modal", "is_open", allow_duplicate=True)],
+    Output("upload-results", "children", allow_duplicate=True),
     Input("verify-columns-btn-simple", "n_clicks"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def handle_verify_button(n_clicks):
-    """Handle button click - show alert AND open modal"""
-    print(f"\U0001F525 COMBINED CALLBACK FIRED! n_clicks: {n_clicks}")
+    """Just test the button first"""
+    print(f"\U0001F525 BUTTON CALLBACK: {n_clicks}")
 
     if n_clicks and n_clicks > 0:
-        print("\u2705 Opening modal AND showing alert!")
-        alert = dbc.Alert(
-            f"Opening column mapping! Click #{n_clicks}",
+        return dbc.Alert(
+            "Button works! Now add modal control",
             color="success",
             dismissable=True,
         )
-        return alert, True
 
-    print("\u274C No action")
-    return dash.no_update, False
+    return dash.no_update
 
 
 
