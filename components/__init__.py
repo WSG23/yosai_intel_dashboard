@@ -38,9 +38,20 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
         ], width=3)
     )
     
-    # Active Users
+    # Active Users - FIXED to use multiple data sources
     top_users = analytics_data.get('top_users', [])
-    user_count = len(top_users) if top_users else 0
+    user_patterns = analytics_data.get('user_patterns', {})
+    most_active_users = user_patterns.get('most_active_users', {})
+
+    # Calculate active users from multiple sources
+    if top_users:
+        user_count = len(top_users)
+    elif most_active_users:
+        user_count = len(most_active_users)  # Use analytics service data
+    elif analytics_data.get('total_unique_users'):
+        user_count = analytics_data.get('total_unique_users', 0)
+    else:
+        user_count = analytics_data.get('unique_users', 0)  # Fallback
     cards.append(
         dbc.Col([
             dbc.Card([
@@ -52,9 +63,20 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
         ], width=3)
     )
     
-    # Active Doors
+    # Active Doors - FIXED to use multiple data sources
     top_doors = analytics_data.get('top_doors', [])
-    door_count = len(top_doors) if top_doors else 0
+    door_patterns = analytics_data.get('door_patterns', {})
+    busiest_doors = door_patterns.get('busiest_doors', {})
+
+    # Calculate active doors from multiple sources
+    if top_doors:
+        door_count = len(top_doors)
+    elif busiest_doors:
+        door_count = len(busiest_doors)  # Use analytics service data
+    elif analytics_data.get('total_doors'):
+        door_count = analytics_data.get('total_doors', 0)
+    else:
+        door_count = analytics_data.get('unique_doors', 0)  # Fallback
     cards.append(
         dbc.Col([
             dbc.Card([
