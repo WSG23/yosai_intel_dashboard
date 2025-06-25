@@ -216,6 +216,9 @@ class ModelFactory:
         models = {}
 
         try:
+            if df is None or df.empty:
+                logger.warning("Empty DataFrame provided to ModelFactory")
+                return {}
             # Create access model
             access_model = ModelFactory.create_access_model(df)
             if access_model.load_from_dataframe(df):
