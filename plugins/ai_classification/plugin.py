@@ -75,6 +75,7 @@ class AIClassificationPlugin:
             "confirm_mapping": self.confirm_column_mapping,
             "estimate_floors": self.estimate_floors,
             "classify_entries": self.classify_entries,
+            "confirm_device_mapping": self.confirm_device_mapping,
             "get_session_data": self.get_session_data,
             "save_permanent_data": self.save_permanent_data,
         }
@@ -106,6 +107,11 @@ class AIClassificationPlugin:
         if not self.entry_classifier:
             raise RuntimeError("service not started")
         return self.entry_classifier.classify_entries(data, session_id)
+
+    def confirm_device_mapping(self, mappings: Dict[str, Dict], session_id: str) -> bool:
+        if not self.entry_classifier:
+            raise RuntimeError("service not started")
+        return self.entry_classifier.confirm_device_mapping(mappings, session_id)
 
     def get_session_data(self, session_id: str) -> Optional[Dict]:
         if not self.csv_repository:
