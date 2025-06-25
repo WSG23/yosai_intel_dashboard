@@ -16,7 +16,6 @@ from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
 import dash_bootstrap_components as dbc
 
 from components.column_verification import (
-    create_column_verification_modal,
     get_ai_column_suggestions,
     save_verified_mappings,
 )
@@ -29,97 +28,139 @@ _uploaded_data_store: Dict[str, pd.DataFrame] = {}
 
 def layout():
     """File upload page layout"""
-    return dbc.Container([
-        # Page header
-        dbc.Row([
-            dbc.Col([
-                html.H1("📁 File Upload", className="text-primary mb-2"),
-                html.P(
-                    "Upload CSV, Excel, or JSON files for analysis",
-                    className="text-muted mb-4"
-                ),
-            ])
-        ]),
+    return dbc.Container(
+        [
+            # Page header
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H1("📁 File Upload", className="text-primary mb-2"),
+                            html.P(
+                                "Upload CSV, Excel, or JSON files for analysis",
+                                className="text-muted mb-4",
+                            ),
+                        ]
+                    )
+                ]
+            ),
+            # Upload area
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dbc.Card(
+                                [
+                                    dbc.CardHeader(
+                                        [
+                                            html.H5(
+                                                "📤 Upload Data Files", className="mb-0"
+                                            )
+                                        ]
+                                    ),
+                                    dbc.CardBody(
+                                        [
+                                            dcc.Upload(
+                                                id="upload-data",
+                                                children=html.Div(
+                                                    [
+                                                        html.I(
+                                                            className="fas fa-cloud-upload-alt fa-4x mb-3 text-primary"
+                                                        ),
+                                                        html.H5(
+                                                            "Drag and Drop or Click to Select Files"
+                                                        ),
+                                                        html.P(
+                                                            "Supports CSV, Excel (.xlsx, .xls), and JSON files",
+                                                            className="text-muted",
+                                                        ),
+                                                        html.Small(
+                                                            "Maximum file size: 10MB",
+                                                            className="text-secondary",
+                                                        ),
+                                                    ],
+                                                    className="text-center p-5",
+                                                ),
+                                                style={
+                                                    "width": "100%",
+                                                    "border": "2px dashed #007bff",
+                                                    "borderRadius": "8px",
+                                                    "textAlign": "center",
+                                                    "cursor": "pointer",
+                                                    "backgroundColor": "#f8f9fa",
+                                                },
+                                                multiple=True,
+                                            )
+                                        ]
+                                    ),
+                                ]
+                            )
+                        ]
+                    )
+                ],
+                className="mb-4",
+            ),
+            # Upload status and file list
+            dbc.Row([dbc.Col([html.Div(id="upload-results")])], className="mb-4"),
+            # Data preview area
+            dbc.Row([dbc.Col([html.Div(id="file-preview")])]),
+            # Navigation to analytics
+            dbc.Row([dbc.Col([html.Div(id="upload-nav")])]),
+            # Store for uploaded data info
+            dcc.Store(id="file-info-store", data={}),
+            dcc.Store(id="current-file-info-store"),
+            # Persistent column verification modal
+            create_empty_verification_modal(),
+        ],
+        fluid=True,
+    )
 
-        # Upload area
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("📤 Upload Data Files", className="mb-0")
-                    ]),
-                    dbc.CardBody([
-                        dcc.Upload(
-                            id='upload-data',
-                            children=html.Div([
-                                html.I(className="fas fa-cloud-upload-alt fa-4x mb-3 text-primary"),
-                                html.H5("Drag and Drop or Click to Select Files"),
-                                html.P("Supports CSV, Excel (.xlsx, .xls), and JSON files", 
-                                      className="text-muted"),
-                                html.Small("Maximum file size: 10MB", className="text-secondary")
-                            ], className="text-center p-5"),
-                            style={
-                                'width': '100%',
-                                'border': '2px dashed #007bff',
-                                'borderRadius': '8px',
-                                'textAlign': 'center',
-                                'cursor': 'pointer',
-                                'backgroundColor': '#f8f9fa'
-                            },
-                            multiple=True
-                        )
-                    ])
-                ])
-            ])
-        ], className="mb-4"),
 
-        # Upload status and file list
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='upload-results')
-            ])
-        ], className="mb-4"),
-
-        # Data preview area
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='file-preview')
-            ])
-        ]),
-
-        # Navigation to analytics
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='upload-nav')
-            ])
-        ]),
-
-        # Store for uploaded data info
-        dcc.Store(id='file-info-store', data={}),
-        dcc.Store(id='current-file-info-store'),
-
-        # Container for column verification modal
-        html.Div(id='column-verification-modal-container'),
-
-    ], fluid=True)
+def create_empty_verification_modal():
+    """Create empty modal that stays in layout"""
+    return dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Column Mapping", id="modal-title")),
+            dbc.ModalBody(html.Div(id="modal-body-content")),
+            dbc.ModalFooter(
+                [
+                    dbc.Button(
+                        "Cancel",
+                        id="column-verify-cancel",
+                        color="secondary",
+                        className="me-2",
+                    ),
+                    dbc.Button(
+                        "Use AI Suggestions",
+                        id="column-verify-ai-auto",
+                        color="info",
+                        className="me-2",
+                    ),
+                    dbc.Button(
+                        "Confirm & Train AI",
+                        id="column-verify-confirm",
+                        color="success",
+                    ),
+                ]
+            ),
+        ],
+        id="column-verification-modal",
+        size="xl",
+        is_open=False,
+    )
 
 
 @callback(
     [
-        Output('upload-results', 'children'),
-        Output('file-preview', 'children'),
-        Output('file-info-store', 'data'),
-        Output('upload-nav', 'children'),
-        Output('column-verification-modal-container', 'children', allow_duplicate=True),
-        Output('current-file-info-store', 'data', allow_duplicate=True)
+        Output("upload-results", "children"),
+        Output("file-preview", "children"),
+        Output("file-info-store", "data"),
+        Output("upload-nav", "children"),
+        Output("current-file-info-store", "data", allow_duplicate=True),
     ],
-    [
-        Input('upload-data', 'contents')
-    ],
-    [
-        State('upload-data', 'filename')
-    ],
-    prevent_initial_call=True
+    [Input("upload-data", "contents")],
+    [State("upload-data", "filename")],
+    prevent_initial_call=True,
 )
 def upload_callback(contents_list, filenames_list):
     """Handle file upload and processing"""
@@ -135,7 +176,6 @@ def upload_callback(contents_list, filenames_list):
     upload_results = []
     file_info = {}
     preview_components = []
-    verification_modal = ""
     current_file_info = {}
 
     for content, filename in zip(contents_list, filenames_list):
@@ -143,23 +183,29 @@ def upload_callback(contents_list, filenames_list):
             # Process uploaded file
             result = process_uploaded_file(content, filename)
 
-            if result['success']:
-                df = result['data']
-                rows = result['rows']
-                cols = result['columns']
+            if result["success"]:
+                df = result["data"]
+                rows = result["rows"]
+                cols = result["columns"]
                 upload_results.append(
-                    dbc.Alert([
-                        html.H6([
-                            f"Successfully uploaded {filename} ({rows:,} rows, {cols} columns)"
-                        ], className="alert-heading mb-2"),
-                        dbc.Button(
-                            "Verify Column Mappings",
-                            id="verify-columns-btn-simple",
-                            color="info",
-                            size="sm",
-                            className="mt-2"
-                        )
-                    ], color="success")
+                    dbc.Alert(
+                        [
+                            html.H6(
+                                [
+                                    f"Successfully uploaded {filename} ({rows:,} rows, {cols} columns)"
+                                ],
+                                className="alert-heading mb-2",
+                            ),
+                            dbc.Button(
+                                "Verify Column Mappings",
+                                id="verify-columns-btn-simple",
+                                color="info",
+                                size="sm",
+                                className="mt-2",
+                            ),
+                        ],
+                        color="success",
+                    )
                 )
 
                 sample_data = {}
@@ -168,74 +214,80 @@ def upload_callback(contents_list, filenames_list):
 
                 try:
                     from components.column_verification import get_ai_column_suggestions
+
                     ai_suggestions = get_ai_column_suggestions(df, filename)
                 except Exception as e:
                     logger.warning(f"Could not get AI suggestions: {e}")
                     ai_suggestions = {}
 
                 current_file_info = {
-                    'filename': filename,
-                    'columns': df.columns.tolist(),
-                    'sample_data': sample_data,
-                    'ai_suggestions': ai_suggestions,
-                    'dataframe_shape': df.shape
+                    "filename": filename,
+                    "columns": df.columns.tolist(),
+                    "sample_data": sample_data,
+                    "ai_suggestions": ai_suggestions,
+                    "dataframe_shape": df.shape,
                 }
-
-                try:
-                    from components.column_verification import create_column_verification_modal
-                    verification_modal = create_column_verification_modal(current_file_info)
-                    print(f"✅ Modal created successfully for {filename}")
-                    print(f"   Modal type: {type(verification_modal)}")
-
-                    # Ensure it's a proper component
-                    if not hasattr(verification_modal, 'children'):
-                        print("❌ Modal is not a proper component, creating empty div")
-                        verification_modal = html.Div()
-
-                except Exception as e:
-                    logger.error(f"❌ Error creating verification modal: {e}")
-                    verification_modal = html.Div()  # Return empty div instead of empty string
 
                 preview_components.append(create_file_preview(df, filename))
 
                 file_info[filename] = {
-                    'rows': rows,
-                    'columns': cols,
-                    'column_names': df.columns.tolist(),
-                    'upload_time': result['upload_time']
+                    "rows": rows,
+                    "columns": cols,
+                    "column_names": df.columns.tolist(),
+                    "upload_time": result["upload_time"],
                 }
 
             else:
                 upload_results.append(
-                    dbc.Alert([
-                        html.H6("Upload Failed", className="alert-heading"),
-                        html.P(result['error'])
-                    ], color="danger")
+                    dbc.Alert(
+                        [
+                            html.H6("Upload Failed", className="alert-heading"),
+                            html.P(result["error"]),
+                        ],
+                        color="danger",
+                    )
                 )
 
         except Exception as e:
             logger.error(f"Error processing upload {filename}: {e}")
             upload_results.append(
-                dbc.Alert([
-                    html.I(className="fas fa-exclamation-triangle me-2"),
-                    f"❌ Error processing {filename}: {str(e)}"
-                ], color="danger", className="mb-2")
+                dbc.Alert(
+                    [
+                        html.I(className="fas fa-exclamation-triangle me-2"),
+                        f"❌ Error processing {filename}: {str(e)}",
+                    ],
+                    color="danger",
+                    className="mb-2",
+                )
             )
 
     # Create analytics navigation if files were uploaded successfully
-    analytics_nav = html.Div([
-        html.Hr(),
-        html.H5("Ready to analyze?"),
-        dbc.Button("Go to Analytics", href="/analytics", color="primary", size="lg", className="me-2"),
-        dbc.Button("Upload More Files", id="upload-more-btn", color="outline-secondary", size="lg")
-    ], className="mt-4")
+    analytics_nav = html.Div(
+        [
+            html.Hr(),
+            html.H5("Ready to analyze?"),
+            dbc.Button(
+                "Go to Analytics",
+                href="/analytics",
+                color="primary",
+                size="lg",
+                className="me-2",
+            ),
+            dbc.Button(
+                "Upload More Files",
+                id="upload-more-btn",
+                color="outline-secondary",
+                size="lg",
+            ),
+        ],
+        className="mt-4",
+    )
 
     return (
         upload_results,
         preview_components,
         file_info,
         analytics_nav,
-        verification_modal,
         current_file_info,
     )
 
@@ -244,47 +296,41 @@ def process_uploaded_file(contents, filename):
     """Process uploaded file content"""
     try:
         # Decode the base64 encoded file content
-        content_type, content_string = contents.split(',')
+        content_type, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
 
         # Determine file type and parse accordingly
-        if filename.endswith('.csv'):
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        elif filename.endswith(('.xlsx', '.xls')):
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        elif filename.endswith((".xlsx", ".xls")):
             df = pd.read_excel(io.BytesIO(decoded))
-        elif filename.endswith('.json'):
-            df = pd.read_json(io.StringIO(decoded.decode('utf-8')))
+        elif filename.endswith(".json"):
+            df = pd.read_json(io.StringIO(decoded.decode("utf-8")))
         else:
             return {
-                'success': False,
-                'error': f'Unsupported file type. Supported: CSV, Excel, JSON'
+                "success": False,
+                "error": f"Unsupported file type. Supported: CSV, Excel, JSON",
             }
 
         # Basic validation
         if df.empty:
-            return {
-                'success': False,
-                'error': 'File appears to be empty'
-            }
+            return {"success": False, "error": "File appears to be empty"}
 
         # Store in global store (in production, use proper session/database storage)
         _uploaded_data_store[filename] = df
 
         return {
-            'success': True,
-            'data': df,
-            'filename': filename,
-            'rows': len(df),
-            'columns': len(df.columns),
-            'upload_time': pd.Timestamp.now().isoformat()
+            "success": True,
+            "data": df,
+            "filename": filename,
+            "rows": len(df),
+            "columns": len(df.columns),
+            "upload_time": pd.Timestamp.now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Error processing file {filename}: {e}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card:
@@ -300,41 +346,56 @@ def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card:
             null_count = df[col].isnull().sum()
             column_info.append(f"{col} ({dtype}) - {null_count} nulls")
 
-        return dbc.Card([
-            dbc.CardHeader([
-                html.H6(f"📄 {filename}", className="mb-0")
-            ]),
-            dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        html.H6("File Statistics:", className="text-primary"),
-                        html.Ul([
-                            html.Li(f"Rows: {num_rows:,}"),
-                            html.Li(f"Columns: {num_cols}"),
-                            html.Li(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024:.1f} KB")
-                        ])
-                    ], width=6),
-                    dbc.Col([
-                        html.H6("Columns:", className="text-primary"),
-                        html.Ul([
-                            html.Li(info) for info in column_info
-                        ])
-                    ], width=6)
-                ]),
-
-                html.Hr(),
-
-                html.H6("Sample Data:", className="text-primary mt-3"),
-                dbc.Table.from_dataframe(
-                    df.head(5),
-                    striped=True,
-                    bordered=True,
-                    hover=True,
-                    responsive=True,
-                    size="sm"
-                )
-            ])
-        ], className="mb-3")
+        return dbc.Card(
+            [
+                dbc.CardHeader([html.H6(f"📄 {filename}", className="mb-0")]),
+                dbc.CardBody(
+                    [
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        html.H6(
+                                            "File Statistics:", className="text-primary"
+                                        ),
+                                        html.Ul(
+                                            [
+                                                html.Li(f"Rows: {num_rows:,}"),
+                                                html.Li(f"Columns: {num_cols}"),
+                                                html.Li(
+                                                    f"Memory usage: {df.memory_usage(deep=True).sum() / 1024:.1f} KB"
+                                                ),
+                                            ]
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    [
+                                        html.H6("Columns:", className="text-primary"),
+                                        html.Ul(
+                                            [html.Li(info) for info in column_info]
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                            ]
+                        ),
+                        html.Hr(),
+                        html.H6("Sample Data:", className="text-primary mt-3"),
+                        dbc.Table.from_dataframe(
+                            df.head(5),
+                            striped=True,
+                            bordered=True,
+                            hover=True,
+                            responsive=True,
+                            size="sm",
+                        ),
+                    ]
+                ),
+            ],
+            className="mb-3",
+        )
 
     except Exception as e:
         logger.error(f"Error creating preview for {filename}: {e}")
@@ -363,98 +424,55 @@ def get_file_info() -> Dict[str, Dict[str, Any]]:
     info = {}
     for filename, df in _uploaded_data_store.items():
         info[filename] = {
-            'rows': len(df),
-            'columns': len(df.columns),
-            'column_names': list(df.columns),
-            'size_mb': round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2)
+            "rows": len(df),
+            "columns": len(df.columns),
+            "column_names": list(df.columns),
+            "size_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2),
         }
     return info
 
 
 @callback(
-    Output('upload-data', 'style'),
-    Input('upload-more-btn', 'n_clicks'),
-    prevent_initial_call=True
+    Output("upload-data", "style"),
+    Input("upload-more-btn", "n_clicks"),
+    prevent_initial_call=True,
 )
 def highlight_upload_area(n_clicks):
     """Highlight upload area when 'upload more' is clicked"""
     if n_clicks:
         return {
-            'width': '100%',
-            'border': '3px dashed #28a745',
-            'borderRadius': '8px',
-            'textAlign': 'center',
-            'cursor': 'pointer',
-            'backgroundColor': '#d4edda',
-            'animation': 'pulse 1s infinite'
+            "width": "100%",
+            "border": "3px dashed #28a745",
+            "borderRadius": "8px",
+            "textAlign": "center",
+            "cursor": "pointer",
+            "backgroundColor": "#d4edda",
+            "animation": "pulse 1s infinite",
         }
     return {
-        'width': '100%',
-        'border': '2px dashed #007bff',
-        'borderRadius': '8px',
-        'textAlign': 'center',
-        'cursor': 'pointer',
-        'backgroundColor': '#f8f9fa'
+        "width": "100%",
+        "border": "2px dashed #007bff",
+        "borderRadius": "8px",
+        "textAlign": "center",
+        "cursor": "pointer",
+        "backgroundColor": "#f8f9fa",
     }
 
 
 @callback(
-    Output('column-verification-modal-container', 'children', allow_duplicate=True),
-    Output('current-file-info-store', 'data'),
-    Input({'type': 'verify-columns-btn', 'filename': ALL}, 'n_clicks'),
-    prevent_initial_call=True
+    Output("upload-results", "children", allow_duplicate=True),
+    [Input("column-verify-confirm", "n_clicks")],
+    [
+        State({"type": "column-mapping", "index": ALL}, "value"),
+        State("training-data-source-type", "value"),
+        State("training-data-quality", "value"),
+        State("current-file-info-store", "data"),
+    ],
+    prevent_initial_call=True,
 )
-def show_column_verification(n_clicks_list):
-    """Display column verification modal when user opts to verify"""
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
-
-    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
-    try:
-        btn_id = json.loads(triggered)
-        filename = btn_id.get('filename')
-    except Exception:
-        return dash.no_update, dash.no_update
-
-    df = _uploaded_data_store.get(filename)
-    if df is None:
-        return dash.no_update, dash.no_update
-
-    sample_data = {col: df[col].dropna().astype(str).head(5).tolist() for col in df.columns}
-    file_info = {
-        'filename': filename,
-        'columns': list(df.columns),
-        'sample_data': sample_data,
-        'ai_suggestions': get_ai_column_suggestions(df, filename)
-    }
-    modal = create_column_verification_modal(file_info)
-    modal.is_open = True
-    return modal, file_info
-
-
-@callback(
-    Output('column-verification-modal-container', 'children', allow_duplicate=True),
-    [Input('column-verify-cancel', 'n_clicks'), Input('column-verify-confirm', 'n_clicks')],
-    prevent_initial_call=True
-)
-def close_column_verification(cancel_clicks, confirm_clicks):
-    """Close verification modal on cancel or confirm"""
-    if cancel_clicks or confirm_clicks:
-        return ''
-    return dash.no_update
-
-
-@callback(
-    Output('upload-results', 'children', allow_duplicate=True),
-    [Input('column-verify-confirm', 'n_clicks')],
-    [State({'type': 'column-mapping', 'index': ALL}, 'value'),
-     State('training-data-source-type', 'value'),
-     State('training-data-quality', 'value'),
-     State('current-file-info-store', 'data')],
-    prevent_initial_call=True
-)
-def confirm_column_mappings(n_clicks, mapping_values, data_source_type, data_quality, file_info):
+def confirm_column_mappings(
+    n_clicks, mapping_values, data_source_type, data_quality, file_info
+):
     """Handle confirmed column mappings WITH AI TRAINING"""
     if not n_clicks or not file_info:
         return dash.no_update
@@ -462,67 +480,85 @@ def confirm_column_mappings(n_clicks, mapping_values, data_source_type, data_qua
     try:
         from components.column_verification import save_verified_mappings
 
-        filename = file_info.get('filename', 'unknown')
-        columns = file_info.get('columns', [])
+        filename = file_info.get("filename", "unknown")
+        columns = file_info.get("columns", [])
 
         # Build the final column mappings
         column_mappings = {}
 
         for i, (column, mapping_value) in enumerate(zip(columns, mapping_values or [])):
-            if mapping_value and mapping_value != 'ignore':
+            if mapping_value and mapping_value != "ignore":
                 column_mappings[column] = mapping_value
 
         # AI Training metadata - RESTORED
         metadata = {
-            'data_source_type': data_source_type or 'unknown',
-            'data_quality': data_quality or 'unknown',
-            'num_columns': len(columns),
-            'num_mapped': len(column_mappings),
-            'verification_timestamp': datetime.now().isoformat(),
-            'file_type': filename.split('.')[-1].lower(),
-            'ai_training': True  # Mark as training data
+            "data_source_type": data_source_type or "unknown",
+            "data_quality": data_quality or "unknown",
+            "num_columns": len(columns),
+            "num_mapped": len(column_mappings),
+            "verification_timestamp": datetime.now().isoformat(),
+            "file_type": filename.split(".")[-1].lower(),
+            "ai_training": True,  # Mark as training data
         }
 
         # Save verified mappings for AI learning - FULL FUNCTIONALITY
         success = save_verified_mappings(filename, column_mappings, metadata)
 
         if success:
-            return dbc.Alert([
-                html.H6("AI Training Complete!", className="alert-heading mb-2"),
-                html.P([
-                    f"Saved {len(column_mappings)} column mappings for {filename}. ",
-                    html.Strong("AI will learn from this data"),
-                    " to improve future suggestions for similar files."
-                ]),
-                html.Small("AI model updated with your feedback", className="text-success")
-            ], color="success", dismissable=True)
+            return dbc.Alert(
+                [
+                    html.H6("AI Training Complete!", className="alert-heading mb-2"),
+                    html.P(
+                        [
+                            f"Saved {len(column_mappings)} column mappings for {filename}. ",
+                            html.Strong("AI will learn from this data"),
+                            " to improve future suggestions for similar files.",
+                        ]
+                    ),
+                    html.Small(
+                        "AI model updated with your feedback", className="text-success"
+                    ),
+                ],
+                color="success",
+                dismissable=True,
+            )
         else:
-            return dbc.Alert([
-                html.H6("Mappings Saved", className="alert-heading"),
-                html.P("Column mappings confirmed and saved for future AI training.")
-            ], color="warning", dismissable=True)
+            return dbc.Alert(
+                [
+                    html.H6("Mappings Saved", className="alert-heading"),
+                    html.P(
+                        "Column mappings confirmed and saved for future AI training."
+                    ),
+                ],
+                color="warning",
+                dismissable=True,
+            )
 
     except Exception as e:
         logger.error(f"Error confirming column mappings: {e}")
-        return dbc.Alert([
-            html.H6("Training Error", className="alert-heading"),
-            html.P(f"Error saving AI training data: {str(e)}")
-        ], color="danger", dismissable=True)
+        return dbc.Alert(
+            [
+                html.H6("Training Error", className="alert-heading"),
+                html.P(f"Error saving AI training data: {str(e)}"),
+            ],
+            color="danger",
+            dismissable=True,
+        )
 
 
 @callback(
     [Output({"type": "column-mapping", "index": ALL}, "value")],
     [Input("column-verify-ai-auto", "n_clicks")],
     [State("current-file-info-store", "data")],
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def apply_ai_suggestions(n_clicks, file_info):
     """Apply AI suggestions automatically - RESTORED"""
     if not n_clicks or not file_info:
         return [dash.no_update]
 
-    ai_suggestions = file_info.get('ai_suggestions', {})
-    columns = file_info.get('columns', [])
+    ai_suggestions = file_info.get("ai_suggestions", {})
+    columns = file_info.get("columns", [])
 
     print(f"🤖 Applying AI suggestions for {len(columns)} columns")
 
@@ -530,8 +566,8 @@ def apply_ai_suggestions(n_clicks, file_info):
     suggested_values = []
     for column in columns:
         suggestion = ai_suggestions.get(column, {})
-        confidence = suggestion.get('confidence', 0.0)
-        field = suggestion.get('field', '')
+        confidence = suggestion.get("confidence", 0.0)
+        field = suggestion.get("field", "")
 
         if confidence > 0.3 and field:
             suggested_values.append(field)
@@ -541,6 +577,211 @@ def apply_ai_suggestions(n_clicks, file_info):
             print(f"   ❓ {column} -> No confident suggestion ({confidence:.0%})")
 
     return [suggested_values]
+
+
+@callback(
+    [Output("modal-title", "children"), Output("modal-body-content", "children")],
+    Input("current-file-info-store", "data"),
+    prevent_initial_call=True,
+)
+def populate_modal_content(file_info):
+    """Populate modal content when file info changes"""
+    if not file_info or not file_info.get("filename"):
+        return "Column Mapping", html.Div("No file selected")
+
+    filename = file_info.get("filename", "Unknown File")
+    columns = file_info.get("columns", [])
+    ai_suggestions = file_info.get("ai_suggestions", {})
+
+    title = f"AI Column Mapping - {filename}"
+
+    if not columns:
+        body = html.Div("No columns found in file")
+    else:
+        table_rows = []
+        for i, column in enumerate(columns):
+            ai_suggestion = ai_suggestions.get(column, {})
+            suggested_field = ai_suggestion.get("field", "")
+            confidence = ai_suggestion.get("confidence", 0.0)
+
+            table_rows.append(
+                html.Tr(
+                    [
+                        html.Td(
+                            [
+                                html.Strong(column),
+                                html.Br(),
+                                html.Small(
+                                    f"AI Confidence: {confidence:.0%}",
+                                    className=(
+                                        "text-success"
+                                        if confidence > 0.7
+                                        else (
+                                            "text-warning"
+                                            if confidence > 0.4
+                                            else "text-muted"
+                                        )
+                                    ),
+                                ),
+                            ]
+                        ),
+                        html.Td(
+                            [
+                                dcc.Dropdown(
+                                    id={"type": "column-mapping", "index": i},
+                                    options=[
+                                        {
+                                            "label": "Person/User ID",
+                                            "value": "person_id",
+                                        },
+                                        {
+                                            "label": "Door/Location ID",
+                                            "value": "door_id",
+                                        },
+                                        {"label": "Timestamp", "value": "timestamp"},
+                                        {
+                                            "label": "Access Result",
+                                            "value": "access_result",
+                                        },
+                                        {
+                                            "label": "Token/Badge ID",
+                                            "value": "token_id",
+                                        },
+                                        {
+                                            "label": "Badge Status",
+                                            "value": "badge_status",
+                                        },
+                                        {
+                                            "label": "Device Status",
+                                            "value": "device_status",
+                                        },
+                                        {"label": "Event Type", "value": "event_type"},
+                                        {
+                                            "label": "Building/Floor",
+                                            "value": "building_id",
+                                        },
+                                        {
+                                            "label": "Entry/Exit Type",
+                                            "value": "entry_type",
+                                        },
+                                        {"label": "Duration", "value": "duration"},
+                                        {"label": "Ignore Column", "value": "ignore"},
+                                        {"label": "Other/Custom", "value": "other"},
+                                    ],
+                                    placeholder=f"Map {column} to...",
+                                    value=suggested_field if suggested_field else None,
+                                )
+                            ]
+                        ),
+                    ]
+                )
+            )
+
+        body = html.Div(
+            [
+                dbc.Alert(
+                    [
+                        f"AI has analyzed your {len(columns)} columns and made suggestions. ",
+                        "Review and confirm the mappings below.",
+                    ],
+                    color="info",
+                    className="mb-3",
+                ),
+                dbc.Table(
+                    [
+                        html.Thead(
+                            [html.Tr([html.Th("CSV Column"), html.Th("Maps To")])]
+                        ),
+                        html.Tbody(table_rows),
+                    ],
+                    striped=True,
+                ),
+                dbc.Card(
+                    [
+                        dbc.CardHeader(html.H6("Help AI Learn", className="mb-0")),
+                        dbc.CardBody(
+                            [
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("Data Source Type:"),
+                                                dcc.Dropdown(
+                                                    id="training-data-source-type",
+                                                    options=[
+                                                        {
+                                                            "label": "Corporate Access Control",
+                                                            "value": "corporate",
+                                                        },
+                                                        {
+                                                            "label": "Educational Institution",
+                                                            "value": "education",
+                                                        },
+                                                        {
+                                                            "label": "Healthcare Facility",
+                                                            "value": "healthcare",
+                                                        },
+                                                        {
+                                                            "label": "Manufacturing/Industrial",
+                                                            "value": "manufacturing",
+                                                        },
+                                                        {
+                                                            "label": "Retail/Commercial",
+                                                            "value": "retail",
+                                                        },
+                                                        {
+                                                            "label": "Government/Public",
+                                                            "value": "government",
+                                                        },
+                                                        {
+                                                            "label": "Other",
+                                                            "value": "other",
+                                                        },
+                                                    ],
+                                                    value="corporate",
+                                                ),
+                                            ],
+                                            width=6,
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("Data Quality:"),
+                                                dcc.Dropdown(
+                                                    id="training-data-quality",
+                                                    options=[
+                                                        {
+                                                            "label": "Excellent - Clean, consistent data",
+                                                            "value": "excellent",
+                                                        },
+                                                        {
+                                                            "label": "Good - Minor inconsistencies",
+                                                            "value": "good",
+                                                        },
+                                                        {
+                                                            "label": "Average - Some data issues",
+                                                            "value": "average",
+                                                        },
+                                                        {
+                                                            "label": "Poor - Many inconsistencies",
+                                                            "value": "poor",
+                                                        },
+                                                    ],
+                                                    value="good",
+                                                ),
+                                            ],
+                                            width=6,
+                                        ),
+                                    ]
+                                )
+                            ]
+                        ),
+                    ],
+                    className="mt-3",
+                ),
+            ]
+        )
+
+    return title, body
 
 
 @callback(
@@ -554,34 +795,18 @@ def apply_ai_suggestions(n_clicks, file_info):
     prevent_initial_call=True,
 )
 def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_open):
-    """Toggle the column verification modal with debugging"""
-    import dash
-
-    print(f"\U0001F527 Modal callback triggered!")
-    print(f"   verify_clicks: {verify_clicks}")
-    print(f"   cancel_clicks: {cancel_clicks}")
-    print(f"   confirm_clicks: {confirm_clicks}")
-    print(f"   current is_open: {is_open}")
-
+    """Toggle the column verification modal"""
     ctx = dash.callback_context
     if not ctx.triggered:
-        print("   \u274C No trigger context")
         return False
 
-    trigger_id = ctx.triggered[0]['prop_id']
-    trigger_value = ctx.triggered[0]['value']
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    print(f"   \U0001F3AF Triggered by: {trigger_id}")
-    print(f"   \U0001F4CA Trigger value: {trigger_value}")
-
-    if "verify-columns-btn" in trigger_id and trigger_value:
-        print("   \u2705 Opening modal!")
+    if trigger_id == "verify-columns-btn-simple":
         return True
-    elif cancel_clicks or confirm_clicks:
-        print("   \u274C Closing modal!")
+    elif trigger_id in ["column-verify-cancel", "column-verify-confirm"]:
         return False
 
-    print("   \U0001F504 No change to modal state")
     return is_open
 
 
@@ -592,7 +817,7 @@ def toggle_verification_modal(verify_clicks, cancel_clicks, confirm_clicks, is_o
 )
 def test_modal_open(n_clicks):
     """Simple test to open modal"""
-    print(f"\U0001F9EA Simple button clicked! n_clicks: {n_clicks}")
+    print(f"\U0001f9ea Simple button clicked! n_clicks: {n_clicks}")
     if n_clicks:
         return True
     return False
@@ -600,10 +825,10 @@ def test_modal_open(n_clicks):
 
 # Export functions for integration with other modules
 __all__ = [
-    'layout',
-    'get_uploaded_data',
-    'get_uploaded_filenames',
-    'clear_uploaded_data',
-    'get_file_info',
-    'process_uploaded_file'
+    "layout",
+    "get_uploaded_data",
+    "get_uploaded_filenames",
+    "clear_uploaded_data",
+    "get_file_info",
+    "process_uploaded_file",
 ]
