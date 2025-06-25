@@ -98,8 +98,6 @@ def layout():
         dcc.Store(id='file-info-store', data={}),
         dcc.Store(id='current-file-info-store'),
 
-        # Container for column verification modal
-        html.Div(id='column-verification-modal-container'),
 
     ], fluid=True)
 
@@ -110,7 +108,7 @@ def layout():
         Output('file-preview', 'children'),
         Output('file-info-store', 'data'),
         Output('upload-nav', 'children'),
-        Output('column-verification-modal-container', 'children', allow_duplicate=True),
+        # Modal container output removed
         Output('current-file-info-store', 'data', allow_duplicate=True)
     ],
     [
@@ -235,7 +233,6 @@ def upload_callback(contents_list, filenames_list):
         preview_components,
         file_info,
         analytics_nav,
-        verification_modal,
         current_file_info,
     )
 
@@ -398,51 +395,7 @@ def highlight_upload_area(n_clicks):
     }
 
 
-@callback(
-    Output('column-verification-modal-container', 'children', allow_duplicate=True),
-    Output('current-file-info-store', 'data'),
-    Input({'type': 'verify-columns-btn', 'filename': ALL}, 'n_clicks'),
-    prevent_initial_call=True
-)
-def show_column_verification(n_clicks_list):
-    """Display column verification modal when user opts to verify"""
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
 
-    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
-    try:
-        btn_id = json.loads(triggered)
-        filename = btn_id.get('filename')
-    except Exception:
-        return dash.no_update, dash.no_update
-
-    df = _uploaded_data_store.get(filename)
-    if df is None:
-        return dash.no_update, dash.no_update
-
-    sample_data = {col: df[col].dropna().astype(str).head(5).tolist() for col in df.columns}
-    file_info = {
-        'filename': filename,
-        'columns': list(df.columns),
-        'sample_data': sample_data,
-        'ai_suggestions': get_ai_column_suggestions(df, filename)
-    }
-    modal = create_column_verification_modal(file_info)
-    modal.is_open = True
-    return modal, file_info
-
-
-@callback(
-    Output('column-verification-modal-container', 'children', allow_duplicate=True),
-    [Input('column-verify-cancel', 'n_clicks'), Input('column-verify-confirm', 'n_clicks')],
-    prevent_initial_call=True
-)
-def close_column_verification(cancel_clicks, confirm_clicks):
-    """Close verification modal on cancel or confirm"""
-    if cancel_clicks or confirm_clicks:
-        return ''
-    return dash.no_update
 
 
 @callback(
