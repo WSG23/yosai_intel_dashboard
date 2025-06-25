@@ -145,7 +145,8 @@ class AnalyticsService:
         try:
             analytics = {
                 'status': 'success',
-                'total_rows': len(df),
+                'total_events': len(df),  # Changed from 'total_rows' to 'total_events'
+                'total_rows': len(df),    # Keep both for compatibility
                 'total_columns': len(df.columns),
                 'summary': {},
                 'timestamp': datetime.now().isoformat(),
