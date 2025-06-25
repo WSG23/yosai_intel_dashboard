@@ -179,8 +179,14 @@ class FileProcessor:
                     print(f"[SUCCESS] Applied mappings: {fuzzy_matches}")
                     print(f"[INFO] New columns: {list(df_mapped.columns)}")
 
-                    # Validate the mapped dataframe
-                    return self._validate_data_content(df_mapped)
+                    # Validate the mapped dataframe and ensure it returns the mapped data
+                    validation_result = self._validate_data_content(df_mapped)
+
+                    # Make sure we return the properly mapped dataframe
+                    if validation_result['valid']:
+                        validation_result['data'] = df_mapped  # Ensure mapped data is returned
+
+                    return validation_result
 
                 except Exception as e:
                     print(f"[ERROR] Error applying column mappings: {e}")
@@ -251,8 +257,8 @@ class FileProcessor:
         else:
             print(f"[SUCCESS] Validation successful: {len(df)} records")
             return {
-                'valid': True, 
-                'data': df,
+                'valid': True,
+                'data': df,  # This should now have renamed columns and standardized data
                 'processed_records': len(df)
             }
     
