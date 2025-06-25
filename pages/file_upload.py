@@ -20,6 +20,7 @@ from components.column_verification import (
     get_ai_column_suggestions,
     save_verified_mappings,
 )
+from components.device_verification import create_device_verification_modal
 
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,15 @@ def layout():
             ]),
         ], id="column-verification-modal", is_open=False, size="xl"),
 
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Device Classification")),
+            dbc.ModalBody("", id="device-modal-body"),
+            dbc.ModalFooter([
+                dbc.Button("Cancel", id="device-verify-cancel", color="secondary"),
+                dbc.Button("Confirm", id="device-verify-confirm", color="success"),
+            ]),
+        ], id="device-verification-modal", is_open=False, size="xl"),
+
     ], fluid=True)
 
 
@@ -165,6 +175,14 @@ def upload_callback(contents_list, filenames_list):
                             color="info",
                             size="sm",
                             className="mt-2"
+                        )
+                        ,
+                        dbc.Button(
+                            "Classify Devices",
+                            id="classify-devices-btn",
+                            color="primary",
+                            size="sm",
+                            className="mt-2 ms-2"
                         )
                     ], color="success")
                 )
@@ -544,6 +562,24 @@ def handle_verify_button(n_clicks):
         )
         return alert, True
 
+    return dash.no_update, False
+
+
+@callback(
+    [Output("upload-results", "children", allow_duplicate=True),
+     Output("device-verification-modal", "is_open", allow_duplicate=True)],
+    Input("classify-devices-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+def open_device_modal(n_clicks):
+    """Open device verification modal"""
+    if n_clicks and n_clicks > 0:
+        alert = dbc.Alert(
+            "Opening device classification modal!",
+            color="info",
+            dismissable=True
+        )
+        return alert, True
     return dash.no_update, False
 
 
