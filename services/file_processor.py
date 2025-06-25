@@ -174,21 +174,21 @@ class FileProcessor:
                 print("[SUCCESS] Applying column mappings...")
                 try:
                     df_mapped = df.copy()
-                    # Invert the dictionary: fuzzy_matches maps target->source, but rename needs source->target
+                    # FIX: Invert the dictionary - fuzzy_matches is target->source, but rename needs source->target
                     rename_dict = {source_col: target_col for target_col, source_col in fuzzy_matches.items()}
                     df_mapped = df_mapped.rename(columns=rename_dict)
-
+                    
                     print(f"[SUCCESS] Applied rename dict: {rename_dict}")
                     print(f"[INFO] New columns: {list(df_mapped.columns)}")
-
+                    
                     # Validate the mapped dataframe and ensure column names are preserved
                     validation_result = self._validate_data_content(df_mapped)
-
+                    
                     # Force the renamed dataframe to be returned
                     if validation_result['valid']:
                         validation_result['data'] = df_mapped  # Ensure the renamed df is returned
                         print(f"[DEBUG] Returning dataframe with columns: {list(df_mapped.columns)}")
-
+                    
                     return validation_result
 
                 except Exception as e:
