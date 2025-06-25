@@ -12,6 +12,7 @@ from typing import Dict, List, Any
 import logging
 from datetime import datetime
 import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -214,38 +215,168 @@ def create_confidence_badge(confidence: float) -> html.Span:
         return dbc.Badge("No AI Suggestion", color="secondary", className="confidence-badge")
 
 def get_ai_column_suggestions(df: pd.DataFrame, filename: str) -> Dict[str, Dict[str, Any]]:
-    """Get AI suggestions for column mappings"""
+    """
+    Get AI suggestions for column mappings based on THIS specific CSV file
+    Integrates with existing AI classification plugin
+    """
     suggestions = {}
+
+    print(f"🤖 Analyzing columns for {filename}:")
+    print(f"   Columns found: {list(df.columns)}")
+
     try:
+        # Try to use the existing AI classification plugin
         from plugins.ai_classification.plugin import AIClassificationPlugin
         from plugins.ai_classification.config import get_ai_config
+
         ai_plugin = AIClassificationPlugin(get_ai_config())
         if ai_plugin.start():
             headers = df.columns.tolist()
-            session_id = f"column_verification_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            session_id = f"file_{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            print(f"   🧠 Getting AI suggestions for: {headers}")
+
+            # Get AI mapping suggestions for THIS specific file
             ai_result = ai_plugin.map_columns(headers, session_id)
+
             if ai_result.get('success'):
                 suggested_mapping = ai_result.get('suggested_mapping', {})
                 confidence_scores = ai_result.get('confidence_scores', {})
+
                 for header in headers:
                     if header in suggested_mapping:
                         suggestions[header] = {
                             'field': suggested_mapping[header],
                             'confidence': confidence_scores.get(header, 0.0)
                         }
+                        print(f"      ✅ {header} -> {suggested_mapping[header]} ({confidence_scores.get(header, 0):.0%})")
                     else:
                         suggestions[header] = {'field': '', 'confidence': 0.0}
-                logger.info(f"AI suggestions generated for {len(suggestions)} columns")
+                        print(f"      ❓ {header} -> No AI suggestion")
+
+                logger.info(f"AI suggestions generated for {len(suggestions)} columns in {filename}")
             else:
-                logger.warning("AI mapping failed, using fallback suggestions")
-                suggestions = _get_fallback_suggestions(df.columns.tolist())
+                logger.warning(f"AI mapping failed for {filename}, using file-specific analysis")
+                suggestions = _analyze_file_specific_columns(df, filename)
         else:
-            logger.warning("AI plugin failed to start, using fallback suggestions")
-            suggestions = _get_fallback_suggestions(df.columns.tolist())
+            logger.warning(f"AI plugin failed to start for {filename}, using file-specific analysis")
+            suggestions = _analyze_file_specific_columns(df, filename)
+
     except Exception as e:
-        logger.error(f"Error getting AI suggestions: {e}")
-        suggestions = _get_fallback_suggestions(df.columns.tolist())
+        logger.error(f"Error getting AI suggestions for {filename}: {e}")
+        suggestions = _analyze_file_specific_columns(df, filename)
+
     return suggestions
+
+
+def _analyze_file_specific_columns(df: pd.DataFrame, filename: str) -> Dict[str, Dict[str, Any]]:
+    """
+    Analyze THIS specific file's columns and data to suggest mappings
+    This is where the AI learns patterns from actual data
+    """
+    suggestions = {}
+
+    print(f"📊 Analyzing file-specific patterns in {filename}:")
+
+    for column in df.columns:
+        column_lower = column.lower().strip()
+        sample_values = df[column].dropna().head(10).astype(str).tolist()
+
+        print(f"   🔍 Analyzing '{column}':")
+        print(f"      Sample values: {sample_values[:3]}")
+
+        suggestion = {'field': '', 'confidence': 0.0}
+
+        # Analyze column name patterns
+        name_confidence = _analyze_column_name(column_lower)
+        if name_confidence['field']:
+            suggestion = name_confidence
+            print(f"      📝 Name pattern: {suggestion['field']} ({suggestion['confidence']:.0%})")
+
+        # Analyze sample data patterns  
+        data_confidence = _analyze_sample_data(sample_values, column)
+        if data_confidence['confidence'] > suggestion['confidence']:
+            suggestion = data_confidence
+            print(f"      📈 Data pattern: {suggestion['field']} ({suggestion['confidence']:.0%})")
+
+        # Store the best suggestion
+        suggestions[column] = suggestion
+
+    return suggestions
+
+
+def _analyze_column_name(column_name: str) -> Dict[str, Any]:
+    """Analyze column name for mapping hints"""
+
+    # Exact matches (high confidence)
+    exact_matches = {
+        'timestamp': ['timestamp', 'time', 'datetime', 'date_time', 'event_time'],
+        'person_id': ['person_id', 'user_id', 'person id', 'user id'],
+        'door_id': ['door_id', 'door id', 'device name', 'location'],
+        'access_result': ['access_result', 'result', 'access result', 'status'],
+        'token_id': ['token_id', 'token id', 'badge_id', 'card_id']
+    }
+
+    for field, patterns in exact_matches.items():
+        if column_name in patterns:
+            return {'field': field, 'confidence': 0.95}
+
+    # Partial matches (medium confidence)
+    partial_matches = {
+        'person_id': ['person', 'user', 'employee', 'name', 'who'],
+        'door_id': ['door', 'location', 'device', 'room', 'gate', 'where'],
+        'timestamp': ['time', 'date', 'when', 'stamp'],
+        'access_result': ['result', 'status', 'outcome', 'access', 'granted', 'denied'],
+        'token_id': ['token', 'badge', 'card', 'id']
+    }
+
+    for field, keywords in partial_matches.items():
+        if any(keyword in column_name for keyword in keywords):
+            return {'field': field, 'confidence': 0.7}
+
+    return {'field': '', 'confidence': 0.0}
+
+
+def _analyze_sample_data(sample_values: List[str], column_name: str) -> Dict[str, Any]:
+    """Analyze sample data to infer column type"""
+
+    if not sample_values:
+        return {'field': '', 'confidence': 0.0}
+
+    # Check for timestamp patterns
+    timestamp_patterns = [
+        r'\d{4}-\d{2}-\d{2}',  # 2023-03-22
+        r'\d{2}/\d{2}/\d{4}',  # 03/22/2023
+        r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',  # 2023-03-22 01:14:16
+    ]
+
+    for value in sample_values[:5]:
+        for pattern in timestamp_patterns:
+            if re.search(pattern, str(value)):
+                return {'field': 'timestamp', 'confidence': 0.9}
+
+    # Check for access result patterns
+    access_results = ['granted', 'denied', 'access granted', 'access denied', 'success', 'fail']
+    for value in sample_values:
+        if any(result in str(value).lower() for result in access_results):
+            return {'field': 'access_result', 'confidence': 0.85}
+
+    # Check for ID patterns (letters + numbers)
+    id_pattern = r'^[A-Z]\d+$|^[A-Z]+\d+$'
+    id_matches = sum(1 for value in sample_values if re.match(id_pattern, str(value)))
+    if id_matches >= len(sample_values) * 0.8:  # 80% match
+        if 'person' in column_name.lower() or 'user' in column_name.lower():
+            return {'field': 'person_id', 'confidence': 0.8}
+        elif 'token' in column_name.lower() or 'badge' in column_name.lower():
+            return {'field': 'token_id', 'confidence': 0.8}
+
+    # Check for door/device patterns
+    door_keywords = ['door', 'gate', 'entrance', 'exit', 'room', 'floor']
+    for value in sample_values:
+        if any(keyword in str(value).lower() for keyword in door_keywords):
+            return {'field': 'door_id', 'confidence': 0.75}
+
+    return {'field': '', 'confidence': 0.0}
 
 def _get_fallback_suggestions(columns: List[str]) -> Dict[str, Dict[str, Any]]:
     """Fallback column suggestions using simple heuristics"""
@@ -266,40 +397,87 @@ def _get_fallback_suggestions(columns: List[str]) -> Dict[str, Dict[str, Any]]:
         suggestions[column] = suggestion
     return suggestions
 
-def save_verified_mappings(filename: str, column_mappings: Dict[str, str], metadata: Dict[str, Any]) -> bool:
-    """Save verified column mappings for AI training"""
+def save_verified_mappings(filename: str, column_mappings: Dict[str, str], 
+                          metadata: Dict[str, Any]) -> bool:
+    """
+    Save verified column mappings for AI training - FILE-SPECIFIC LEARNING
+
+    Args:
+        filename: Name of the uploaded file
+        column_mappings: Dict of column_name -> standard_field
+        metadata: Additional metadata (data_source_type, quality, etc.)
+
+    Returns:
+        Success status
+    """
     try:
+        # Enhanced training data with file-specific information
         training_data = {
             'filename': filename,
+            'file_type': filename.split('.')[-1].lower(),
             'timestamp': datetime.now().isoformat(),
             'mappings': column_mappings,
             'metadata': metadata,
-            'verified_by_user': True
+            'verified_by_user': True,
+            'learning_context': {
+                'columns_in_file': list(column_mappings.keys()),
+                'mapped_fields': list(column_mappings.values()),
+                'num_columns': len(column_mappings),
+                'file_size_category': metadata.get('file_size_category', 'unknown')
+            }
         }
+
+        print(f"💾 Saving training data for {filename}:")
+        print(f"   Mappings: {column_mappings}")
+        print(f"   Context: {training_data['learning_context']}")
+
+        # Try to save to AI classification plugin database
         try:
             from plugins.ai_classification.plugin import AIClassificationPlugin
             from plugins.ai_classification.config import get_ai_config
+
             ai_plugin = AIClassificationPlugin(get_ai_config())
             if ai_plugin.start():
-                session_id = f"verified_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                session_id = f"verified_{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+                # Store the verified mapping for AI learning
                 ai_plugin.confirm_column_mapping(column_mappings, session_id)
+
+                # Store additional training context
                 if hasattr(ai_plugin, 'csv_repository'):
                     ai_plugin.csv_repository.store_column_mapping(session_id, training_data)
+
                 logger.info(f"Verified mappings saved to AI system for {filename}")
+                print(f"✅ AI system updated with mappings for {filename}")
+
         except Exception as ai_e:
             logger.warning(f"Failed to save to AI system: {ai_e}")
+            print(f"⚠️ AI system save failed: {ai_e}")
+
+        # Save to file-specific training data
         try:
             import os
             os.makedirs('data/training', exist_ok=True)
-            training_file = f"data/training/column_mappings_{datetime.now().strftime('%Y%m%d')}.jsonl"
+
+            # Create file-specific training log
+            today = datetime.now().strftime('%Y%m%d')
+            training_file = f"data/training/column_mappings_{today}.jsonl"
+
             with open(training_file, 'a') as f:
                 f.write(json.dumps(training_data) + '\n')
+
             logger.info(f"Training data appended to {training_file}")
+            print(f"✅ File-specific training data saved to {training_file}")
+
         except Exception as file_e:
             logger.warning(f"Failed to save training file: {file_e}")
+            print(f"⚠️ Training file save failed: {file_e}")
+
         return True
+
     except Exception as e:
         logger.error(f"Error saving verified mappings: {e}")
+        print(f"❌ Error saving mappings: {e}")
         return False
 
 @callback(

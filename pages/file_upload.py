@@ -186,9 +186,15 @@ def upload_callback(contents_list, filenames_list):
                     verification_modal = create_column_verification_modal(current_file_info)
                     print(f"✅ Modal created successfully for {filename}")
                     print(f"   Modal type: {type(verification_modal)}")
+
+                    # Ensure it's a proper component
+                    if not hasattr(verification_modal, 'children'):
+                        print("❌ Modal is not a proper component, creating empty div")
+                        verification_modal = html.Div()
+
                 except Exception as e:
                     logger.error(f"❌ Error creating verification modal: {e}")
-                    verification_modal = ""
+                    verification_modal = html.Div()  # Return empty div instead of empty string
 
                 preview_components.append(create_file_preview(df, filename))
 
