@@ -173,6 +173,22 @@ class AnalyticsService:
             active_users = combined_df['person_id'].nunique() if 'person_id' in combined_df.columns else 0
             active_doors = combined_df['door_id'].nunique() if 'door_id' in combined_df.columns else 0
 
+            # Calculate proper date range
+            date_range = {'start': 'Unknown', 'end': 'Unknown'}
+            if 'timestamp' in combined_df.columns:
+                # Convert timestamp to datetime if it's not already
+                combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'], errors='coerce')
+                valid_timestamps = combined_df['timestamp'].dropna()
+
+                if not valid_timestamps.empty:
+                    start_date = valid_timestamps.min()
+                    end_date = valid_timestamps.max()
+                    date_range = {
+                        'start': start_date.strftime('%Y-%m-%d'),
+                        'end': end_date.strftime('%Y-%m-%d')
+                    }
+                    print(f"      📅 Date range: {date_range['start']} to {date_range['end']}")
+
             result = {
                 'status': 'success',
                 'total_events': total_events,
@@ -181,6 +197,7 @@ class AnalyticsService:
                 'unique_users': active_users,
                 'unique_doors': active_doors,
                 'data_source': 'uploaded',
+                'date_range': date_range,
                 'top_users': [
                     {'user_id': user, 'count': int(count)}
                     for user, count in combined_df['person_id'].value_counts().head(10).items()

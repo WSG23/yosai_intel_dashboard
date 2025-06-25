@@ -52,7 +52,7 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(str(active_users), className="text-success mb-0"),
+                    html.H4(f"{active_users:,}", className="text-success mb-0"),
                     html.P("Active Users", className="text-muted mb-0")
                 ])
             ])
@@ -70,7 +70,7 @@ def create_summary_cards(analytics_data: Dict[str, Any]) -> html.Div:
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4(str(active_doors), className="text-warning mb-0"),
+                    html.H4(f"{active_doors:,}", className="text-warning mb-0"),
                     html.P("Active Doors", className="text-muted mb-0")
                 ])
             ])
@@ -110,15 +110,19 @@ def create_analytics_charts(analytics_data: Dict[str, Any]) -> html.Div:
             if not df_users.empty and 'user_id' in df_users.columns and 'count' in df_users.columns:
                 fig_users = px.bar(
                     df_users.head(10),
-                    x='user_id', 
+                    x='user_id',
                     y='count',
                     title="Top 10 Users by Activity",
-                    template="plotly_dark"
+                    template="plotly_white"
                 )
                 fig_users.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(color='black', size=12),
+                    title_font=dict(color='black', size=16)
                 )
+                fig_users.update_xaxes(tickfont=dict(color='black'))
+                fig_users.update_yaxes(tickfont=dict(color='black'))
                 
                 charts.append(
                     dbc.Col([
@@ -141,14 +145,18 @@ def create_analytics_charts(analytics_data: Dict[str, Any]) -> html.Div:
                 fig_doors = px.bar(
                     df_doors.head(10),
                     x='door_id',
-                    y='count', 
+                    y='count',
                     title="Top 10 Doors by Access Count",
-                    template="plotly_dark"
+                    template="plotly_white"
                 )
                 fig_doors.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(color='black', size=12),
+                    title_font=dict(color='black', size=16)
                 )
+                fig_doors.update_xaxes(tickfont=dict(color='black'))
+                fig_doors.update_yaxes(tickfont=dict(color='black'))
                 
                 charts.append(
                     dbc.Col([
@@ -177,11 +185,13 @@ def create_analytics_charts(analytics_data: Dict[str, Any]) -> html.Div:
                     values='Count',
                     names='Pattern',
                     title="Access Patterns Distribution",
-                    template="plotly_dark"
+                    template="plotly_white"
                 )
                 fig_patterns.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(color='black', size=12),
+                    title_font=dict(color='black', size=16)
                 )
                 
                 charts.append(
