@@ -489,7 +489,7 @@ def handle_verify_button(n_clicks):
 
 
 @callback(
-    Output("modal-body", "children"),
+    Output("modal-body", "children", allow_duplicate=True),
     Input("column-verification-modal", "is_open"),
     State("current-file-info-store", "data"),
     prevent_initial_call=True
