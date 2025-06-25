@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Tuple
 def test_basic_imports() -> Tuple[bool, str]:
     """Test that all configuration modules can be imported"""
     try:
-        from config.yaml_config import (
+        from config.config import (
             ConfigurationManager,
             AppConfig,
             DatabaseConfig,
@@ -34,7 +34,7 @@ def test_basic_imports() -> Tuple[bool, str]:
 def test_default_configuration() -> Tuple[bool, str]:
     """Test loading default configuration"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
         
         config_manager = ConfigurationManager()
         config_manager.load_configuration(None)
@@ -57,7 +57,7 @@ def test_default_configuration() -> Tuple[bool, str]:
 def test_yaml_file_loading() -> Tuple[bool, str]:
     """Test loading configuration from YAML file"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
         
         # Create test YAML config
         test_config = {
@@ -116,7 +116,7 @@ def test_yaml_file_loading() -> Tuple[bool, str]:
 def test_environment_overrides() -> Tuple[bool, str]:
     """Test environment variable substitution during configuration loading"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
 
         # Store original environment
         original_env = dict(os.environ)
@@ -172,7 +172,7 @@ database:
 def test_configuration_validation() -> Tuple[bool, str]:
     """Test configuration validation"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
 
         manager = ConfigurationManager()
 
@@ -209,7 +209,7 @@ def test_configuration_validation() -> Tuple[bool, str]:
 def test_dependency_injection_integration() -> Tuple[bool, str]:
     """Test integration with dependency injection container"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
         from core.service_registry import configure_container
         from core.container import Container as DIContainer
         
@@ -285,7 +285,7 @@ def test_app_creation() -> Tuple[bool, str]:
 def test_existing_config_files() -> Tuple[bool, str]:
     """Test that existing config files can be loaded"""
     try:
-        from config.yaml_config import ConfigurationManager
+        from config.config import ConfigurationManager
         
         config_files = [
             'config/config.yaml',

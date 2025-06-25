@@ -24,7 +24,7 @@ class DatabaseConnection(Protocol):
 def create_database_connection() -> DatabaseConnection:
     """Create database connection using existing DatabaseManager"""
     # Use your existing database manager
-    from config.yaml_config import get_configuration_manager
+    from config.config import get_configuration_manager
 
     config_manager = get_configuration_manager()
     db_config = config_manager.get_database_config()

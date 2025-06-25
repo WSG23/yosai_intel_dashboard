@@ -10,7 +10,7 @@ from core.plugins.protocols import (
 )
 
 from core.container import Container as DIContainer
-from config.yaml_config import ConfigurationManager
+from config.config import ConfigurationManager
 
 
 logger = logging.getLogger(__name__)
