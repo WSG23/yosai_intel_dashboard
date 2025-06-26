@@ -281,21 +281,34 @@ class DataDiagnostics:
         }
         
         # Find best person column
-        person_candidates = [col for col in df.columns 
-                           if any(kw in col.lower() for kw in ['person', 'user', 'id', 'badge'])]
-        
-        # Find best door column  
-        door_candidates = [col for col in df.columns 
-                         if any(kw in col.lower() for kw in ['door', 'location', 'access', 'point'])]
+        person_candidates = [
+            col
+            for col in df.columns
+            if any(kw in col.lower() for kw in ["person", "user", "id", "badge"])
+        ]
+
+        # Find best door column
+        door_candidates = [
+            col
+            for col in df.columns
+            if any(kw in col.lower() for kw in ["door", "location", "access", "point"])
+        ]
+
+        # Identify candidate timestamp columns once so it is available to both
+        # person and door calculations. This avoids potential unbound variable
+        # issues if one of the above candidate lists is empty.
+        timestamp_candidates = [
+            col
+            for col in df.columns
+            if any(kw in col.lower() for kw in ["time", "date", "stamp"])
+        ]
         
         if person_candidates:
             person_col = person_candidates[0]
             # All-time count
             corrected['active_users_all_time'] = df[person_col].nunique()
-            
+
             # 24h count (if timestamp available)
-            timestamp_candidates = [col for col in df.columns 
-                                  if any(kw in col.lower() for kw in ['time', 'date', 'stamp'])]
             
             if timestamp_candidates:
                 try:
