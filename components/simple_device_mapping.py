@@ -65,7 +65,9 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
                         ],
                         width=2,
                     ),
-                    dcc.Store(id={"type": "device-name", "index": i}, data=device),
+                    dcc.Store(
+                        id={"type": "device-name", "index": i}, data=device
+                    ),
                 ],
                 className="mb-2",
             )
@@ -106,8 +108,12 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
             dbc.ModalBody(modal_body),
             dbc.ModalFooter(
                 [
-                    dbc.Button("Cancel", id="device-modal-cancel", color="secondary"),
-                    dbc.Button("Save", id="device-modal-save", color="primary"),
+                    dbc.Button(
+                        "Cancel", id="device-modal-cancel", color="secondary"
+                    ),
+                    dbc.Button(
+                        "Save", id="device-modal-save", color="primary"
+                    ),
                 ]
             ),
         ],
@@ -118,26 +124,48 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
 
 
 @callback(
-    Output("simple-device-modal", "children"),
+    [
+        Output("simple-device-modal", "children"),
+        Output("upload-results", "children", allow_duplicate=True),
+    ],
     Input("open-device-mapping", "n_clicks"),
     prevent_initial_call=True,
 )
-def populate_device_modal(open_clicks):
-    """Populate device modal when opened"""
+def open_device_mapping_modal(open_clicks):
+    """Open and populate device mapping modal"""
     if open_clicks:
+        print(
+            f"\U0001f527 Opening device mapping modal (click #{open_clicks})"
+        )
+
         sample_devices = [
             "main_entrance",
             "office_door_201",
             "server_room_3f",
             "elevator_bank",
         ]
+
+        # Create the complete modal with is_open=True
         modal = create_simple_device_modal(sample_devices)
-        return modal
-    return html.Div()
+        modal.is_open = True
+
+        # Show opening message
+        opening_alert = dbc.Alert(
+            "Device mapping modal opened! Fill in the device details and click Save.",
+            color="info",
+            dismissable=True,
+        )
+
+        return modal, opening_alert
+
+    return dash.no_update, dash.no_update
 
 
 @callback(
-    Output("upload-results", "children", allow_duplicate=True),
+    [
+        Output("simple-device-modal", "children", allow_duplicate=True),
+        Output("upload-results", "children", allow_duplicate=True),
+    ],
     [
         Input("device-modal-save", "n_clicks"),
         Input("device-modal-cancel", "n_clicks"),
@@ -151,43 +179,64 @@ def populate_device_modal(open_clicks):
     prevent_initial_call=True,
 )
 def handle_device_modal_actions(
-    save_clicks, cancel_clicks, device_names, floors, access_lists, security_levels
+    save_clicks,
+    cancel_clicks,
+    device_names,
+    floors,
+    access_lists,
+    security_levels,
 ):
-    """Handle save/cancel actions from device modal"""
+    """Handle save/cancel from device modal"""
     ctx = dash.callback_context
 
     if not ctx.triggered:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(f"\U0001f3af Device modal action: {button_id}")
+
+    # Close modal (empty div with is_open=False)
+    closed_modal = html.Div()
 
     if button_id == "device-modal-cancel":
-        return dbc.Alert("Device mapping cancelled", color="info", dismissable=True)
+        cancel_alert = dbc.Alert(
+            "Device mapping cancelled.",
+            color="warning",
+            dismissable=True,
+        )
+        return closed_modal, cancel_alert
 
     elif button_id == "device-modal-save" and save_clicks:
+        # Process the device mappings
         device_mappings = {}
         for i, device in enumerate(device_names or []):
             if device:
                 device_mappings[device] = {
                     "floor": floors[i] if i < len(floors or []) else None,
-                    "access": access_lists[i] if i < len(access_lists or []) else [],
-                    "security_level": security_levels[i]
-                    if i < len(security_levels or [])
-                    else 1,
+                    "access": (
+                        access_lists[i] if i < len(access_lists or []) else []
+                    ),
+                    "security_level": (
+                        security_levels[i]
+                        if i < len(security_levels or [])
+                        else 1
+                    ),
                 }
 
-        print(f"Device mappings saved: {device_mappings}")
+        print(f"\u2705 Device mappings saved: {device_mappings}")
 
-        success_message = dbc.Alert(
+        success_alert = dbc.Alert(
             [
                 html.H6("Device Mapping Complete!", className="alert-heading"),
                 html.P(
-                    f"Mapped {len(device_mappings)} devices with floor and security information"
+                    f"Successfully mapped {len(device_mappings)} devices with floor and security information."
                 ),
-                dbc.Button("Continue to Analytics", color="success", size="sm"),
+                html.Hr(),
+                html.P("Ready to proceed with analytics!", className="mb-0"),
             ],
             color="success",
         )
-        return success_message
 
-    return dash.no_update
+        return closed_modal, success_alert
+
+    return dash.no_update, dash.no_update
