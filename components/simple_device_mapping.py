@@ -1,7 +1,7 @@
 """Simple manual device mapping component"""
 
-from dash import html, dcc, callback, Input, Output, State, ALL
-import dash
+from dash import html, dcc, callback, callback_context
+from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from typing import List
 
@@ -144,7 +144,9 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
             ),
             dbc.Row(
                 [
-                    dbc.Col(html.Strong("Device Name"), width=3),  # CHANGED: from 4 to 3
+                    dbc.Col(
+                        html.Strong("Device Name"), width=3
+                    ),  # CHANGED: from 4 to 3
                     dbc.Col(html.Strong("Floor"), width=2),
                     dbc.Col(html.Strong("Access"), width=2),  # CHANGED: from 3 to 2
                     dbc.Col(html.Strong("Special Areas"), width=3),  # ADD THIS
@@ -305,7 +307,7 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
 )
 def toggle_simple_device_modal(open_clicks, cancel_clicks, save_clicks, is_open):
     """Control the simple device modal open/close state"""
-    ctx = dash.callback_context
+    ctx = callback_context
 
     if not ctx.triggered:
         return is_open
