@@ -29,17 +29,21 @@ class AIDeviceGenerator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        # Floor extraction patterns - UPDATED for F01A, F02B format
+        # Floor extraction patterns - FIXED for F01A, F02B format
         self.floor_patterns = [
-            # Your specific format: F01A, F02B, F03C, etc.
-            (r'[Ff]0*(\d+)[A-Z]', lambda m: int(m.group(1))),  # F01A → 1, F02B → 2, F10C → 10
-            (r'[Ff](\d+)[A-Z]', lambda m: int(m.group(1))),    # F1A → 1, F2B → 2 (no leading zero)
-            
+            # Your specific format: F01A, F02B, F03C, etc. - FIXED REGEX
+            (r'[Ff]0*(\d+)[A-Z]', lambda m: int(m.group(1))),
+            (r'[Ff](\d{2,3})[A-Z]', lambda m: int(m.group(1)[:1]) if len(m.group(1)) >= 2 else int(m.group(1))),
+
+            # Alternative patterns for your format
+            (r'^[Ff]0*(\d+)', lambda m: int(m.group(1))),
+            (r'[Ff]0*(\d+)', lambda m: int(m.group(1))),
+
             # Standard patterns
-            (r'[Ll](\d+)', lambda m: int(m.group(1))),         # L1, l2
-            (r'(\d+)[Ff]', lambda m: int(m.group(1))),         # 2F, 3f  
-            (r'[Ff]loor.*?(\d+)', lambda m: int(m.group(1))),  # floor_3
-            (r'^(\d+)_', lambda m: int(m.group(1))),           # 1_door
+            (r'[Ll](\d+)', lambda m: int(m.group(1))),
+            (r'(\d+)[Ff]', lambda m: int(m.group(1))),
+            (r'[Ff]loor.*?(\d+)', lambda m: int(m.group(1))),
+            (r'^(\d+)_', lambda m: int(m.group(1))),
         ]
         
         # Security level patterns - UPDATED for your device types
@@ -130,18 +134,30 @@ class AIDeviceGenerator:
 
     def _extract_floor(self, device_id: str, reasoning: List[str]) -> int:
         """Extract floor number using enhanced pattern matching."""
-        for pattern, extractor in self.floor_patterns:
+        # DEBUG: Print what we're trying to match
+        print(f"🔍 DEBUG Floor extraction for: '{device_id}'")
+
+        for i, (pattern, extractor) in enumerate(self.floor_patterns):
+            print(f"   Pattern {i+1}: {pattern}")
             match = re.search(pattern, device_id)
             if match:
+                print(f"   ✅ MATCHED! Groups: {match.groups()}")
                 try:
                     floor = extractor(match)
                     if 1 <= floor <= 99:  # Reasonable floor range
-                        reasoning.append(f"Floor {floor} extracted from '{device_id}' pattern")
+                        reasoning.append(f"Floor {floor} extracted from pattern '{pattern}'")
+                        print(f"   🎯 Extracted floor: {floor}")
                         return floor
-                except (ValueError, IndexError):
+                    else:
+                        print(f"   ❌ Floor {floor} out of range")
+                except (ValueError, IndexError) as e:
+                    print(f"   ❌ Extraction error: {e}")
                     continue
-        
+            else:
+                print(f"   ❌ No match")
+
         reasoning.append("Floor 1 (default - no pattern match)")
+        print(f"   🔄 Using default floor 1")
         return 1
 
     def _calculate_security_level(self, device_lower: str, reasoning: List[str]) -> int:
