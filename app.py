@@ -8,11 +8,15 @@ import sys
 
 # Configure logging first
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
+
+# Initialize global device learning service
+from services.device_learning_service import DeviceLearningService
+
+learning_service = DeviceLearningService()
 
 
 def print_startup_info(app_config):
@@ -39,6 +43,7 @@ def main():
         # Import configuration
         try:
             from config.config import get_config
+
             config = get_config()
             app_config = config.get_app_config()
             logger.info("✅ Configuration loaded successfully")
@@ -54,20 +59,21 @@ def main():
         # Import and create the Dash application
         try:
             from core.app_factory import create_app
+
             app = create_app()
             logger.info("✅ Application created successfully")
         except Exception as e:
             logger.error(f"❌ Failed to create application: {e}")
             print(f"\n❌ Application Creation Error: {e}")
-            print("💡 Make sure core/app_factory.py exists and dependencies are installed")
+            print(
+                "💡 Make sure core/app_factory.py exists and dependencies are installed"
+            )
             sys.exit(1)
 
         # Run the application
         try:
             app.run_server(
-                debug=app_config.debug,
-                host=app_config.host,
-                port=app_config.port
+                debug=app_config.debug, host=app_config.host, port=app_config.port
             )
         except KeyboardInterrupt:
             print("\n👋 Application stopped by user")
