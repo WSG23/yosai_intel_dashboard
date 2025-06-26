@@ -564,6 +564,59 @@ def highlight_upload_area(n_clicks):
 
 @callback(
     Output("upload-results", "children", allow_duplicate=True),
+    Input("upload-data", "contents"),
+    State("upload-data", "filename"),
+    prevent_initial_call=True
+)
+def show_learning_status_on_upload(contents, filename):
+    """Show learning status when file is uploaded"""
+    if not contents:
+        return dash.no_update
+
+    try:
+        from services.device_learning_service import get_device_learning_service
+        learning_service = get_device_learning_service()
+
+        import base64
+        import io
+        import pandas as pd
+
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+        elif filename.endswith('.json'):
+            df = pd.read_json(io.StringIO(decoded.decode('utf-8')))
+        else:
+            return dash.no_update
+
+        learned_mappings = learning_service.get_learned_mappings(df, filename)
+
+        if learned_mappings:
+            learned_devices = list(learned_mappings.keys())
+            return dbc.Alert([
+                html.H6([html.I(className="fas fa-brain me-2"), "Learning System Activated!"], className="alert-heading"),
+                html.P([
+                    f"Found previous learning for this file! ",
+                    f"The system remembers {len(learned_devices)} device mappings."
+                ]),
+                html.Hr(),
+                html.P([
+                    "Learned devices: ",
+                    html.Strong(", ".join(learned_devices[:3]) + ("..." if len(learned_devices) > 3 else ""))
+                ], className="mb-0 small")
+            ], color="info", className="mb-3")
+
+        return dash.no_update
+
+    except Exception as e:
+        print(f"⚠️ Error checking learning status: {e}")
+        return dash.no_update
+
+
+@callback(
+    Output("upload-results", "children", allow_duplicate=True),
     Input("column-verify-confirm", "n_clicks"),
     [
         State({"type": "field-mapping", "column": ALL}, "value"),
@@ -753,16 +806,20 @@ def open_device_modal(n_clicks):
     State("current-file-info-store", "data"),
     prevent_initial_call=True,
 )
-def populate_device_modal_content_smart(is_open, file_info):
-    """Populate device verification modal with SMART AI analysis"""
+def populate_device_modal_with_learning(is_open, file_info):
+    """Populate device verification modal with learning system"""
     if not is_open:
         return "Modal closed"
 
-    print(f"🔧 Populating device modal with AI analysis...")
+    print(f"🔧 Populating device modal with learning system...")
 
     try:
+        from services.device_learning_service import get_device_learning_service
+        learning_service = get_device_learning_service()
+
         # Get actual devices from uploaded data
         actual_devices = []
+        learned_mappings = None
 
         if file_info and isinstance(file_info, dict):
             from pages.file_upload import get_uploaded_data
@@ -770,48 +827,67 @@ def populate_device_modal_content_smart(is_open, file_info):
 
             if uploaded_data:
                 for filename, df in uploaded_data.items():
-                    # Look for device-related columns
-                    device_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ['device', 'door', 'location', 'area', 'room'])]
+                    # Check for learned mappings first
+                    learned_mappings = learning_service.get_learned_mappings(df, filename)
+
+                    # Find device column
+                    device_columns = [col for col in df.columns 
+                                    if any(keyword in col.lower() 
+                                         for keyword in ['device', 'door', 'location', 'area', 'room'])]
 
                     if device_columns:
                         device_col = device_columns[0]
                         unique_devices = df[device_col].dropna().unique()[:10]
 
                         for device_name in unique_devices:
-                            # Apply smart AI analysis
-                            ai_analysis = analyze_device_name_with_ai(device_name)
-                            actual_devices.append({
-                                "name": str(device_name),
-                                **ai_analysis
-                            })
-                            print(f"🤖 AI analyzed '{device_name}': floor={ai_analysis['floor']}, security={ai_analysis['security_level']}")
+                            device_data = {"name": str(device_name)}
+
+                            # Use learned mappings if available, otherwise AI analysis
+                            if learned_mappings and device_name in learned_mappings:
+                                learned = learned_mappings[device_name]
+                                device_data.update({
+                                    "floor": learned.get('floor_number'),
+                                    "is_entry": learned.get('is_entry', False),
+                                    "is_exit": learned.get('is_exit', False),
+                                    "is_elevator": learned.get('is_elevator', False),
+                                    "is_stairwell": learned.get('is_stairwell', False),
+                                    "is_fire_escape": learned.get('is_fire_escape', False),
+                                    "security_level": learned.get('security_level', 5),
+                                    "confidence": 1.0,
+                                    "source": "learned"
+                                })
+                                print(f"📚 Applied learned mapping for '{device_name}'")
+                            else:
+                                ai_analysis = analyze_device_name_with_ai(device_name)
+                                device_data.update({**ai_analysis, "source": "ai"})
+                                print(f"🤖 AI analyzed new device '{device_name}'")
+
+                            actual_devices.append(device_data)
                         break
 
-        # Fall back to sample devices if no uploaded data
-        if not actual_devices:
-            sample_names = ["Main Gate A", "Lift Lobby 1", "Server Room A", "Admin Door 1"]
-            for name in sample_names:
-                ai_analysis = analyze_device_name_with_ai(name)
-                actual_devices.append({"name": name, **ai_analysis})
+        learned_count = sum(1 for d in actual_devices if d.get("source") == "learned")
+        ai_count = len(actual_devices) - learned_count
 
-        # Create table rows for each device
+        status_message = []
+        if learned_count > 0:
+            status_message.append(f"📚 {learned_count} devices loaded from previous learning")
+        if ai_count > 0:
+            status_message.append(f"🤖 {ai_count} devices analyzed with AI")
+
         table_rows = []
         for i, device in enumerate(actual_devices):
-            confidence_color = "success" if device["confidence"] > 0.8 else "warning"
+            confidence_color = "success" if device.get("source") == "learned" else ("success" if device["confidence"] > 0.8 else "warning")
+            source_badge = "Learned" if device.get("source") == "learned" else "AI Suggested"
+            badge_color = "primary" if device.get("source") == "learned" else "info"
 
             table_rows.append(html.Tr([
-                # Device name and confidence
                 html.Td([
                     html.Strong(device["name"]),
                     html.Br(),
-                    dbc.Badge(
-                        f"AI Confidence: {device['confidence']:.0%}",
-                        color=confidence_color,
-                        className="small"
-                    )
+                    dbc.Badge(source_badge, color=badge_color, className="small me-1"),
+                    dbc.Badge(f"{device['confidence']:.0%}", color=confidence_color, className="small")
                 ], style={"width": "25%"}),
 
-                # Floor number (AI-suggested)
                 html.Td([
                     dbc.Input(
                         id={"type": "device-floor", "index": i},
@@ -823,7 +899,6 @@ def populate_device_modal_content_smart(is_open, file_info):
                     )
                 ], style={"width": "10%"}),
 
-                # Entry/Exit checkboxes (AI-suggested)
                 html.Td([
                     dbc.Checklist(
                         id={"type": "device-access", "index": i},
@@ -836,7 +911,6 @@ def populate_device_modal_content_smart(is_open, file_info):
                     )
                 ], style={"width": "15%"}),
 
-                # Special areas (AI-suggested)
                 html.Td([
                     dbc.Checklist(
                         id={"type": "device-special", "index": i},
@@ -850,7 +924,6 @@ def populate_device_modal_content_smart(is_open, file_info):
                     )
                 ], style={"width": "20%"}),
 
-                # Security level (AI-suggested)
                 html.Td([
                     dbc.Input(
                         id={"type": "device-security", "index": i},
@@ -862,31 +935,22 @@ def populate_device_modal_content_smart(is_open, file_info):
                     )
                 ], style={"width": "10%"}),
 
-                # Hidden store for device name
                 dcc.Store(id={"type": "device-name", "index": i}, data=device["name"]),
             ]))
 
-        # Create the complete modal content
         modal_content = html.Div([
-            dbc.Alert(
-                [
-                    html.I(className="fas fa-robot me-2"),
-                    f"AI analyzed {len(actual_devices)} devices and made smart suggestions below. ",
-                    "Review and adjust as needed - your corrections will improve future AI predictions!"
-                ],
-                color="info",
-                className="mb-3"
-            ),
-
-            # Show AI analysis summary
             dbc.Alert([
-                html.Strong("AI Analysis Summary: "),
-                f"Detected {sum(1 for d in actual_devices if d.get('floor'))} floors, ",
-                f"{sum(1 for d in actual_devices if d.get('is_elevator'))} elevators, ",
-                f"{sum(1 for d in actual_devices if d.get('security_level', 0) > 7)} high-security areas"
+                html.I(className="fas fa-brain me-2"),
+                " | ".join(status_message) if status_message else "Ready for device classification",
+            ], color="info" if learned_count > 0 else "warning", className="mb-3"),
+
+            dbc.Alert([
+                html.Strong("🎯 Learning Status: "),
+                f"System has learned {learned_count} device mappings. " +
+                ("All your previous settings have been applied!" if learned_count == len(actual_devices) else 
+                 "Make corrections and they'll be remembered for next time!")
             ], color="light", className="small mb-3"),
 
-            # Device table
             dbc.Table([
                 html.Thead([
                     html.Tr([
@@ -900,7 +964,6 @@ def populate_device_modal_content_smart(is_open, file_info):
                 html.Tbody(table_rows)
             ], bordered=True, striped=True, hover=True, className="mb-3"),
 
-            # Help text
             dbc.Alert([
                 html.Strong("Security Levels: "),
                 "0-2: Public areas, 3-5: Office areas, 6-8: Restricted, 9-10: High security"
