@@ -19,6 +19,8 @@ from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
+from analytics.interactive_charts import SecurityChartsGenerator, create_charts_generator
+from analytics.analytics_controller import AnalyticsController, AnalyticsConfig
 
 # Internal service imports with CORRECTED paths
 try:
@@ -153,6 +155,17 @@ def get_analysis_type_options() -> List[Dict[str, str]]:
         {"label": "🚨 Anomaly Detection", "value": "anomaly"},
         {"label": "🤖 AI Column Suggestions", "value": "suggests"},
         {"label": "📊 Data Quality", "value": "quality"},
+    ]
+
+
+def get_analytics_dropdown_options():
+    """Updated dropdown options including charts"""
+    return [
+        {"label": "🔒 Security Patterns Analysis", "value": "security"},
+        {"label": "📈 Access Trends Analysis", "value": "trends"},
+        {"label": "👤 User Behavior Analysis", "value": "behavior"},
+        {"label": "🚨 Anomaly Detection", "value": "anomaly"},
+        {"label": "📊 Interactive Charts", "value": "charts"},
     ]
 
 
@@ -432,7 +445,7 @@ def layout():
                                         ),
                                         dcc.Dropdown(
                                             id="analytics-type",
-                                            options=get_analysis_type_options(),
+                                            options=get_analytics_dropdown_options(),
                                             value="suggests",
                                             placeholder="Select analysis type...",
                                         ),
@@ -523,34 +536,44 @@ def layout():
     [State("analytics-data-source", "value"), State("analytics-type", "value")],
     prevent_initial_call=True,
 )
-def corrected_analytics_callback(n_clicks, data_source, analysis_type):
-    """
-    CORRECTED CALLBACK - Replace the existing analytics callback
-
-    INTEGRATION INSTRUCTIONS:
-    1. Find the existing callback that updates "analytics-display-area"
-    2. Replace it with this entire callback function
-    3. Keep the @callback decorator
-    """
+def run_analytics_display_callback_FIXED(n_clicks, data_source, analysis_type):
+    """FIXED: Analytics callback with charts support"""
     if not n_clicks or not data_source or data_source == "none":
         return dbc.Alert("Please select a valid data source", color="warning")
 
     try:
         print(f"🚀 Starting analysis: {analysis_type} for {data_source}")
 
-        # Handle suggests analysis (this works)
-        if analysis_type == "suggests":
+        if analysis_type == "charts":
+            try:
+                uploaded_data = get_uploaded_data_safe(data_source)
+                if uploaded_data is None or getattr(uploaded_data, "empty", False):
+                    return dbc.Alert("No data available for charts", color="warning")
+
+                chart_results = get_interactive_charts(uploaded_data)
+
+                if not chart_results:
+                    return dbc.Alert("Failed to generate charts", color="danger")
+
+                charts_dashboard = create_charts_dashboard(chart_results)
+
+                return html.Div([
+                    dbc.Alert("✅ Interactive charts generated successfully!", color="success"),
+                    charts_dashboard,
+                ])
+            except Exception as e:
+                print(f"❌ Charts generation failed: {e}")
+                return dbc.Alert(f"Charts generation failed: {str(e)}", color="danger")
+
+        elif analysis_type == "suggests":
             suggests_data = process_suggests_analysis(data_source)
             return create_suggests_display(suggests_data)
 
-        # Handle data quality analysis (corrected)
         elif analysis_type == "quality":
             return create_data_quality_display_corrected(data_source)
 
-        # Handle other analysis types with corrected service calls
         elif analysis_type in ["security", "trends", "behavior", "anomaly"]:
             try:
-                # Use the corrected service analysis function
                 results = analyze_data_with_service(data_source, analysis_type)
 
                 if "error" in results:
@@ -996,3 +1019,212 @@ def create_data_quality_display(data_source: str) -> html.Div:
         )
     except Exception as e:
         return dbc.Alert(f"Quality analysis error: {str(e)}", color="danger")
+
+
+# =============================================================================
+# INTERACTIVE CHARTS FUNCTIONS
+# =============================================================================
+
+
+def get_interactive_charts(uploaded_data):
+    """Generate interactive charts from uploaded data"""
+    try:
+        charts_generator = create_charts_generator()
+        chart_results = charts_generator.generate_all_charts(uploaded_data)
+        return chart_results
+    except Exception as e:
+        print(f"Chart generation failed: {e}")
+        return {}
+
+
+def create_charts_dashboard(chart_results):
+    """Create dashboard layout for charts"""
+    if not chart_results:
+        return dbc.Alert("No charts data available", color="warning")
+
+    charts_content = []
+
+    if 'security_overview' in chart_results:
+        security_charts = chart_results['security_overview']
+        charts_content.append(
+            dbc.Card([
+                dbc.CardHeader("🔒 Security Overview Charts"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([dcc.Graph(figure=security_charts.get('access_results_pie', {}))], width=6),
+                        dbc.Col([dcc.Graph(figure=security_charts.get('failed_attempts_timeline', {}))], width=6)
+                    ])
+                ])
+            ], className="mb-4")
+        )
+
+    if 'temporal_analysis' in chart_results:
+        temporal_charts = chart_results['temporal_analysis']
+        charts_content.append(
+            dbc.Card([
+                dbc.CardHeader("📅 Temporal Analysis"),
+                dbc.CardBody([
+                    dbc.Row([dbc.Col([dcc.Graph(figure=temporal_charts.get('hourly_heatmap', {}))], width=12)]),
+                    dbc.Row([
+                        dbc.Col([dcc.Graph(figure=temporal_charts.get('daily_volume', {}))], width=6),
+                        dbc.Col([dcc.Graph(figure=temporal_charts.get('weekly_patterns', {}))], width=6)
+                    ])
+                ])
+            ], className="mb-4")
+        )
+
+    if 'user_activity' in chart_results:
+        user_charts = chart_results['user_activity']
+        charts_content.append(
+            dbc.Card([
+                dbc.CardHeader("👤 User Activity Analysis"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([dcc.Graph(figure=user_charts.get('top_users', {}))], width=6),
+                        dbc.Col([dcc.Graph(figure=user_charts.get('user_segments', {}))], width=6)
+                    ])
+                ])
+            ], className="mb-4")
+        )
+
+    if 'door_analysis' in chart_results:
+        door_charts = chart_results['door_analysis']
+        charts_content.append(
+            dbc.Card([
+                dbc.CardHeader("🚪 Door Access Analysis"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([dcc.Graph(figure=door_charts.get('door_usage', {}))], width=6),
+                        dbc.Col([dcc.Graph(figure=door_charts.get('door_security', {}))], width=6)
+                    ])
+                ])
+            ], className="mb-4")
+        )
+
+    if 'anomaly_visualization' in chart_results:
+        anomaly_charts = chart_results['anomaly_visualization']
+        charts_content.append(
+            dbc.Card([
+                dbc.CardHeader("🚨 Anomaly Detection"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([dcc.Graph(figure=anomaly_charts.get('volume_anomalies', {}))], width=6),
+                        dbc.Col([dcc.Graph(figure=anomaly_charts.get('user_anomalies', {}))], width=6)
+                    ])
+                ])
+            ], className="mb-4")
+        )
+
+    if not charts_content:
+        return dbc.Alert("No charts could be generated from the data", color="info")
+
+    return html.Div(charts_content)
+
+
+def get_uploaded_data_safe(data_source):
+    """Safely get uploaded data for analysis"""
+    try:
+        if hasattr(globals(), 'uploaded_datasets') and data_source in uploaded_datasets:
+            return uploaded_datasets[data_source]
+        if isinstance(data_source, str) and data_source.endswith('.csv'):
+            return pd.read_csv(f"uploads/{data_source}")
+        from services.data_service import get_dataset
+        return get_dataset(data_source)
+    except Exception as e:
+        print(f"Failed to load data: {e}")
+        return None
+
+
+def test_charts_integration():
+    """Test function to verify charts integration works"""
+    try:
+        import numpy as np
+        from datetime import datetime, timedelta
+
+        sample_data = pd.DataFrame({
+            'event_id': range(1000),
+            'timestamp': pd.date_range('2024-01-01', periods=1000, freq='1H'),
+            'person_id': np.random.choice(['USER001', 'USER002', 'USER003'], 1000),
+            'door_id': np.random.choice(['DOOR001', 'DOOR002', 'DOOR003'], 1000),
+            'access_result': np.random.choice(['Granted', 'Denied'], 1000, p=[0.85, 0.15]),
+            'badge_status': np.random.choice(['Valid', 'Invalid'], 1000, p=[0.95, 0.05])
+        })
+
+        chart_results = get_interactive_charts(sample_data)
+
+        print("✅ Chart generation test:")
+        print(f"  - Generated {len(chart_results)} chart sections")
+        print(f"  - Chart types: {list(chart_results.keys())}")
+
+        dashboard = create_charts_dashboard(chart_results)
+
+        print("✅ Dashboard creation test:")
+        print(f"  - Dashboard type: {type(dashboard)}")
+        print(f"  - Contains charts: {dashboard is not None}")
+
+        return True
+    except Exception as e:
+        print(f"❌ Charts test failed: {e}")
+        return False
+
+
+charts_integration_checklist = """
+INTERACTIVE CHARTS INTEGRATION CHECKLIST
+=======================================
+
+☐ 1. ADD IMPORTS
+   - Add SecurityChartsGenerator import
+   - Add AnalyticsController import
+
+☐ 2. UPDATE DROPDOWN OPTIONS
+   - Find analytics-type dropdown
+   - Add "charts" option to options list
+
+☐ 3. ADD NEW FUNCTIONS
+   - Add get_interactive_charts() function
+   - Add create_charts_dashboard() function  
+   - Add get_uploaded_data_safe() function
+
+☐ 4. UPDATE CALLBACK
+   - Find run_analytics_display_callback
+   - Add special handling for analysis_type == "charts"
+   - Use the fixed callback code
+
+☐ 5. TEST INTEGRATION
+   - Run test_charts_integration()
+   - Select "Interactive Charts" from dropdown
+   - Verify charts display correctly
+
+☐ 6. TROUBLESHOOTING
+   - Check browser console for errors
+   - Verify all imports work
+   - Test with sample data first
+
+COMMON ISSUES:
+- Charts option not in dropdown → Update dropdown options
+- Charts not loading → Check data loading function
+- Empty charts → Verify data format and columns
+- Import errors → Check analytics module imports
+"""
+
+
+def quick_charts_fix():
+    """Quick fix to test charts immediately"""
+
+    temp_options = [
+        {"label": "🔒 Security Patterns", "value": "security"},
+        {"label": "📈 Access Trends", "value": "trends"},
+        {"label": "👤 User Behavior", "value": "behavior"},
+        {"label": "🚨 Anomaly Detection", "value": "anomaly"},
+        {"label": "📊 Interactive Charts", "value": "charts"}
+    ]
+
+    quick_callback_addition = """
+    # ADD THIS TO YOUR CALLBACK:
+    if analysis_type == "charts":
+        return dbc.Alert("Charts feature is now enabled! 🎉", color="success")
+    """
+
+    print("Quick fix applied - charts option should now appear in dropdown")
+    return temp_options, quick_callback_addition
+
