@@ -2,6 +2,7 @@
 
 from dash import html, dcc, callback, Input, Output, State, ALL
 import dash
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 from typing import List
 
@@ -119,22 +120,12 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
 @callback(
     Output("simple-device-modal", "is_open"),
     Output("simple-device-modal", "children"),
-    [
-        Input("open-device-mapping", "n_clicks"),
-        Input("device-modal-cancel", "n_clicks"),
-    ],
+    [Input("open-device-mapping", "n_clicks")],
     prevent_initial_call=True,
 )
-def toggle_device_modal(open_clicks, cancel_clicks):
-    """Open/close device mapping modal"""
-    ctx = dash.callback_context
-
-    if not ctx.triggered:
-        return False, []
-
-    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    if button_id == "open-device-mapping" and open_clicks:
+def toggle_device_modal_safe(open_clicks):
+    """Safer version - only opens, doesn't handle cancel"""
+    if open_clicks:
         sample_devices = [
             "main_entrance",
             "office_door_201",
@@ -143,7 +134,6 @@ def toggle_device_modal(open_clicks, cancel_clicks):
         ]
         modal = create_simple_device_modal(sample_devices)
         return True, modal
-
     return False, []
 
 
