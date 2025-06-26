@@ -20,7 +20,6 @@ from components.column_verification import (
     get_ai_column_suggestions,
     save_verified_mappings,
 )
-from components.simple_device_mapping import create_simple_device_modal_with_ai
 
 
 logger = logging.getLogger(__name__)
@@ -37,12 +36,12 @@ def analyze_device_name_with_ai(device_name):
 
     # Extract floor number from name
     floor_patterns = [
-        r'\b(\d+)(?:st|nd|rd|th)?\s*(?:fl|floor)\b',
-        r'\bfloor\s*(\d+)\b',
-        r'\bf(\d+)\b',
-        r'\b(\d+)f\b',
-        r'lobby\s*(\d+)',
-        r'level\s*(\d+)',
+        r"\b(\d+)(?:st|nd|rd|th)?\s*(?:fl|floor)\b",
+        r"\bfloor\s*(\d+)\b",
+        r"\bf(\d+)\b",
+        r"\b(\d+)f\b",
+        r"lobby\s*(\d+)",
+        r"level\s*(\d+)",
     ]
 
     floor = None
@@ -53,13 +52,18 @@ def analyze_device_name_with_ai(device_name):
             break
 
     # Detect special areas
-    is_elevator = any(word in name_lower for word in ['lift', 'elevator', 'elev'])
-    is_stairwell = any(word in name_lower for word in ['stair', 'stairs', 'stairwell', 'exit'])
-    is_fire_escape = any(word in name_lower for word in ['fire', 'emergency', 'escape'])
+    is_elevator = any(word in name_lower for word in ["lift", "elevator", "elev"])
+    is_stairwell = any(
+        word in name_lower for word in ["stair", "stairs", "stairwell", "exit"]
+    )
+    is_fire_escape = any(word in name_lower for word in ["fire", "emergency", "escape"])
 
     # Detect entry/exit
-    is_entry = any(word in name_lower for word in ['main', 'front', 'gate', 'entrance', 'entry', 'lobby', 'reception'])
-    is_exit = any(word in name_lower for word in ['exit', 'back', 'rear', 'emergency'])
+    is_entry = any(
+        word in name_lower
+        for word in ["main", "front", "gate", "entrance", "entry", "lobby", "reception"]
+    )
+    is_exit = any(word in name_lower for word in ["exit", "back", "rear", "emergency"])
 
     # If no specific exit indicators, assume entry points are also exits
     if is_entry and not is_exit:
@@ -68,13 +72,33 @@ def analyze_device_name_with_ai(device_name):
     # Determine security level based on keywords
     security_level = 5  # Default medium security
 
-    if any(word in name_lower for word in ['server', 'data', 'secure', 'admin', 'executive', 'ceo', 'finance', 'hr']):
+    if any(
+        word in name_lower
+        for word in [
+            "server",
+            "data",
+            "secure",
+            "admin",
+            "executive",
+            "ceo",
+            "finance",
+            "hr",
+        ]
+    ):
         security_level = 8  # High security
-    elif any(word in name_lower for word in ['office', 'meeting', 'conference', 'break', 'kitchen', 'storage']):
+    elif any(
+        word in name_lower
+        for word in ["office", "meeting", "conference", "break", "kitchen", "storage"]
+    ):
         security_level = 6  # Medium-high security
-    elif any(word in name_lower for word in ['lobby', 'reception', 'main', 'public', 'visitor']):
+    elif any(
+        word in name_lower
+        for word in ["lobby", "reception", "main", "public", "visitor"]
+    ):
         security_level = 3  # Low-medium security
-    elif any(word in name_lower for word in ['restroom', 'bathroom', 'utility', 'janitor']):
+    elif any(
+        word in name_lower for word in ["restroom", "bathroom", "utility", "janitor"]
+    ):
         security_level = 2  # Low security
 
     return {
@@ -85,7 +109,7 @@ def analyze_device_name_with_ai(device_name):
         "is_stairwell": is_stairwell,
         "is_fire_escape": is_fire_escape,
         "security_level": security_level,
-        "confidence": 0.85  # High confidence for AI analysis
+        "confidence": 0.85,  # High confidence for AI analysis
     }
 
 
@@ -131,18 +155,14 @@ def layout():
                                                             className="fas fa-cloud-upload-alt fa-4x mb-3 text-primary"
                                                         ),
                                                         html.H5(
-                                                            "Drag and Drop or Click to Select Files"
+                                                            "Drag and Drop or Click to Upload",
+                                                            className="text-primary",
                                                         ),
                                                         html.P(
                                                             "Supports CSV, Excel (.xlsx, .xls), and JSON files",
-                                                            className="text-muted",
+                                                            className="text-muted mb-0",
                                                         ),
-                                                        html.Small(
-                                                            "Maximum file size: 10MB",
-                                                            className="text-secondary",
-                                                        ),
-                                                    ],
-                                                    className="text-center p-5",
+                                                    ]
                                                 ),
                                                 style={
                                                     "width": "100%",
@@ -160,20 +180,26 @@ def layout():
                             )
                         ]
                     )
-                ],
-                className="mb-4",
+                ]
             ),
-            # Upload status and file list
+            # Upload results area
             dbc.Row([dbc.Col([html.Div(id="upload-results")])], className="mb-4"),
             # Data preview area
             dbc.Row([dbc.Col([html.Div(id="file-preview")])]),
             # Navigation to analytics
             dbc.Row([dbc.Col([html.Div(id="upload-nav")])]),
-            # PLACEHOLDER BUTTONS - prevent callback reference errors
-            html.Div([
-                dbc.Button("", id="verify-columns-btn-simple", style={"display": "none"}),
-                dbc.Button("", id="classify-devices-btn", style={"display": "none"}),
-            ], style={"display": "none"}),
+            # CRITICAL: Hidden placeholder buttons to prevent callback errors
+            html.Div(
+                [
+                    dbc.Button(
+                        "", id="verify-columns-btn-simple", style={"display": "none"}
+                    ),
+                    dbc.Button(
+                        "", id="classify-devices-btn", style={"display": "none"}
+                    ),
+                ],
+                style={"display": "none"},
+            ),
             # Store for uploaded data info
             dcc.Store(id="file-info-store", data={}),
             dcc.Store(id="current-file-info-store"),
@@ -216,17 +242,9 @@ def layout():
                 is_open=False,
                 size="xl",
             ),
-            create_simple_device_modal_with_ai([
-                "main_entrance",
-                "office_door_201",
-                "server_room_3f",
-                "elevator_bank",
-            ]),
         ],
         fluid=True,
     )
-
-
 
 
 def process_uploaded_file(contents, filename):
@@ -250,38 +268,32 @@ def process_uploaded_file(contents, filename):
                 if isinstance(json_data, list):
                     df = pd.DataFrame(json_data)
                 elif isinstance(json_data, dict):
-                    if 'data' in json_data:
-                        df = pd.DataFrame(json_data['data'])
+                    if "data" in json_data:
+                        df = pd.DataFrame(json_data["data"])
                     else:
                         df = pd.DataFrame([json_data])
                 else:
                     return {
                         "success": False,
-                        "error": f"Unsupported JSON structure: {type(json_data)}"
+                        "error": f"Unsupported JSON structure: {type(json_data)}",
                     }
             except json.JSONDecodeError as e:
-                return {
-                    "success": False,
-                    "error": f"Invalid JSON format: {str(e)}"
-                }
+                return {"success": False, "error": f"Invalid JSON format: {str(e)}"}
         else:
             return {
                 "success": False,
-                "error": f"Unsupported file type. Supported: .csv, .json, .xlsx, .xls"
+                "error": f"Unsupported file type. Supported: .csv, .json, .xlsx, .xls",
             }
 
         # Validate the DataFrame
         if not isinstance(df, pd.DataFrame):
             return {
                 "success": False,
-                "error": f"Processing resulted in {type(df)} instead of DataFrame"
+                "error": f"Processing resulted in {type(df)} instead of DataFrame",
             }
 
         if df.empty:
-            return {
-                "success": False,
-                "error": "File contains no data"
-            }
+            return {"success": False, "error": "File contains no data"}
 
         return {
             "success": True,
@@ -292,10 +304,7 @@ def process_uploaded_file(contents, filename):
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error processing file: {str(e)}"
-        }
+        return {"success": False, "error": f"Error processing file: {str(e)}"}
 
 
 def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card | dbc.Alert:
@@ -454,18 +463,35 @@ def highlight_upload_area(n_clicks):
     prevent_initial_call=True,
 )
 def consolidated_upload_callback(
-    contents_list, verify_clicks, classify_clicks, confirm_clicks,
-    cancel_col_clicks, cancel_dev_clicks, confirm_dev_clicks,
-    filenames_list, dropdown_values, dropdown_ids, file_info,
-    col_modal_open, dev_modal_open
+    contents_list,
+    verify_clicks,
+    classify_clicks,
+    confirm_clicks,
+    cancel_col_clicks,
+    cancel_dev_clicks,
+    confirm_dev_clicks,
+    filenames_list,
+    dropdown_values,
+    dropdown_ids,
+    file_info,
+    col_modal_open,
+    dev_modal_open,
 ):
     """Consolidated callback to handle all upload-related interactions"""
 
     ctx = callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
-    trigger_id = ctx.triggered[0]['prop_id']
+    trigger_id = ctx.triggered[0]["prop_id"]
     print(f"🎯 Consolidated callback triggered by: {trigger_id}")
 
     # Default values
@@ -501,15 +527,38 @@ def consolidated_upload_callback(
                     cols = result["columns"]
 
                     upload_results_list.append(
-                        dbc.Alert([
-                            html.H6([html.I(className="fas fa-check-circle me-2"), f"Successfully uploaded {filename}"], className="alert-heading"),
-                            html.P(f"📊 {rows} rows × {cols} columns processed"),
-                            html.Hr(),
-                            dbc.ButtonGroup([
-                                dbc.Button("📋 Verify Columns", id="verify-columns-btn-simple", color="primary", size="sm"),
-                                dbc.Button("🤖 Classify Devices", id="classify-devices-btn", color="info", size="sm"),
-                            ], className="d-grid gap-2 d-md-flex"),
-                        ], color="success", className="mb-3")
+                        dbc.Alert(
+                            [
+                                html.H6(
+                                    [
+                                        html.I(className="fas fa-check-circle me-2"),
+                                        f"Successfully uploaded {filename}",
+                                    ],
+                                    className="alert-heading",
+                                ),
+                                html.P(f"📊 {rows} rows × {cols} columns processed"),
+                                html.Hr(),
+                                dbc.ButtonGroup(
+                                    [
+                                        dbc.Button(
+                                            "📋 Verify Columns",
+                                            id="verify-columns-btn-simple",
+                                            color="primary",
+                                            size="sm",
+                                        ),
+                                        dbc.Button(
+                                            "🤖 Classify Devices",
+                                            id="classify-devices-btn",
+                                            color="info",
+                                            size="sm",
+                                        ),
+                                    ],
+                                    className="d-grid gap-2 d-md-flex",
+                                ),
+                            ],
+                            color="success",
+                            className="mb-3",
+                        )
                     )
 
                     current_file_info_dict = {
@@ -524,19 +573,26 @@ def consolidated_upload_callback(
 
                 else:
                     upload_results_list.append(
-                        dbc.Alert([
-                            html.H6("Upload Failed", className="alert-heading"),
-                            html.P(result["error"]),
-                        ], color="danger")
+                        dbc.Alert(
+                            [
+                                html.H6("Upload Failed", className="alert-heading"),
+                                html.P(result["error"]),
+                            ],
+                            color="danger",
+                        )
                     )
 
             except Exception as e:
                 logger.error(f"Error processing upload {filename}: {e}")
                 upload_results_list.append(
-                    dbc.Alert([
-                        html.I(className="fas fa-exclamation-triangle me-2"),
-                        f"❌ Error processing {filename}: {str(e)}",
-                    ], color="danger", className="mb-2")
+                    dbc.Alert(
+                        [
+                            html.I(className="fas fa-exclamation-triangle me-2"),
+                            f"❌ Error processing {filename}: {str(e)}",
+                        ],
+                        color="danger",
+                        className="mb-2",
+                    )
                 )
 
         upload_results = upload_results_list
@@ -544,20 +600,31 @@ def consolidated_upload_callback(
         current_file_info = current_file_info_dict
 
         if file_info_dict:
-            upload_nav = html.Div([
-                html.Hr(),
-                html.H5("Ready to analyze?"),
-                dbc.Button("🚀 Go to Analytics", href="/analytics", color="success", size="lg")
-            ])
+            upload_nav = html.Div(
+                [
+                    html.Hr(),
+                    html.H5("Ready to analyze?"),
+                    dbc.Button(
+                        "🚀 Go to Analytics",
+                        href="/analytics",
+                        color="success",
+                        size="lg",
+                    ),
+                ]
+            )
 
     elif "verify-columns-btn-simple.n_clicks" in trigger_id and verify_clicks:
         print("🔍 Opening column verification modal...")
-        upload_results = dbc.Alert("Opening column mapping modal!", color="success", dismissable=True)
+        upload_results = dbc.Alert(
+            "Opening column mapping modal!", color="success", dismissable=True
+        )
         col_modal_state = True
 
     elif "classify-devices-btn.n_clicks" in trigger_id and classify_clicks:
         print("🤖 Opening device classification modal...")
-        upload_results = dbc.Alert("Opening device classification modal!", color="info", dismissable=True)
+        upload_results = dbc.Alert(
+            "Opening device classification modal!", color="info", dismissable=True
+        )
         dev_modal_state = True
 
     elif "column-verify-confirm.n_clicks" in trigger_id and confirm_clicks:
@@ -575,12 +642,18 @@ def consolidated_upload_callback(
         if mappings:
             save_ai_training_data(filename, mappings, file_info)
 
-        upload_results = dbc.Alert([
-            html.H6("Mappings Confirmed!", className="alert-heading"),
-            html.P(f"Mapped {len(mappings)} fields for {filename}"),
-            html.Hr(),
-            html.P("Optional: Would you like to map device floors and security levels?", className="mb-0"),
-        ], color="success")
+        upload_results = dbc.Alert(
+            [
+                html.H6("Mappings Confirmed!", className="alert-heading"),
+                html.P(f"Mapped {len(mappings)} fields for {filename}"),
+                html.Hr(),
+                html.P(
+                    "Optional: Would you like to map device floors and security levels?",
+                    className="mb-0",
+                ),
+            ],
+            color="success",
+        )
         col_modal_state = False
 
     elif any(x in trigger_id for x in ["cancel", "device-verify-cancel"]):
@@ -590,13 +663,24 @@ def consolidated_upload_callback(
 
     elif "device-verify-confirm.n_clicks" in trigger_id and confirm_dev_clicks:
         print("✅ Device mappings confirmed...")
-        upload_results = dbc.Alert([
-            html.H6("Device Classification Complete!", className="alert-heading"),
-            html.P("Device mappings have been saved successfully."),
-        ], color="success")
+        upload_results = dbc.Alert(
+            [
+                html.H6("Device Classification Complete!", className="alert-heading"),
+                html.P("Device mappings have been saved successfully."),
+            ],
+            color="success",
+        )
         dev_modal_state = False
 
-    return upload_results, file_preview, file_info_data, upload_nav, current_file_info, col_modal_state, dev_modal_state
+    return (
+        upload_results,
+        file_preview,
+        file_info_data,
+        upload_nav,
+        current_file_info,
+        col_modal_state,
+        dev_modal_state,
+    )
 
 
 def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Dict):
@@ -692,6 +776,7 @@ def populate_device_modal_with_learning(is_open, file_info):
 
     try:
         from services.device_learning_service import get_device_learning_service
+
         learning_service = get_device_learning_service()
 
         # Get actual devices from uploaded data
@@ -700,17 +785,31 @@ def populate_device_modal_with_learning(is_open, file_info):
 
         if file_info and isinstance(file_info, dict):
             from pages.file_upload import get_uploaded_data
+
             uploaded_data = get_uploaded_data()
 
             if uploaded_data:
                 for filename, df in uploaded_data.items():
                     # Check for learned mappings first
-                    learned_mappings = learning_service.get_learned_mappings(df, filename)
+                    learned_mappings = learning_service.get_learned_mappings(
+                        df, filename
+                    )
 
                     # Find device column
-                    device_columns = [col for col in df.columns 
-                                    if any(keyword in col.lower() 
-                                         for keyword in ['device', 'door', 'location', 'area', 'room'])]
+                    device_columns = [
+                        col
+                        for col in df.columns
+                        if any(
+                            keyword in col.lower()
+                            for keyword in [
+                                "device",
+                                "door",
+                                "location",
+                                "area",
+                                "room",
+                            ]
+                        )
+                    ]
 
                     if device_columns:
                         device_col = device_columns[0]
@@ -722,17 +821,27 @@ def populate_device_modal_with_learning(is_open, file_info):
                             # Use learned mappings if available, otherwise AI analysis
                             if learned_mappings and device_name in learned_mappings:
                                 learned = learned_mappings[device_name]
-                                device_data.update({
-                                    "floor": learned.get('floor_number'),
-                                    "is_entry": learned.get('is_entry', False),
-                                    "is_exit": learned.get('is_exit', False),
-                                    "is_elevator": learned.get('is_elevator', False),
-                                    "is_stairwell": learned.get('is_stairwell', False),
-                                    "is_fire_escape": learned.get('is_fire_escape', False),
-                                    "security_level": learned.get('security_level', 5),
-                                    "confidence": 1.0,
-                                    "source": "learned"
-                                })
+                                device_data.update(
+                                    {
+                                        "floor": learned.get("floor_number"),
+                                        "is_entry": learned.get("is_entry", False),
+                                        "is_exit": learned.get("is_exit", False),
+                                        "is_elevator": learned.get(
+                                            "is_elevator", False
+                                        ),
+                                        "is_stairwell": learned.get(
+                                            "is_stairwell", False
+                                        ),
+                                        "is_fire_escape": learned.get(
+                                            "is_fire_escape", False
+                                        ),
+                                        "security_level": learned.get(
+                                            "security_level", 5
+                                        ),
+                                        "confidence": 1.0,
+                                        "source": "learned",
+                                    }
+                                )
                                 print(f"📚 Applied learned mapping for '{device_name}'")
                             else:
                                 ai_analysis = analyze_device_name_with_ai(device_name)
@@ -747,117 +856,199 @@ def populate_device_modal_with_learning(is_open, file_info):
 
         status_message = []
         if learned_count > 0:
-            status_message.append(f"📚 {learned_count} devices loaded from previous learning")
+            status_message.append(
+                f"📚 {learned_count} devices loaded from previous learning"
+            )
         if ai_count > 0:
             status_message.append(f"🤖 {ai_count} devices analyzed with AI")
 
         table_rows = []
         for i, device in enumerate(actual_devices):
-            confidence_color = "success" if device.get("source") == "learned" else ("success" if device["confidence"] > 0.8 else "warning")
-            source_badge = "Learned" if device.get("source") == "learned" else "AI Suggested"
+            confidence_color = (
+                "success"
+                if device.get("source") == "learned"
+                else ("success" if device["confidence"] > 0.8 else "warning")
+            )
+            source_badge = (
+                "Learned" if device.get("source") == "learned" else "AI Suggested"
+            )
             badge_color = "primary" if device.get("source") == "learned" else "info"
 
-            table_rows.append(html.Tr([
-                html.Td([
-                    html.Strong(device["name"]),
-                    html.Br(),
-                    dbc.Badge(source_badge, color=badge_color, className="small me-1"),
-                    dbc.Badge(f"{device['confidence']:.0%}", color=confidence_color, className="small")
-                ], style={"width": "25%"}),
+            table_rows.append(
+                html.Tr(
+                    [
+                        html.Td(
+                            [
+                                html.Strong(device["name"]),
+                                html.Br(),
+                                dbc.Badge(
+                                    source_badge,
+                                    color=badge_color,
+                                    className="small me-1",
+                                ),
+                                dbc.Badge(
+                                    f"{device['confidence']:.0%}",
+                                    color=confidence_color,
+                                    className="small",
+                                ),
+                            ],
+                            style={"width": "25%"},
+                        ),
+                        html.Td(
+                            [
+                                dbc.Input(
+                                    id={"type": "device-floor", "index": i},
+                                    type="number",
+                                    min=0,
+                                    max=50,
+                                    value=device.get("floor"),
+                                    placeholder="Floor #",
+                                    size="sm",
+                                )
+                            ],
+                            style={"width": "10%"},
+                        ),
+                        html.Td(
+                            [
+                                dbc.Checklist(
+                                    id={"type": "device-access", "index": i},
+                                    options=[
+                                        {"label": "Entry", "value": "is_entry"},
+                                        {"label": "Exit", "value": "is_exit"},
+                                    ],
+                                    value=[
+                                        k
+                                        for k in ["is_entry", "is_exit"]
+                                        if device.get(k, False)
+                                    ],
+                                    inline=True,
+                                )
+                            ],
+                            style={"width": "15%"},
+                        ),
+                        html.Td(
+                            [
+                                dbc.Checklist(
+                                    id={"type": "device-special", "index": i},
+                                    options=[
+                                        {"label": "Elevator", "value": "is_elevator"},
+                                        {"label": "Stairwell", "value": "is_stairwell"},
+                                        {
+                                            "label": "Fire Escape",
+                                            "value": "is_fire_escape",
+                                        },
+                                    ],
+                                    value=[
+                                        k
+                                        for k in [
+                                            "is_elevator",
+                                            "is_stairwell",
+                                            "is_fire_escape",
+                                        ]
+                                        if device.get(k, False)
+                                    ],
+                                    inline=True,
+                                )
+                            ],
+                            style={"width": "20%"},
+                        ),
+                        html.Td(
+                            [
+                                dbc.Input(
+                                    id={"type": "device-security", "index": i},
+                                    type="number",
+                                    min=0,
+                                    max=10,
+                                    value=device.get("security_level", 5),
+                                    placeholder="0-10",
+                                    size="sm",
+                                )
+                            ],
+                            style={"width": "10%"},
+                        ),
+                        dcc.Store(
+                            id={"type": "device-name", "index": i}, data=device["name"]
+                        ),
+                    ]
+                )
+            )
 
-                html.Td([
-                    dbc.Input(
-                        id={"type": "device-floor", "index": i},
-                        type="number",
-                        min=0, max=50,
-                        value=device.get("floor"),
-                        placeholder="Floor #",
-                        size="sm"
-                    )
-                ], style={"width": "10%"}),
-
-                html.Td([
-                    dbc.Checklist(
-                        id={"type": "device-access", "index": i},
-                        options=[
-                            {"label": "Entry", "value": "is_entry"},
-                            {"label": "Exit", "value": "is_exit"},
-                        ],
-                        value=[k for k in ["is_entry", "is_exit"] if device.get(k, False)],
-                        inline=True
-                    )
-                ], style={"width": "15%"}),
-
-                html.Td([
-                    dbc.Checklist(
-                        id={"type": "device-special", "index": i},
-                        options=[
-                            {"label": "Elevator", "value": "is_elevator"},
-                            {"label": "Stairwell", "value": "is_stairwell"},
-                            {"label": "Fire Escape", "value": "is_fire_escape"},
-                        ],
-                        value=[k for k in ["is_elevator", "is_stairwell", "is_fire_escape"] if device.get(k, False)],
-                        inline=True
-                    )
-                ], style={"width": "20%"}),
-
-                html.Td([
-                    dbc.Input(
-                        id={"type": "device-security", "index": i},
-                        type="number",
-                        min=0, max=10,
-                        value=device.get("security_level", 5),
-                        placeholder="0-10",
-                        size="sm"
-                    )
-                ], style={"width": "10%"}),
-
-                dcc.Store(id={"type": "device-name", "index": i}, data=device["name"]),
-            ]))
-
-        modal_content = html.Div([
-            dbc.Alert([
-                html.I(className="fas fa-brain me-2"),
-                " | ".join(status_message) if status_message else "Ready for device classification",
-            ], color="info" if learned_count > 0 else "warning", className="mb-3"),
-
-            dbc.Alert([
-                html.Strong("🎯 Learning Status: "),
-                f"System has learned {learned_count} device mappings. " +
-                ("All your previous settings have been applied!" if learned_count == len(actual_devices) else 
-                 "Make corrections and they'll be remembered for next time!")
-            ], color="light", className="small mb-3"),
-
-            dbc.Table([
-                html.Thead([
-                    html.Tr([
-                        html.Th("Device Name", style={"width": "25%"}),
-                        html.Th("Floor", style={"width": "10%"}),
-                        html.Th("Access Type", style={"width": "15%"}),
-                        html.Th("Special Areas", style={"width": "20%"}),
-                        html.Th("Security (0-10)", style={"width": "10%"}),
-                    ])
-                ]),
-                html.Tbody(table_rows)
-            ], bordered=True, striped=True, hover=True, className="mb-3"),
-
-            dbc.Alert([
-                html.Strong("Security Levels: "),
-                "0-2: Public areas, 3-5: Office areas, 6-8: Restricted, 9-10: High security"
-            ], color="light", className="small")
-        ])
+        modal_content = html.Div(
+            [
+                dbc.Alert(
+                    [
+                        html.I(className="fas fa-brain me-2"),
+                        (
+                            " | ".join(status_message)
+                            if status_message
+                            else "Ready for device classification"
+                        ),
+                    ],
+                    color="info" if learned_count > 0 else "warning",
+                    className="mb-3",
+                ),
+                dbc.Alert(
+                    [
+                        html.Strong("🎯 Learning Status: "),
+                        f"System has learned {learned_count} device mappings. "
+                        + (
+                            "All your previous settings have been applied!"
+                            if learned_count == len(actual_devices)
+                            else "Make corrections and they'll be remembered for next time!"
+                        ),
+                    ],
+                    color="light",
+                    className="small mb-3",
+                ),
+                dbc.Table(
+                    [
+                        html.Thead(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Th("Device Name", style={"width": "25%"}),
+                                        html.Th("Floor", style={"width": "10%"}),
+                                        html.Th("Access Type", style={"width": "15%"}),
+                                        html.Th(
+                                            "Special Areas", style={"width": "20%"}
+                                        ),
+                                        html.Th(
+                                            "Security (0-10)", style={"width": "10%"}
+                                        ),
+                                    ]
+                                )
+                            ]
+                        ),
+                        html.Tbody(table_rows),
+                    ],
+                    bordered=True,
+                    striped=True,
+                    hover=True,
+                    className="mb-3",
+                ),
+                dbc.Alert(
+                    [
+                        html.Strong("Security Levels: "),
+                        "0-2: Public areas, 3-5: Office areas, 6-8: Restricted, 9-10: High security",
+                    ],
+                    color="light",
+                    className="small",
+                ),
+            ]
+        )
 
         return modal_content
 
     except Exception as e:
         error_msg = f"Error populating device modal: {str(e)}"
         print(f"❌ {error_msg}")
-        return dbc.Alert([
-            html.H6("Device Classification Error", className="alert-heading"),
-            html.P(f"Error: {str(e)}"),
-        ], color="danger")
-
-
+        return dbc.Alert(
+            [
+                html.H6("Device Classification Error", className="alert-heading"),
+                html.P(f"Error: {str(e)}"),
+            ],
+            color="danger",
+        )
 
 
 @callback(
