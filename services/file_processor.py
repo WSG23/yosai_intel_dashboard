@@ -209,7 +209,9 @@ class FileProcessor:
                     'required_columns': required_columns
                 }
 
-        return {'valid': True}
+        # If we reach here, all exact matches were found
+        validation_result = self._validate_data_content(df)
+        return validation_result
 
     def _validate_data_content(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Validate the actual data content after column mapping - NO EMOJIS"""
@@ -230,7 +232,7 @@ class FileProcessor:
 
             # Check for valid results (be more permissive)
             valid_results = ['granted', 'denied', 'timeout', 'error', 'failed']
-            invalid_results = [r for r in df['access_result'].str.lower().unique() 
+            invalid_results = [r for r in df['access_result'].str.lower().unique()
                               if r not in valid_results and r != 'nan']
 
             if invalid_results:
@@ -240,29 +242,29 @@ class FileProcessor:
         if 'timestamp' in df.columns:
             print("[INFO] Validating timestamp column...")
             try:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                print("[SUCCESS] Timestamp conversion successful")
+                # Try to convert to datetime if not already
+                if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+
+                # Check for invalid timestamps
+                null_timestamps = df['timestamp'].isnull().sum()
+                if null_timestamps > 0:
+                    print(f"[WARNING] Found {null_timestamps} invalid timestamps (will be processed anyway)")
             except Exception as e:
-                print(f"[ERROR] Timestamp conversion failed: {e}")
-                validation_errors.append(f"Cannot parse timestamp column: {e}")
+                print(f"[WARNING] Timestamp validation error: {e} (will be processed anyway)")
 
-        # Check for reasonable data
-        if len(df) == 0:
-            validation_errors.append("No data rows found")
-
-        # Return results
+        # Return validation result with the processed DataFrame
         if validation_errors:
-            print(f"[ERROR] Validation failed: {validation_errors}")
             return {
                 'valid': False,
-                'error': '; '.join(validation_errors)
+                'error': '; '.join(validation_errors),
+                'data': df  # Still return the DataFrame even if there are errors
             }
         else:
-            print(f"[SUCCESS] Validation successful: {len(df)} records")
             return {
                 'valid': True,
-                'data': df,  # This should now have renamed columns and standardized data
-                'processed_records': len(df)
+                'data': df,  # CRITICAL: Return the processed DataFrame
+                'message': 'Data validation successful'
             }
     
     def _fuzzy_match_columns(self, available_columns: Sequence[str], required_columns: Sequence[str]) -> Dict[str, str]:
