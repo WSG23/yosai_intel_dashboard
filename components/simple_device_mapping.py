@@ -3,7 +3,14 @@
 from dash import html, dcc, callback, callback_context
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
-from typing import List
+from typing import List, Dict, Any
+import pandas as pd
+import logging
+
+# ADD after existing imports
+from services.consolidated_learning_service import get_learning_service
+
+logger = logging.getLogger(__name__)
 
 # Options for special device areas shared with verification component
 special_areas_options = [
@@ -14,6 +21,55 @@ special_areas_options = [
 
 # Global storage for AI device mappings
 _device_ai_mappings = {}
+
+
+def apply_learned_mappings_to_devices(df: pd.DataFrame, filename: str) -> bool:
+    """
+    Apply learned device mappings to global AI mappings store.
+
+    Args:
+        df: Source dataframe
+        filename: Original filename
+
+    Returns:
+        True if learned mappings were applied
+    """
+    global _device_ai_mappings
+
+    learning_service = get_learning_service()
+    learned = learning_service.get_learned_mappings(df, filename)
+
+    if learned['match_type'] != 'none' and learned['device_mappings']:
+        _device_ai_mappings.clear()
+        _device_ai_mappings.update(learned['device_mappings'])
+        logger.info(f"Applied {len(learned['device_mappings'])} learned device mappings")
+        return True
+
+    return False
+
+
+def save_confirmed_device_mappings(df: pd.DataFrame, filename: str,
+                                   confirmed_mappings: Dict[str, Any]) -> str:
+    """
+    Save confirmed device mappings for future learning.
+
+    Args:
+        df: Source dataframe
+        filename: Original filename
+        confirmed_mappings: User-confirmed device mappings
+
+    Returns:
+        Fingerprint ID of saved mapping
+    """
+    learning_service = get_learning_service()
+    fingerprint = learning_service.save_complete_mapping(
+        df=df,
+        filename=filename,
+        device_mappings=confirmed_mappings
+    )
+
+    logger.info(f"Saved device mappings with ID: {fingerprint[:8]}")
+    return fingerprint
 
 
 def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
