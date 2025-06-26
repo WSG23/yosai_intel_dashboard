@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 from typing import Dict, List, Any
 import logging
 from datetime import datetime
+from components.simple_device_mapping import _device_ai_mappings
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +159,10 @@ def create_device_verification_modal(device_mappings: Dict[str, Dict], session_i
 
 
 @callback(
-    Output("upload-results", "children", allow_duplicate=True),
+    [
+        Output("upload-results", "children", allow_duplicate=True),
+        Output("device-verification-modal", "is_open", allow_duplicate=True),
+    ],
     [Input("device-verify-confirm", "n_clicks")],
     [State({"type": "device-name", "index": ALL}, "data"),
      State({"type": "device-floor", "index": ALL}, "value"),
@@ -167,39 +171,34 @@ def create_device_verification_modal(device_mappings: Dict[str, Dict], session_i
      State({"type": "device-security", "index": ALL}, "value")],
     prevent_initial_call=True
 )
-def confirm_device_mappings_safe(n_clicks, device_names, floors, access_types, special_areas,
-                          security_levels):
-    """Confirm device mappings - SAFE version that handles None values"""
+def confirm_device_mappings_with_success(n_clicks, device_names, floors, access_types, special_areas, security_levels):
+    """Confirm device mappings with proper success message and keep buttons available"""
     if not n_clicks:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     try:
-        print(f"🔄 Processing device confirmations...")
-        print(f"   Device names: {device_names}")
-        print(f"   Floors: {floors}")
-        print(f"   Access types: {access_types}")
+        print(f"🔄 Confirming device mappings...")
 
-        device_mappings = {}
-        corrections_count = 0
-
-        # Safely handle all the inputs that might be None
+        # Safely handle inputs
         device_names = device_names or []
         floors = floors or []
         access_types = access_types or []
         special_areas = special_areas or []
         security_levels = security_levels or []
 
+        device_mappings = {}
+        corrections_count = 0
+
         for i, device_name in enumerate(device_names):
             if not device_name:
                 continue
 
-            # Safely get values with defaults
+            # Safely get values
             floor_val = floors[i] if i < len(floors) else None
             access_val = access_types[i] if i < len(access_types) else []
             special_val = special_areas[i] if i < len(special_areas) else []
             security_val = security_levels[i] if i < len(security_levels) else 5
 
-            # Handle None values in lists
             access_val = access_val or []
             special_val = special_val or []
 
@@ -218,26 +217,53 @@ def confirm_device_mappings_safe(n_clicks, device_names, floors, access_types, s
             device_mappings[device_name] = attributes
             corrections_count += 1
 
-        print(f"✅ Device mappings processed: {device_mappings}")
+        print(f"✅ Device mappings confirmed: {device_mappings}")
 
-        return dbc.Alert([
-            html.H6("Device Classifications Confirmed!", className="alert-heading mb-2"),
-            html.P([
-                f"Successfully processed {len(device_mappings)} devices. ",
-                f"AI learned from {corrections_count} manual corrections."
-            ]),
-            html.Hr(),
-            html.P("Device mappings saved. Ready for data analysis!", className="mb-0")
-        ], color="success")
+        # Store mappings globally for transfer to simple mapping
+        global _device_ai_mappings
+        _device_ai_mappings = device_mappings
+
+        # Create success message with device mapping button still available
+        success_message = html.Div([
+            dbc.Alert([
+                html.H6("🎉 Device Classifications Confirmed!", className="alert-heading mb-2"),
+                html.P([
+                    f"Successfully processed {len(device_mappings)} devices. ",
+                    f"AI learned from {corrections_count} manual corrections."
+                ]),
+                html.Hr(),
+                html.P("Device mappings saved and available for manual mapping!", className="mb-0")
+            ], color="success", className="mb-3"),
+
+            # Keep the device mapping button available
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button(
+                        "📍 Map Manual",
+                        id="open-device-mapping",
+                        color="outline-primary",
+                        size="sm",
+                        className="me-2"
+                    ),
+                    dbc.Button(
+                        "🤖 Classify Devices",
+                        id="classify-devices-btn",
+                        color="outline-info",
+                        size="sm"
+                    )
+                ])
+            ])
+        ])
+
+        return success_message, False  # Close modal but keep interface
 
     except Exception as e:
-        print(f"❌ Error in device confirmation: {e}")
-        return dbc.Alert([
+        print(f"❌ Error confirming device mappings: {e}")
+        error_message = dbc.Alert([
             html.H6("Error Processing Device Mappings", className="alert-heading"),
             html.P(f"An error occurred: {str(e)}"),
-            html.Hr(),
-            html.P("Please try again or contact support if the issue persists.", className="mb-0")
         ], color="danger")
+        return error_message, False
 
 
 @callback(
@@ -255,5 +281,5 @@ def mark_device_as_edited(floor, access, special, security):
 
 __all__ = [
     'create_device_verification_modal',
-    'confirm_device_mappings_safe'
+    'confirm_device_mappings_with_success'
 ]
