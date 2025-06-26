@@ -427,10 +427,13 @@ def highlight_upload_area(n_clicks):
 def restore_upload_on_page_load(pathname):
     """Restore upload state when returning to upload page"""
 
-    if pathname != "/upload":
+    # Fix: Check for the correct path that navbar uses
+    if pathname != "/file-upload":  # Changed from "/upload" to "/file-upload"
         return no_update, no_update, no_update, no_update
 
+    # Check if we have uploaded data in global store
     if not _uploaded_data_store:
+        print("🔄 No uploaded data to restore")
         return no_update, no_update, no_update, no_update
 
     print(f"🔄 Restoring upload state for {len(_uploaded_data_store)} files")
