@@ -72,7 +72,7 @@ def analyze_device_name_with_ai(device_name):
 
 
 def layout():
-    """File upload page layout"""
+    """File upload page layout with persistent storage"""
     return dbc.Container(
         [
             # Page header
@@ -146,6 +146,12 @@ def layout():
             dbc.Row([dbc.Col([html.Div(id="file-preview")])]),
             # Navigation to analytics
             dbc.Row([dbc.Col([html.Div(id="upload-nav")])]),
+
+            # PERSISTENT STORAGE - Add these stores
+            dcc.Store(id="persistent-upload-data", storage_type="session"),
+            dcc.Store(id="persistent-file-info", storage_type="session"),
+            dcc.Store(id="persistent-preview", storage_type="session"),
+
             # CRITICAL: Hidden placeholder buttons to prevent callback errors
             html.Div(
                 [
@@ -416,6 +422,95 @@ def highlight_upload_area(n_clicks):
 
 @callback(
     [
+        Output("upload-results", "children", allow_duplicate=True),
+        Output("file-preview", "children", allow_duplicate=True),
+        Output("upload-nav", "children", allow_duplicate=True),
+        Output("current-file-info-store", "data", allow_duplicate=True),
+    ],
+    [
+        Input("persistent-upload-data", "data"),
+        Input("persistent-file-info", "data"),
+        Input("persistent-preview", "data"),
+    ],
+    prevent_initial_call=True,
+)
+def restore_upload_state(upload_data, file_info, preview_data):
+    """Restore upload state when returning to the page"""
+
+    if not upload_data or not file_info:
+        return no_update, no_update, no_update, no_update
+
+    print(f"🔄 Restoring upload state for {len(upload_data)} files")
+
+    # Restore global data store
+    global _uploaded_data_store
+    for filename, df_dict in upload_data.items():
+        _uploaded_data_store[filename] = pd.DataFrame(df_dict)
+
+    upload_results = []
+    for filename in upload_data.keys():
+        rows = len(_uploaded_data_store[filename])
+        cols = len(_uploaded_data_store[filename].columns)
+
+        upload_results.append(
+            dbc.Alert(
+                [
+                    html.H6([
+                        html.I(className="fas fa-check-circle me-2"),
+                        f"Previously uploaded: {filename}",
+                    ], className="alert-heading"),
+                    html.P(f"📊 {rows:,} rows × {cols} columns"),
+                ],
+                color="success",
+                className="mb-3",
+            )
+        )
+
+    preview_components = []
+    for filename, df_dict in upload_data.items():
+        df = pd.DataFrame(df_dict)
+        preview_df = df.head(5)
+
+        preview_components.append(
+            html.Div([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H6(f"📄 Data Preview: {filename}", className="mb-0")
+                    ]),
+                    dbc.CardBody([
+                        html.H6("First 5 rows:"),
+                        dbc.Table.from_dataframe(preview_df, striped=True, bordered=True, hover=True, size="sm"),
+                        html.Hr(),
+                        html.P([html.Strong("Columns: "), ", ".join(df.columns.tolist()[:10])]),
+                    ]),
+                ], className="mb-3"),
+
+                dbc.Card([
+                    dbc.CardHeader([html.H6("📋 Data Configuration", className="mb-0")]),
+                    dbc.CardBody([
+                        html.P("Configure your data for analysis:", className="mb-3"),
+                        dbc.ButtonGroup([
+                            dbc.Button("📋 Verify Columns", id="verify-columns-btn-simple", color="primary", size="sm"),
+                            dbc.Button("🤖 Classify Devices", id="classify-devices-btn", color="info", size="sm"),
+                        ], className="w-100"),
+                    ]),
+                ], className="mb-3"),
+            ])
+        )
+
+    upload_nav = html.Div([
+        html.Hr(),
+        html.H5("Ready to analyze?"),
+        dbc.Button("🚀 Go to Analytics", href="/analytics", color="success", size="lg"),
+    ])
+
+    current_file_info = list(file_info.values())[0] if file_info else {}
+
+    return upload_results, preview_components, upload_nav, current_file_info
+
+
+@callback(
+    [
         Output("upload-results", "children"),
         Output("file-preview", "children"),
         Output("file-info-store", "data"),
@@ -423,6 +518,8 @@ def highlight_upload_area(n_clicks):
         Output("current-file-info-store", "data"),
         Output("column-verification-modal", "is_open"),
         Output("device-verification-modal", "is_open"),
+        Output("persistent-upload-data", "data"),
+        Output("persistent-file-info", "data"),
     ],
     [
         Input("upload-data", "contents"),
@@ -470,6 +567,8 @@ def consolidated_upload_callback(
             no_update,
             no_update,
             no_update,
+            no_update,
+            no_update,
         )
 
     trigger_id = ctx.triggered[0]["prop_id"]
@@ -487,6 +586,8 @@ def consolidated_upload_callback(
         file_preview_components = []
         file_info_dict = {}
         current_file_info = {}
+        persistent_upload_data = {}
+        persistent_file_info = {}
 
         for content, filename in zip(contents_list, filenames_list):
             try:
@@ -498,6 +599,17 @@ def consolidated_upload_callback(
                     cols = len(df.columns)
 
                     _uploaded_data_store[filename] = df
+
+                    # SAVE TO PERSISTENT STORAGE
+                    persistent_upload_data[filename] = df.to_dict("records")
+                    persistent_file_info[filename] = {
+                        "filename": filename,
+                        "rows": rows,
+                        "columns": cols,
+                        "column_names": df.columns.tolist(),
+                        "upload_time": result["upload_time"].isoformat(),
+                        "ai_suggestions": get_ai_column_suggestions(df.columns.tolist()),
+                    }
 
                     # Apply any learned mappings to global store
                     learning_service.apply_learned_mappings_to_global_store(
@@ -652,20 +764,42 @@ def consolidated_upload_callback(
         return (
             upload_results,
             file_preview_components,
-            file_info_dict,
+            persistent_file_info,
             upload_nav,
             current_file_info,
             no_update,
             no_update,
+            persistent_upload_data,
+            persistent_file_info,
         )
 
     elif "verify-columns-btn-simple" in trigger_id and verify_clicks:
         print("🔍 Opening column verification modal...")
-        return no_update, no_update, no_update, no_update, no_update, True, no_update
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            True,
+            no_update,
+            no_update,
+            no_update,
+        )
 
     elif "classify-devices-btn" in trigger_id and classify_clicks:
         print("🤖 Opening device classification modal...")
-        return no_update, no_update, no_update, no_update, no_update, no_update, True
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            True,
+            no_update,
+            no_update,
+        )
 
     elif "column-verify-confirm" in trigger_id and confirm_clicks:
         print("✅ Column mappings confirmed")
@@ -687,11 +821,23 @@ def consolidated_upload_callback(
             no_update,
             False,
             no_update,
+            no_update,
+            no_update,
         )
 
     elif "column-verify-cancel" in trigger_id or "device-verify-cancel" in trigger_id:
         print("❌ Closing modals...")
-        return no_update, no_update, no_update, no_update, no_update, False, False
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            False,
+            False,
+            no_update,
+            no_update,
+        )
 
     elif "device-verify-confirm" in trigger_id and confirm_dev_clicks:
         print("✅ Device mappings confirmed")
@@ -713,8 +859,20 @@ def consolidated_upload_callback(
             no_update,
             no_update,
             False,
+            no_update,
+            no_update,
         )
-    return no_update, no_update, no_update, no_update, no_update, no_update, no_update
+    return (
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+    )
 
 
 def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Dict):
