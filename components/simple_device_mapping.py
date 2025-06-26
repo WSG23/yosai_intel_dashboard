@@ -81,12 +81,17 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
                         ],
                         width=2,
                     ),
+                    # ADD THIS NEW COLUMN:
                     dbc.Col(
                         [
                             dbc.Checklist(
                                 id={"type": "device-special", "index": i},
-                                options=special_areas_options,
-                                value=[],
+                                options=[
+                                    {"label": "Elevator", "value": "is_elevator"},
+                                    {"label": "Stairwell", "value": "is_stairwell"},
+                                    {"label": "Fire Exit", "value": "is_fire_escape"},
+                                ],  # HARDCODED instead of special_areas_options
+                                value=[],  # Default empty
                                 inline=True,
                             )
                         ],
