@@ -118,13 +118,12 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
 
 
 @callback(
-    Output("simple-device-modal", "is_open"),
     Output("simple-device-modal", "children"),
-    [Input("open-device-mapping", "n_clicks")],
+    Input("open-device-mapping", "n_clicks"),
     prevent_initial_call=True,
 )
-def toggle_device_modal_safe(open_clicks):
-    """Safer version - only opens, doesn't handle cancel"""
+def populate_device_modal(open_clicks):
+    """Populate device modal when opened"""
     if open_clicks:
         sample_devices = [
             "main_entrance",
@@ -133,14 +132,16 @@ def toggle_device_modal_safe(open_clicks):
             "elevator_bank",
         ]
         modal = create_simple_device_modal(sample_devices)
-        return True, modal
-    return False, []
+        return modal
+    return html.Div()
 
 
 @callback(
     Output("upload-results", "children", allow_duplicate=True),
-    Output("simple-device-modal", "is_open", allow_duplicate=True),
-    Input("device-modal-save", "n_clicks"),
+    [
+        Input("device-modal-save", "n_clicks"),
+        Input("device-modal-cancel", "n_clicks"),
+    ],
     [
         State({"type": "device-name", "index": ALL}, "data"),
         State({"type": "device-floor", "index": ALL}, "value"),
@@ -149,33 +150,44 @@ def toggle_device_modal_safe(open_clicks):
     ],
     prevent_initial_call=True,
 )
-def save_device_mappings(n_clicks, device_names, floors, access_lists, security_levels):
-    """Save device mappings"""
-    if not n_clicks:
-        return dash.no_update, dash.no_update
+def handle_device_modal_actions(
+    save_clicks, cancel_clicks, device_names, floors, access_lists, security_levels
+):
+    """Handle save/cancel actions from device modal"""
+    ctx = dash.callback_context
 
-    device_mappings = {}
-    for i, device in enumerate(device_names or []):
-        if device:
-            device_mappings[device] = {
-                "floor": floors[i] if i < len(floors or []) else None,
-                "access": access_lists[i] if i < len(access_lists or []) else [],
-                "security_level": (
-                    security_levels[i] if i < len(security_levels or []) else 1
+    if not ctx.triggered:
+        return dash.no_update
+
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if button_id == "device-modal-cancel":
+        return dbc.Alert("Device mapping cancelled", color="info", dismissable=True)
+
+    elif button_id == "device-modal-save" and save_clicks:
+        device_mappings = {}
+        for i, device in enumerate(device_names or []):
+            if device:
+                device_mappings[device] = {
+                    "floor": floors[i] if i < len(floors or []) else None,
+                    "access": access_lists[i] if i < len(access_lists or []) else [],
+                    "security_level": security_levels[i]
+                    if i < len(security_levels or [])
+                    else 1,
+                }
+
+        print(f"Device mappings saved: {device_mappings}")
+
+        success_message = dbc.Alert(
+            [
+                html.H6("Device Mapping Complete!", className="alert-heading"),
+                html.P(
+                    f"Mapped {len(device_mappings)} devices with floor and security information"
                 ),
-            }
+                dbc.Button("Continue to Analytics", color="success", size="sm"),
+            ],
+            color="success",
+        )
+        return success_message
 
-    print(f"Device mappings saved: {device_mappings}")
-
-    success_message = dbc.Alert(
-        [
-            html.H6("Device Mapping Complete!", className="alert-heading"),
-            html.P(
-                f"Mapped {len(device_mappings)} devices with floor and security information"
-            ),
-            dbc.Button("Continue to Analytics", color="success", size="sm"),
-        ],
-        color="success",
-    )
-
-    return success_message, False
+    return dash.no_update
