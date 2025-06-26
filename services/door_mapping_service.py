@@ -325,6 +325,39 @@ class DoorMappingService:
             logger.error(f"Error applying learned mappings: {e}")
             return False
 
+    def debug_device_names(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Debug function to see actual device names and AI analysis"""
+        if "door_id" not in df.columns:
+            return {"error": "No door_id column found"}
+
+        device_names = df["door_id"].unique()[:10]
+        debug_info = {
+            "total_devices": len(df["door_id"].unique()),
+            "sample_device_names": device_names.tolist(),
+            "ai_analysis": {},
+        }
+
+        ai_generator = AIDeviceGenerator()
+        for device_name in device_names:
+            try:
+                ai_attrs = ai_generator.generate_device_attributes(str(device_name))
+                debug_info["ai_analysis"][device_name] = {
+                    "generated_name": ai_attrs.device_name,
+                    "floor": ai_attrs.floor_number,
+                    "security_level": ai_attrs.security_level,
+                    "confidence": ai_attrs.confidence,
+                    "reasoning": ai_attrs.ai_reasoning,
+                    "access_types": {
+                        "entry": ai_attrs.is_entry,
+                        "exit": ai_attrs.is_exit,
+                        "elevator": ai_attrs.is_elevator,
+                    },
+                }
+            except Exception as e:
+                debug_info["ai_analysis"][device_name] = {"error": str(e)}
+
+        return debug_info
+
     def save_confirmed_mappings(
         self,
         df: pd.DataFrame,
