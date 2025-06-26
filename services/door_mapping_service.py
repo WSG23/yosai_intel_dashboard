@@ -10,7 +10,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 # ADD after existing imports
-from services.ai_device_generator import AIDeviceGenerator, DeviceAttributes
+from services.ai_device_generator import AIDeviceGenerator
 from services.consolidated_learning_service import get_learning_service
 
 logger = logging.getLogger(__name__)
@@ -88,27 +88,30 @@ class DoorMappingService:
             logger.error(f"Error processing uploaded data: {e}")
             raise
     
-    def _generate_ai_attributes(self, door_id: str, df: pd.DataFrame, client_profile: str) -> DeviceAttributeData:
-        """
-        Generate AI-based attribute assignments using modular AI generator
+    def _generate_ai_attributes(
+        self, door_id: str, df: pd.DataFrame, client_profile: str
+    ) -> DeviceAttributeData:
+        """Generate AI-based attribute assignments using enhanced modular AI generator"""
 
-        Args:
-            door_id: Device identifier
-            df: Source data
-            client_profile: Client configuration
-
-        Returns:
-            DeviceAttributeData with AI-generated attributes
-        """
-        # Use consolidated AI generator
+        # Use new modular AI generator
         ai_generator = AIDeviceGenerator()
-        device_rows = df[df['door_id'] == door_id]
+        device_rows = df[df["door_id"] == door_id]
 
-        # Generate attributes using AI
+        # Generate attributes using enhanced AI
         ai_attributes = ai_generator.generate_device_attributes(door_id, device_rows)
 
+        # Apply client profile adjustments
+        security_level = ai_attributes.security_level
+        if client_profile == "high_security":
+            security_level = min(100, security_level + 20)
+        elif client_profile == "low_security":
+            security_level = max(0, security_level - 20)
+
+        # Convert confidence from 0.0-1.0 scale to 0-100 scale
+        confidence_percentage = int(ai_attributes.confidence * 100)
+
         # Convert to existing DeviceAttributeData format
-        device_data = DeviceAttributeData(
+        return DeviceAttributeData(
             door_id=ai_attributes.device_id,
             name=ai_attributes.device_name,
             entry=ai_attributes.is_entry,
@@ -116,22 +119,20 @@ class DoorMappingService:
             elevator=ai_attributes.is_elevator,
             stairwell=ai_attributes.is_stairwell,
             fire_escape=ai_attributes.is_fire_escape,
-            other=False,
-            security_level=ai_attributes.security_level,
-            confidence=int(ai_attributes.confidence * 100),
+            other=not any(
+                [
+                    ai_attributes.is_entry,
+                    ai_attributes.is_exit,
+                    ai_attributes.is_elevator,
+                    ai_attributes.is_stairwell,
+                    ai_attributes.is_fire_escape,
+                ]
+            ),
+            security_level=security_level,
+            confidence=confidence_percentage,
             ai_generated=True,
-            manually_edited=False
+            manually_edited=False,
         )
-
-        # Add additional attributes if they exist in AI output
-        if hasattr(ai_attributes, 'is_elevator'):
-            device_data.elevator = ai_attributes.is_elevator
-        if hasattr(ai_attributes, 'is_stairwell'):
-            device_data.stairwell = ai_attributes.is_stairwell
-        if hasattr(ai_attributes, 'is_fire_escape'):
-            device_data.fire_escape = ai_attributes.is_fire_escape
-
-        return device_data
     
     def _generate_device_name(self, door_id: str, device_rows: pd.DataFrame) -> str:
         """Generate a human-readable device name"""
@@ -314,6 +315,52 @@ class DoorMappingService:
         except Exception as e:
             logger.error(f"Error saving manual edits for training: {e}")
             raise
+
+    def apply_learned_mappings(self, df: pd.DataFrame, filename: str) -> bool:
+        """Apply previously learned device mappings if available"""
+        try:
+            learning_service = get_learning_service()
+            return learning_service.apply_to_global_store(df, filename)
+        except Exception as e:
+            logger.error(f"Error applying learned mappings: {e}")
+            return False
+
+    def save_confirmed_mappings(
+        self,
+        df: pd.DataFrame,
+        filename: str,
+        confirmed_devices: List[Dict[str, Any]],
+    ) -> str:
+        """Save confirmed device mappings for future learning"""
+        try:
+            device_mappings = {}
+            for device in confirmed_devices:
+                device_id = device.get("door_id", device.get("device_id"))
+                if device_id:
+                    device_mappings[device_id] = {
+                        "device_name": device.get("name", ""),
+                        "floor_number": device.get("floor_number", 1),
+                        "security_level": device.get("security_level", 50),
+                        "is_entry": device.get("entry", False),
+                        "is_exit": device.get("exit", False),
+                        "is_elevator": device.get("elevator", False),
+                        "is_stairwell": device.get("stairwell", False),
+                        "is_fire_escape": device.get("fire_escape", False),
+                    }
+
+            learning_service = get_learning_service()
+            fingerprint = learning_service.save_complete_mapping(
+                df, filename, device_mappings
+            )
+
+            logger.info(
+                f"Saved {len(device_mappings)} device mappings with ID: {fingerprint[:8]}"
+            )
+            return fingerprint
+
+        except Exception as e:
+            logger.error(f"Error saving confirmed mappings: {e}")
+            return ""
 
 
 # Service instance
