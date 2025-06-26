@@ -38,7 +38,7 @@ class DoorMappingService:
     """Service for handling door mapping and device attribute assignment"""
     
     def __init__(self):
-        self.ai_model_version = "v2.3"
+        self.ai_model_version = "v3.0-enhanced"
         self.confidence_threshold = 75
         
     def process_uploaded_data(self, df: pd.DataFrame, client_profile: str = "auto") -> Dict[str, Any]:

@@ -65,16 +65,34 @@ def save_confirmed_device_mappings(
 def generate_ai_device_defaults(df: pd.DataFrame, client_profile: str = "auto"):
     """Generate AI-based defaults for device mapping modal."""
     global _device_ai_mappings
+
     try:
+        # Use door mapping service to generate AI attributes
         result = door_mapping_service.process_uploaded_data(df, client_profile)
+
+        # Convert to global mappings format
         _device_ai_mappings.clear()
+
         for device in result["devices"]:
-            _device_ai_mappings[device["door_id"]] = device
-        logger.info(
-            f"Generated AI defaults for {len(_device_ai_mappings)} devices"
-        )
+            device_id = device["door_id"]
+            _device_ai_mappings[device_id] = {
+                "device_name": device["name"],
+                "floor_number": device.get("floor_number", 1),
+                "security_level": device["security_level"],
+                "is_entry": device["entry"],
+                "is_exit": device["exit"],
+                "is_elevator": device["elevator"],
+                "is_stairwell": device["stairwell"],
+                "is_fire_escape": device["fire_escape"],
+                "confidence": device.get("confidence", 50) / 100.0,
+            }
+
+        logger.info(f"Generated AI defaults for {len(_device_ai_mappings)} devices")
+        return True
+
     except Exception as e:
         logger.error(f"Error generating AI device defaults: {e}")
+        return False
 
 
 def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
@@ -240,10 +258,46 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
                 ]
             ),
         ],
-        id="simple-device-modal",
+        id="device-mapping-modal",
         size="lg",
         is_open=False,
     )
+
+
+def get_ai_mappings_summary() -> Dict[str, Any]:
+    """Get summary of current AI mappings"""
+    global _device_ai_mappings
+
+    if not _device_ai_mappings:
+        return {"status": "empty", "count": 0}
+
+    avg_confidence = sum(
+        mapping.get("confidence", 0) for mapping in _device_ai_mappings.values()
+    ) / len(_device_ai_mappings)
+
+    floor_distribution = {}
+    security_distribution = {}
+
+    for mapping in _device_ai_mappings.values():
+        floor = mapping.get("floor_number", 1)
+        security = mapping.get("security_level", 5)
+        floor_distribution[floor] = floor_distribution.get(floor, 0) + 1
+        security_distribution[security] = security_distribution.get(security, 0) + 1
+
+    return {
+        "status": "loaded",
+        "count": len(_device_ai_mappings),
+        "avg_confidence": avg_confidence,
+        "floor_distribution": floor_distribution,
+        "security_distribution": security_distribution,
+    }
+
+
+def clear_ai_mappings():
+    """Clear current AI mappings"""
+    global _device_ai_mappings
+    _device_ai_mappings.clear()
+    logger.info("Cleared AI device mappings")
 
 
 def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
@@ -350,37 +404,79 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
                 ]
             ),
         ],
-        id="simple-device-modal",
+        id="device-mapping-modal",
         size="lg",
         is_open=False,
     )
 
 
 @callback(
-    Output("simple-device-modal", "is_open"),
+    [
+        Output("device-mapping-modal", "is_open"),
+        Output("device-mapping-status", "children"),
+    ],
     [
         Input("open-device-mapping", "n_clicks"),
-        Input("device-modal-cancel", "n_clicks"),
         Input("device-modal-save", "n_clicks"),
+        Input("device-modal-cancel", "n_clicks"),
     ],
-    [State("simple-device-modal", "is_open")],
+    [
+        State({"type": "device-floor", "device": ALL}, "value"),
+        State({"type": "device-access", "device": ALL}, "value"),
+        State({"type": "device-security", "device": ALL}, "value"),
+        State({"type": "device-name", "device": ALL}, "data"),
+        State("device-mapping-modal", "is_open"),
+    ],
     prevent_initial_call=True,
 )
-def toggle_simple_device_modal(open_clicks, cancel_clicks, save_clicks, is_open):
-    """Control the simple device modal open/close state"""
+def handle_device_mapping_modal(
+    open_clicks,
+    save_clicks,
+    cancel_clicks,
+    floor_values,
+    access_values,
+    security_values,
+    device_names,
+    is_open,
+):
+    """Handle device mapping modal interactions"""
     ctx = callback_context
-
     if not ctx.triggered:
-        return is_open
+        return False, ""
 
-    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(f"🎯 Modal button triggered: {button_id}")
+    trigger_id = ctx.triggered[0]["prop_id"]
 
-    if button_id == "open-device-mapping" and open_clicks:
-        print("📂 Opening device mapping modal")
-        return True
-    elif button_id in ["device-modal-cancel", "device-modal-save"]:
-        print("🚪 Closing device mapping modal")
-        return False
+    if "open-device-mapping" in trigger_id and open_clicks:
+        return True, ""
 
-    return is_open
+    elif "device-modal-save" in trigger_id and save_clicks:
+        saved_mappings = {}
+
+        for i, device_name in enumerate(device_names or []):
+            if device_name and i < len(floor_values or []):
+                saved_mappings[device_name] = {
+                    "floor_number": floor_values[i]
+                    if i < len(floor_values)
+                    else 1,
+                    "security_level": security_values[i]
+                    if i < len(security_values)
+                    else 5,
+                    "access_types": access_values[i]
+                    if i < len(access_values)
+                    else [],
+                }
+
+        status_message = dbc.Alert(
+            f"✅ Saved {len(saved_mappings)} device mappings!",
+            color="success",
+            dismissable=True,
+            duration=4000,
+        )
+
+        logger.info(f"Saved device mappings: {saved_mappings}")
+        return False, status_message
+
+    elif "device-modal-cancel" in trigger_id and cancel_clicks:
+        return False, ""
+
+    return is_open, ""
