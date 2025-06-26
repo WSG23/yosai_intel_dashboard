@@ -11,8 +11,9 @@ from datetime import datetime
 
 import pandas as pd
 from typing import Optional, Dict, Any, List
-import dash
-from dash import callback, Input, Output, State, ALL, html, dcc
+from dash import html, dcc, callback_context, no_update
+from dash._callback import callback
+from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 
 from components.column_verification import (
@@ -238,7 +239,6 @@ def process_uploaded_file(contents, filename):
         elif filename.endswith(".json"):
             # Fix for JSON processing to ensure DataFrame is returned
             try:
-                import json
                 json_data = json.loads(decoded.decode("utf-8"))
 
                 # Handle different JSON structures
@@ -293,7 +293,7 @@ def process_uploaded_file(contents, filename):
         }
 
 
-def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card:
+def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card | dbc.Alert:
     """Create preview component for uploaded file"""
     try:
         # Basic statistics
@@ -456,21 +456,21 @@ def consolidated_upload_callback(
 ):
     """Consolidated callback to handle all upload-related interactions"""
 
-    ctx = dash.callback_context
+    ctx = callback_context
     if not ctx.triggered:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id']
     print(f"🎯 Consolidated callback triggered by: {trigger_id}")
 
     # Default values
-    upload_results = dash.no_update
-    file_preview = dash.no_update
-    file_info_data = dash.no_update
-    upload_nav = dash.no_update
-    current_file_info = dash.no_update
-    col_modal_state = dash.no_update
-    dev_modal_state = dash.no_update
+    upload_results = no_update
+    file_preview = no_update
+    file_info_data = no_update
+    upload_nav = no_update
+    current_file_info = no_update
+    col_modal_state = no_update
+    dev_modal_state = no_update
 
     # Handle file upload
     if "upload-data.contents" in trigger_id and contents_list:
@@ -626,7 +626,6 @@ def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Di
             print(f"⚠️ AI training save failed: {ai_e}")
 
         import os
-        import json
 
         os.makedirs("data/training", exist_ok=True)
         with open(
@@ -649,7 +648,7 @@ def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Di
 def apply_ai_suggestions(n_clicks, file_info):
     """Apply AI suggestions automatically - RESTORED"""
     if not n_clicks or not file_info:
-        return [dash.no_update]
+        return [no_update]
 
     ai_suggestions = file_info.get("ai_suggestions", {})
     columns = file_info.get("columns", [])
