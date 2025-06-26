@@ -16,6 +16,7 @@ from dash import callback, Input, Output, State, ALL, html, dcc
 import dash_bootstrap_components as dbc
 
 from components.column_verification import (
+    create_column_verification_modal,
     get_ai_column_suggestions,
     save_verified_mappings,
 )
@@ -227,16 +228,17 @@ def layout():
         Output("file-preview", "children"),
         Output("file-info-store", "data"),
         Output("upload-nav", "children"),
+        # Modal container output removed
         Output("current-file-info-store", "data", allow_duplicate=True),
     ],
     [Input("upload-data", "contents")],
     [State("upload-data", "filename")],
     prevent_initial_call=True,
 )
-def upload_callback_with_learning(contents_list, filenames_list):
-    """Handle file upload and processing WITH learning status"""
+def upload_callback(contents_list, filenames_list):
+    """Handle file upload and processing"""
     if not contents_list:
-        return "", "", {}, "", {}
+        return "", "", {}, "", "", {}
 
     # Ensure contents and filenames are lists
     if not isinstance(contents_list, list):
@@ -247,6 +249,7 @@ def upload_callback_with_learning(contents_list, filenames_list):
     upload_results = []
     file_info = {}
     preview_components = []
+    verification_modal = ""
     current_file_info = {}
 
     for content, filename in zip(contents_list, filenames_list):
@@ -258,62 +261,78 @@ def upload_callback_with_learning(contents_list, filenames_list):
                 df = result["data"]
                 rows = result["rows"]
                 cols = result["columns"]
+                upload_results.append(
+                    dbc.Alert(
+                        [
+                            html.H6(
+                                [
+                                    f"Successfully uploaded {filename} ({rows:,} rows, {cols} columns)"
+                                ],
+                                className="alert-heading mb-2",
+                            ),
+                            dbc.Button(
+                                "Verify Column Mappings",
+                                id="verify-columns-btn-simple",
+                                color="info",
+                                size="sm",
+                                className="mt-2",
+                            ),
+                            dbc.Button(
+                                "Classify Devices",
+                                id="classify-devices-btn",
+                                color="primary",
+                                size="sm",
+                                className="mt-2 ms-2",
+                            ),
+                        ],
+                        color="success",
+                    )
+                )
 
-                # Check for learning status
-                learning_status = None
+                sample_data = {}
+                for col in df.columns[:10]:
+                    sample_data[col] = df[col].dropna().head(5).tolist()
+
                 try:
-                    from services.device_learning_service import get_device_learning_service
-                    learning_service = get_device_learning_service()
-                    learned_mappings = learning_service.get_learned_mappings(df, filename)
+                    from components.column_verification import get_ai_column_suggestions
 
-                    if learned_mappings:
-                        learned_devices = list(learned_mappings.keys())
-                        learning_status = dbc.Alert([
-                            html.H6([html.I(className="fas fa-brain me-2"), "Learning System Activated!"], className="alert-heading"),
-                            html.P([
-                                f"Found previous learning for this file! ",
-                                f"The system remembers {len(learned_devices)} device mappings."
-                            ]),
-                            html.Hr(),
-                            html.P([
-                                "Learned devices: ",
-                                html.Strong(", ".join(learned_devices[:3]) + ("..." if len(learned_devices) > 3 else ""))
-                            ], className="mb-0 small")
-                        ], color="info", className="mb-3")
+                    ai_suggestions = get_ai_column_suggestions(df, filename)
                 except Exception as e:
-                    print(f"⚠️ Error checking learning status: {e}")
+                    logger.warning(f"Could not get AI suggestions: {e}")
+                    ai_suggestions = {}
 
-                # Create upload success message
-                upload_success = dbc.Alert([
-                    html.H6([
-                        html.I(className="fas fa-check-circle me-2"),
-                        f"Successfully uploaded {filename}"
-                    ], className="alert-heading"),
-                    html.P(f"📊 {rows:,} rows × {cols} columns processed"),
-                    html.Hr(),
-                    html.Div([
-                        dbc.Button("📋 Verify Columns", id="verify-columns-btn-simple", color="primary", size="sm", className="me-2"),
-                        dbc.Button("🤖 Classify Devices", id="classify-devices-btn", color="info", size="sm")
-                    ])
-                ], color="success")
-
-                # Combine learning status with upload success
-                if learning_status:
-                    upload_results.extend([learning_status, upload_success])
-                else:
-                    upload_results.append(upload_success)
-
-                # Store AI suggestions
-                ai_suggestions = get_ai_column_suggestions(df.columns.tolist(), filename)
                 current_file_info = {
                     "filename": filename,
                     "columns": df.columns.tolist(),
-                    "sample_data": df.head(4).to_dict(),
+                    "sample_data": sample_data,
                     "ai_suggestions": ai_suggestions,
                     "dataframe_shape": df.shape,
                 }
 
+                try:
+                    from components.column_verification import (
+                        create_column_verification_modal,
+                    )
+
+                    verification_modal = create_column_verification_modal(
+                        current_file_info
+                    )
+                    print(f"✅ Modal created successfully for {filename}")
+                    print(f"   Modal type: {type(verification_modal)}")
+
+                    # Ensure it's a proper component
+                    if not hasattr(verification_modal, "children"):
+                        print("❌ Modal is not a proper component, creating empty div")
+                        verification_modal = html.Div()
+
+                except Exception as e:
+                    logger.error(f"❌ Error creating verification modal: {e}")
+                    verification_modal = (
+                        html.Div()
+                    )  # Return empty div instead of empty string
+
                 preview_components.append(create_file_preview(df, filename))
+
                 file_info[filename] = {
                     "rows": rows,
                     "columns": cols,
@@ -323,29 +342,57 @@ def upload_callback_with_learning(contents_list, filenames_list):
 
             else:
                 upload_results.append(
-                    dbc.Alert([
-                        html.H6("Upload Failed", className="alert-heading"),
-                        html.P(result["error"]),
-                    ], color="danger")
+                    dbc.Alert(
+                        [
+                            html.H6("Upload Failed", className="alert-heading"),
+                            html.P(result["error"]),
+                        ],
+                        color="danger",
+                    )
                 )
 
         except Exception as e:
             logger.error(f"Error processing upload {filename}: {e}")
             upload_results.append(
-                dbc.Alert([
-                    html.I(className="fas fa-exclamation-triangle me-2"),
-                    f"❌ Error processing {filename}: {str(e)}",
-                ], color="danger", className="mb-2")
+                dbc.Alert(
+                    [
+                        html.I(className="fas fa-exclamation-triangle me-2"),
+                        f"❌ Error processing {filename}: {str(e)}",
+                    ],
+                    color="danger",
+                    className="mb-2",
+                )
             )
 
     # Create analytics navigation if files were uploaded successfully
-    analytics_nav = html.Div([
-        html.Hr(),
-        html.H5("Ready to analyze?"),
-        dbc.Button("🚀 Go to Analytics", href="/analytics", color="success", size="lg")
-    ]) if file_info else html.Div()
+    analytics_nav = html.Div(
+        [
+            html.Hr(),
+            html.H5("Ready to analyze?"),
+            dbc.Button(
+                "Go to Analytics",
+                href="/analytics",
+                color="primary",
+                size="lg",
+                className="me-2",
+            ),
+            dbc.Button(
+                "Upload More Files",
+                id="upload-more-btn",
+                color="outline-secondary",
+                size="lg",
+            ),
+        ],
+        className="mt-4",
+    )
 
-    return upload_results, preview_components, file_info, analytics_nav, current_file_info
+    return (
+        upload_results,
+        preview_components,
+        file_info,
+        analytics_nav,
+        current_file_info,
+    )
 
 
 def process_uploaded_file(contents, filename):
@@ -513,6 +560,59 @@ def highlight_upload_area(n_clicks):
         "cursor": "pointer",
         "backgroundColor": "#f8f9fa",
     }
+
+
+@callback(
+    Output("upload-results", "children", allow_duplicate=True),
+    Input("upload-data", "contents"),
+    State("upload-data", "filename"),
+    prevent_initial_call=True
+)
+def show_learning_status_on_upload(contents, filename):
+    """Show learning status when file is uploaded"""
+    if not contents:
+        return dash.no_update
+
+    try:
+        from services.device_learning_service import get_device_learning_service
+        learning_service = get_device_learning_service()
+
+        import base64
+        import io
+        import pandas as pd
+
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+        elif filename.endswith('.json'):
+            df = pd.read_json(io.StringIO(decoded.decode('utf-8')))
+        else:
+            return dash.no_update
+
+        learned_mappings = learning_service.get_learned_mappings(df, filename)
+
+        if learned_mappings:
+            learned_devices = list(learned_mappings.keys())
+            return dbc.Alert([
+                html.H6([html.I(className="fas fa-brain me-2"), "Learning System Activated!"], className="alert-heading"),
+                html.P([
+                    f"Found previous learning for this file! ",
+                    f"The system remembers {len(learned_devices)} device mappings."
+                ]),
+                html.Hr(),
+                html.P([
+                    "Learned devices: ",
+                    html.Strong(", ".join(learned_devices[:3]) + ("..." if len(learned_devices) > 3 else ""))
+                ], className="mb-0 small")
+            ], color="info", className="mb-3")
+
+        return dash.no_update
+
+    except Exception as e:
+        print(f"⚠️ Error checking learning status: {e}")
+        return dash.no_update
 
 
 @callback(
