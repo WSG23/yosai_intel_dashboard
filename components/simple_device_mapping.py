@@ -5,6 +5,13 @@ import dash
 import dash_bootstrap_components as dbc
 from typing import List
 
+# Options for special device areas shared with verification component
+special_areas_options = [
+    {"label": "Elevator", "value": "is_elevator"},
+    {"label": "Stairwell", "value": "is_stairwell"},
+    {"label": "Fire Exit", "value": "is_fire_escape"},
+]
+
 # Global storage for AI device mappings
 _device_ai_mappings = {}
 
@@ -21,91 +28,142 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
     for i, device in enumerate(devices):
         ai_data = _device_ai_mappings.get(device, {})
 
-        default_floor = ai_data.get('floor_number')
-        default_security = ai_data.get('security_level', 5)
+        default_floor = ai_data.get("floor_number")
+        default_security = ai_data.get("security_level", 5)
         default_access = []
-        if ai_data.get('is_entry'):
-            default_access.append('entry')
-        if ai_data.get('is_exit'):
-            default_access.append('exit')
+        if ai_data.get("is_entry"):
+            default_access.append("entry")
+        if ai_data.get("is_exit"):
+            default_access.append("exit")
 
         device_rows.append(
-            dbc.Row([
-                dbc.Col([
-                    html.Strong(device),
-                    html.Br() if ai_data else None,
-                    dbc.Badge("AI Suggested", color="info", className="small") if ai_data else None
-                ], width=4),
-                dbc.Col([
-                    dbc.Input(
-                        id={"type": "device-floor", "index": i},
-                        type="number",
-                        placeholder="Floor #",
-                        min=0,
-                        max=50,
-                        value=default_floor,
-                        size="sm",
-                    )
-                ], width=2),
-                dbc.Col([
-                    dbc.Checklist(
-                        id={"type": "device-access", "index": i},
-                        options=[
-                            {"label": "Entry", "value": "entry"},
-                            {"label": "Exit", "value": "exit"},
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.Strong(device),
+                            html.Br() if ai_data else None,
+                            (
+                                dbc.Badge(
+                                    "AI Suggested", color="info", className="small"
+                                )
+                                if ai_data
+                                else None
+                            ),
                         ],
-                        value=default_access,
-                        inline=True,
-                    )
-                ], width=3),
-                dbc.Col([
-                    dbc.Input(
-                        id={"type": "device-security", "index": i},
-                        type="number",
-                        placeholder="0-10",
-                        min=0,
-                        max=10,
-                        value=default_security,
-                        size="sm",
-                    )
-                ], width=2),
-                dcc.Store(id={"type": "device-name", "index": i}, data=device),
-            ], className="mb-2")
+                        width=4,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Input(
+                                id={"type": "device-floor", "index": i},
+                                type="number",
+                                placeholder="Floor #",
+                                min=0,
+                                max=50,
+                                value=default_floor,
+                                size="sm",
+                            )
+                        ],
+                        width=2,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Checklist(
+                                id={"type": "device-access", "index": i},
+                                options=[
+                                    {"label": "Entry", "value": "entry"},
+                                    {"label": "Exit", "value": "exit"},
+                                ],
+                                value=default_access,
+                                inline=True,
+                            )
+                        ],
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Input(
+                                id={"type": "device-security", "index": i},
+                                type="number",
+                                placeholder="0-10",
+                                min=0,
+                                max=10,
+                                value=default_security,
+                                size="sm",
+                            )
+                        ],
+                        width=2,
+                    ),
+                    dcc.Store(id={"type": "device-name", "index": i}, data=device),
+                ],
+                className="mb-2",
+            )
         )
 
-    modal_body = html.Div([
-        dbc.Alert([
-            "Manually assign floor numbers and security levels to devices. ",
-            html.Strong("AI suggestions have been pre-filled!") if _device_ai_mappings else "Fill in device details manually."
-        ], color="info" if _device_ai_mappings else "warning"),
-        dbc.Alert([
-            html.Strong(f"🤖 AI Transfer: "),
-            f"Loaded {len(_device_ai_mappings)} AI-learned device mappings as defaults"
-        ], color="light", className="small") if _device_ai_mappings else None,
-        dbc.Row([
-            dbc.Col(html.Strong("Device Name"), width=4),
-            dbc.Col(html.Strong("Floor"), width=2),
-            dbc.Col(html.Strong("Access"), width=3),
-            dbc.Col(html.Strong("Security (0-10)"), width=2),
-        ], className="mb-2"),
-        html.Hr(),
-        html.Div(device_rows),
-        html.Hr(),
-        dbc.Alert([
-            html.Strong("Security Levels: "),
-            "0-2: Public areas, 3-5: Office areas, 6-8: Restricted, 9-10: High security",
-        ], color="light", className="small"),
-    ])
+    modal_body = html.Div(
+        [
+            dbc.Alert(
+                [
+                    "Manually assign floor numbers and security levels to devices. ",
+                    (
+                        html.Strong("AI suggestions have been pre-filled!")
+                        if _device_ai_mappings
+                        else "Fill in device details manually."
+                    ),
+                ],
+                color="info" if _device_ai_mappings else "warning",
+            ),
+            (
+                dbc.Alert(
+                    [
+                        html.Strong(f"🤖 AI Transfer: "),
+                        f"Loaded {len(_device_ai_mappings)} AI-learned device mappings as defaults",
+                    ],
+                    color="light",
+                    className="small",
+                )
+                if _device_ai_mappings
+                else None
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(html.Strong("Device Name"), width=4),
+                    dbc.Col(html.Strong("Floor"), width=2),
+                    dbc.Col(html.Strong("Access"), width=3),
+                    dbc.Col(html.Strong("Security (0-10)"), width=2),
+                ],
+                className="mb-2",
+            ),
+            html.Hr(),
+            html.Div(device_rows),
+            html.Hr(),
+            dbc.Alert(
+                [
+                    html.Strong("Security Levels: "),
+                    "0-2: Public areas, 3-5: Office areas, 6-8: Restricted, 9-10: High security",
+                ],
+                color="light",
+                className="small",
+            ),
+        ]
+    )
 
-    return dbc.Modal([
-        dbc.ModalHeader("Device Mapping with AI Learning"),
-        dbc.ModalBody(modal_body),
-        dbc.ModalFooter([
-            dbc.Button("Cancel", id="device-modal-cancel", color="secondary"),
-            dbc.Button("Save", id="device-modal-save", color="primary"),
-        ]),
-    ], id="simple-device-modal", size="lg", is_open=False)
-
+    return dbc.Modal(
+        [
+            dbc.ModalHeader("Device Mapping with AI Learning"),
+            dbc.ModalBody(modal_body),
+            dbc.ModalFooter(
+                [
+                    dbc.Button("Cancel", id="device-modal-cancel", color="secondary"),
+                    dbc.Button("Save", id="device-modal-save", color="primary"),
+                ]
+            ),
+        ],
+        id="simple-device-modal",
+        size="lg",
+        is_open=False,
+    )
 
 
 def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
@@ -166,9 +224,7 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
                         ],
                         width=2,
                     ),
-                    dcc.Store(
-                        id={"type": "device-name", "index": i}, data=device
-                    ),
+                    dcc.Store(id={"type": "device-name", "index": i}, data=device),
                 ],
                 className="mb-2",
             )
@@ -209,12 +265,8 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
             dbc.ModalBody(modal_body),
             dbc.ModalFooter(
                 [
-                    dbc.Button(
-                        "Cancel", id="device-modal-cancel", color="secondary"
-                    ),
-                    dbc.Button(
-                        "Save", id="device-modal-save", color="primary"
-                    ),
+                    dbc.Button("Cancel", id="device-modal-cancel", color="secondary"),
+                    dbc.Button("Save", id="device-modal-save", color="primary"),
                 ]
             ),
         ],
@@ -252,5 +304,3 @@ def toggle_simple_device_modal(open_clicks, cancel_clicks, save_clicks, is_open)
         return False
 
     return is_open
-
-
