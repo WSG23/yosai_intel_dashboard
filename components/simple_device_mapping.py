@@ -9,6 +9,7 @@ import logging
 
 # ADD after existing imports
 from services.consolidated_learning_service import get_learning_service
+from services.door_mapping_service import door_mapping_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +37,10 @@ def apply_learned_mappings_to_devices(df: pd.DataFrame, filename: str) -> bool:
     """
     global _device_ai_mappings
 
-    learning_service = get_learning_service()
-    learned = learning_service.get_learned_mappings(df, filename)
-
-    if learned['match_type'] != 'none' and learned['device_mappings']:
-        _device_ai_mappings.clear()
-        _device_ai_mappings.update(learned['device_mappings'])
-        logger.info(f"Applied {len(learned['device_mappings'])} learned device mappings")
-        return True
-
-    return False
+    applied = door_mapping_service.apply_learned_mappings(df, filename)
+    if applied:
+        logger.info(f"Applied {len(_device_ai_mappings)} learned device mappings")
+    return applied
 
 
 def save_confirmed_device_mappings(df: pd.DataFrame, filename: str,
@@ -61,15 +56,25 @@ def save_confirmed_device_mappings(df: pd.DataFrame, filename: str,
     Returns:
         Fingerprint ID of saved mapping
     """
-    learning_service = get_learning_service()
-    fingerprint = learning_service.save_complete_mapping(
-        df=df,
-        filename=filename,
-        device_mappings=confirmed_mappings
+    fingerprint = door_mapping_service.save_confirmed_mappings(
+        df, filename, list(confirmed_mappings.values()) if isinstance(confirmed_mappings, dict) else confirmed_mappings
     )
-
-    logger.info(f"Saved device mappings with ID: {fingerprint[:8]}")
     return fingerprint
+
+
+def generate_ai_device_defaults(df: pd.DataFrame, client_profile: str = "auto"):
+    """Generate AI-based defaults for device mapping modal."""
+    global _device_ai_mappings
+    try:
+        result = door_mapping_service.process_uploaded_data(df, client_profile)
+        _device_ai_mappings.clear()
+        for device in result["devices"]:
+            _device_ai_mappings[device["door_id"]] = device
+        logger.info(
+            f"Generated AI defaults for {len(_device_ai_mappings)} devices"
+        )
+    except Exception as e:
+        logger.error(f"Error generating AI device defaults: {e}")
 
 
 def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
