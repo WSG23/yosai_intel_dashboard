@@ -137,7 +137,7 @@ def display_page(pathname):
     """Route pages based on URL"""
     if pathname == "/analytics":
         return _get_analytics_page()
-    elif pathname == "/upload":
+    elif pathname == "/upload" or pathname == "/file-upload":  # Handle both paths
         return _get_upload_page()
     elif pathname == "/":
         return _get_home_page()
