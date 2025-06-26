@@ -34,43 +34,43 @@ _uploaded_data_store: Dict[str, pd.DataFrame] = {}
 
 
 def analyze_device_name_with_ai(device_name):
-    """Enhanced AI analysis of device names - handles any number of devices"""
-    import re
+    """Enhanced AI analysis using the new AI generator"""
+    try:
+        from services.ai_device_generator import AIDeviceGenerator
 
-    name_lower = str(device_name).lower().strip()
+        # Use our enhanced AI generator
+        ai_gen = AIDeviceGenerator()
+        result = ai_gen.generate_device_attributes(str(device_name))
 
-    # Extract floor number
-    floor_match = re.search(r"\b(\d+)(?:st|nd|rd|th)?\s*(?:floor|f|fl)\b", name_lower)
-    if floor_match:
-        floor_number = int(floor_match.group(1))
-    else:
-        floor_match = re.search(r"\b(\d+)f\b", name_lower)
-        floor_number = int(floor_match.group(1)) if floor_match else 1
+        # Convert to format expected by the UI
+        return {
+            "floor_number": result.floor_number,
+            "security_level": result.security_level,
+            "confidence": result.confidence,
+            "is_entry": result.is_entry,
+            "is_exit": result.is_exit,
+            "is_elevator": result.is_elevator,
+            "is_stairwell": result.is_stairwell,
+            "is_fire_escape": result.is_fire_escape,
+            "device_name": result.device_name,
+            "ai_reasoning": result.ai_reasoning,
+        }
 
-    # Determine security level
-    security_level = 3  # Default office level
-    if any(word in name_lower for word in ["lobby", "entrance", "main"]):
-        security_level = 2
-    elif any(word in name_lower for word in ["server", "data", "secure", "admin"]):
-        security_level = 7
-    elif any(word in name_lower for word in ["executive", "ceo", "manager"]):
-        security_level = 6
-
-    # Determine access type
-    is_entry = True
-    is_exit = any(word in name_lower for word in ["exit", "emergency", "fire"])
-    is_elevator = "elevator" in name_lower or "lift" in name_lower
-    is_restricted = security_level >= 6
-
-    return {
-        "floor_number": floor_number,
-        "security_level": security_level,
-        "is_entry": is_entry,
-        "is_exit": is_exit,
-        "is_elevator": is_elevator,
-        "is_restricted": is_restricted,
-        "confidence": 0.85,
-    }
+    except Exception as e:
+        print(f"❌ AI analysis error for '{device_name}': {e}")
+        # Fallback to basic defaults
+        return {
+            "floor_number": 1,
+            "security_level": 5,
+            "confidence": 0.3,
+            "is_entry": False,
+            "is_exit": False,
+            "is_elevator": False,
+            "is_stairwell": False,
+            "is_fire_escape": False,
+            "device_name": str(device_name),
+            "ai_reasoning": "Error in AI analysis - using defaults",
+        }
 
 
 def layout():
@@ -840,7 +840,43 @@ def populate_device_modal_with_learning(is_open, file_info):
                                 )
                             ]
                         ),
-                        # ... rest of your table creation code
+                        html.Td(
+                            dbc.Checklist(
+                                id={"type": "device-access", "index": i},
+                                options=[
+                                    {"label": "Entry", "value": "is_entry"},
+                                    {"label": "Exit", "value": "is_exit"},
+                                    {"label": "Elevator", "value": "is_elevator"},
+                                    {"label": "Stairwell", "value": "is_stairwell"},
+                                    {"label": "Fire Exit", "value": "is_fire_escape"},
+                                ],
+                                value=[
+                                    k
+                                    for k, v in ai_attributes.items()
+                                    if k
+                                    in [
+                                        "is_entry",
+                                        "is_exit",
+                                        "is_elevator",
+                                        "is_stairwell",
+                                        "is_fire_escape",
+                                    ]
+                                    and v
+                                ],
+                                inline=False,
+                            ),
+                        ),
+                        html.Td(
+                            dbc.Input(
+                                id={"type": "device-security", "index": i},
+                                type="number",
+                                min=0,
+                                max=10,
+                                value=ai_attributes.get("security_level", 5),
+                                placeholder="0-10",
+                                size="sm",
+                            )
+                        ),
                     ]
                 )
             )
