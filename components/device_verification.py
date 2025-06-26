@@ -1,10 +1,12 @@
 """Device verification component - follows exact same pattern as column_verification.py"""
 
 import pandas as pd
-from dash import html, dcc, callback, Input, Output, State, ALL, MATCH
+from dash import html, dcc
+from dash._callback import callback
+from dash.dependencies import Input, Output, State, ALL, MATCH
 import dash
 import dash_bootstrap_components as dbc
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 import logging
 from datetime import datetime
 from components.simple_device_mapping import _device_ai_mappings, special_areas_options
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def create_device_verification_modal(
     device_mappings: Dict[str, Dict], session_id: str
-) -> dbc.Modal:
+) -> Union[dbc.Modal, html.Div]:
     """Create device verification modal - same pattern as column verification"""
 
     if not device_mappings:

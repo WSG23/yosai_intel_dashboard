@@ -12,7 +12,9 @@ def test_imports():
     
     # Test Dash core
     try:
-        from dash import html, dcc, callback, Input, Output
+        from dash import html, dcc
+        from dash._callback import callback
+        from dash.dependencies import Input, Output
         imports_status['dash_core'] = True
         print("✅ Dash core components: OK")
     except ImportError as e:
