@@ -743,7 +743,7 @@ def apply_ai_suggestions(n_clicks, file_info):
     prevent_initial_call=True,
 )
 def populate_device_modal_with_learning(is_open, file_info):
-    """Fixed device modal population - gets ALL devices"""
+    """Fixed device modal population - gets ALL devices WITH DEBUG"""
     if not is_open:
         return "Modal closed"
 
@@ -767,6 +767,32 @@ def populate_device_modal_with_learning(is_open, file_info):
                     all_devices.update(str(val) for val in unique_vals)
                     print(f"   Found {len(unique_vals)} devices in column '{col}'")
 
+                    # ADD THIS DEBUG SECTION
+                    print(f"🔍 DEBUG - First 10 device names from '{col}':")
+                    sample_devices = unique_vals[:10]
+                    for i, device in enumerate(sample_devices, 1):
+                        print(f"   {i:2d}. {device}")
+
+                    # TEST AI on sample devices
+                    print(f"🤖 DEBUG - Testing AI on sample devices:")
+                    try:
+                        from services.ai_device_generator import AIDeviceGenerator
+                        ai_gen = AIDeviceGenerator()
+
+                        for device in sample_devices[:5]:  # Test first 5
+                            try:
+                                result = ai_gen.generate_device_attributes(str(device))
+                                print(
+                                    f"   🚪 '{device}' → Name: '{result.device_name}', Floor: {result.floor_number}, Security: {result.security_level}, Confidence: {result.confidence:.1%}"
+                                )
+                                print(
+                                    f"      Access: Entry={result.is_entry}, Exit={result.is_exit}, Elevator={result.is_elevator}"
+                                )
+                                print(f"      Reasoning: {result.ai_reasoning}")
+                            except Exception as e:
+                                print(f"   ❌ AI error on '{device}': {e}")
+                    except Exception as e:
+                        print(f"🤖 DEBUG - AI import error: {e}")
 
         actual_devices = sorted(list(all_devices))
         print(f"🎯 Total unique devices found: {len(actual_devices)}")
@@ -825,7 +851,7 @@ def populate_device_modal_with_learning(is_open, file_info):
                 dbc.Alert(
                     [
                         html.Strong("🤖 AI Analysis: "),
-                        f"Analyzed {len(actual_devices)} devices with enhanced patterns.",
+                        f"Analyzed {len(actual_devices)} devices. Check console for detailed AI debug info.",
                     ],
                     color="info",
                     className="mb-3",
