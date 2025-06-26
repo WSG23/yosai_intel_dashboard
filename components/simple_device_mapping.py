@@ -51,7 +51,7 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
                                 else None
                             ),
                         ],
-                        width=4,
+                        width=3,
                     ),
                     dbc.Col(
                         [
@@ -76,6 +76,17 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
                                     {"label": "Exit", "value": "exit"},
                                 ],
                                 value=default_access,
+                                inline=True,
+                            )
+                        ],
+                        width=2,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Checklist(
+                                id={"type": "device-special", "index": i},
+                                options=special_areas_options,
+                                value=[],
                                 inline=True,
                             )
                         ],
@@ -128,9 +139,10 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
             ),
             dbc.Row(
                 [
-                    dbc.Col(html.Strong("Device Name"), width=4),
+                    dbc.Col(html.Strong("Device Name"), width=3),
                     dbc.Col(html.Strong("Floor"), width=2),
-                    dbc.Col(html.Strong("Access"), width=3),
+                    dbc.Col(html.Strong("Access"), width=2),
+                    dbc.Col(html.Strong("Special Areas"), width=3),
                     dbc.Col(html.Strong("Security (0-10)"), width=2),
                 ],
                 className="mb-2",
