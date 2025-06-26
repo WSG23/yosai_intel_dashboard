@@ -54,33 +54,48 @@ def get_analytics_service_safe() -> Optional[AnalyticsService]:
 def get_data_source_options_safe() -> List[Dict[str, str]]:
     """Safely get available data sources with suggests integration"""
     options = []
-    
+
     try:
-        # Add uploaded files with AI suggestions status
-        from components.file_upload import get_uploaded_data_store
-        uploaded_files = get_uploaded_data_store()
-        
-        for filename in uploaded_files.keys():
+        # CORRECTED IMPORT - Use get_uploaded_data instead of get_uploaded_data_store
+        from pages.file_upload import get_uploaded_data
+        uploaded_files = get_uploaded_data()
+
+        print(f"🔍 Found {len(uploaded_files)} uploaded files")
+
+        for filename, df in uploaded_files.items():
+            print(f"   📄 {filename}: {len(df):,} rows × {len(df.columns)} columns")
+
             # Check if AI suggestions are available for this file
             has_suggestions = False
             if AI_SUGGESTIONS_AVAILABLE:
                 try:
-                    df = uploaded_files[filename]
                     suggestions = get_ai_suggestions_for_file(df, filename)
                     has_suggestions = bool(suggestions and any(
                         s.get('field') for s in suggestions.values()
                     ))
-                except Exception:
+                    print(f"      🤖 AI suggestions: {'Available' if has_suggestions else 'None'}")
+                except Exception as e:
+                    print(f"      ⚠️ AI suggestions failed: {e}")
                     pass
-            
+
             suggestion_indicator = " 🤖" if has_suggestions else " 📄"
             options.append({
                 "label": f"{filename}{suggestion_indicator}",
                 "value": f"upload:{filename}"
             })
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        options.append({
+            "label": "⚠️ File upload module not available",
+            "value": "none"
+        })
     except Exception as e:
-        logger.warning(f"Error getting uploaded files: {e}")
-    
+        print(f"❌ Error getting uploaded files: {e}")
+        options.append({
+            "label": f"⚠️ Error: {str(e)}",
+            "value": "none"
+        })
+
     # Add service-based sources if available
     try:
         service = get_analytics_service_safe()
@@ -92,14 +107,15 @@ def get_data_source_options_safe() -> List[Dict[str, str]]:
                     "value": f"service:{source}"
                 })
     except Exception as e:
-        logger.warning(f"Error getting service sources: {e}")
-    
+        print(f"⚠️ Service sources unavailable: {e}")
+
     if not options:
         options.append({
-            "label": "No data sources available",
+            "label": "No data sources available - Upload files first",
             "value": "none"
         })
-    
+
+    print(f"✅ Generated {len(options)} data source options")
     return options
 
 def get_analysis_type_options() -> List[Dict[str, str]]:
@@ -121,66 +137,94 @@ def get_analysis_type_options() -> List[Dict[str, str]]:
 def process_suggests_analysis(data_source: str) -> Dict[str, Any]:
     """Process AI suggestions analysis for the selected data source"""
     try:
+        print(f"🔍 Processing suggests analysis for: {data_source}")
+
         if not data_source or data_source == "none":
             return {"error": "No data source selected"}
-        
+
         if data_source.startswith("upload:"):
             filename = data_source.replace("upload:", "")
-            
-            # Get the uploaded file
-            from components.file_upload import get_uploaded_data_store
-            uploaded_files = get_uploaded_data_store()
-            
+            print(f"📄 Looking for uploaded file: {filename}")
+
+            # CORRECTED IMPORT - Use get_uploaded_data
+            from pages.file_upload import get_uploaded_data
+            uploaded_files = get_uploaded_data()
+
+            print(f"🔍 Available files: {list(uploaded_files.keys())}")
+
             if filename not in uploaded_files:
-                return {"error": f"File {filename} not found"}
-            
+                return {"error": f"File {filename} not found in uploaded files"}
+
             df = uploaded_files[filename]
-            
+            print(f"✅ Found file with {len(df):,} rows × {len(df.columns)} columns")
+
             # Get AI suggestions
             if AI_SUGGESTIONS_AVAILABLE:
-                suggestions = get_ai_suggestions_for_file(df, filename)
-                
-                # Process suggestions for display
-                processed_suggestions = []
-                total_confidence = 0
-                confident_mappings = 0
-                
-                for column, suggestion in suggestions.items():
-                    field = suggestion.get('field', '')
-                    confidence = suggestion.get('confidence', 0.0)
-                    
-                    status = "🟢 High" if confidence >= 0.7 else "🟡 Medium" if confidence >= 0.4 else "🔴 Low"
-                    
-                    processed_suggestions.append({
-                        "column": column,
-                        "suggested_field": field if field else "No suggestion",
-                        "confidence": confidence,
-                        "status": status,
-                        "sample_data": df[column].dropna().head(3).tolist()
-                    })
-                    
-                    total_confidence += confidence
-                    if confidence >= 0.6:
-                        confident_mappings += 1
-                
-                avg_confidence = total_confidence / len(suggestions) if suggestions else 0
-                
-                return {
-                    "filename": filename,
-                    "total_columns": len(df.columns),
-                    "suggestions": processed_suggestions,
-                    "avg_confidence": avg_confidence,
-                    "confident_mappings": confident_mappings,
-                    "data_preview": df.head(5).to_dict('records'),
-                    "column_names": list(df.columns)
-                }
+                try:
+                    suggestions = get_ai_suggestions_for_file(df, filename)
+                    print(f"🤖 Generated {len(suggestions)} AI suggestions")
+
+                    # Process suggestions for display
+                    processed_suggestions = []
+                    total_confidence = 0
+                    confident_mappings = 0
+
+                    for column, suggestion in suggestions.items():
+                        field = suggestion.get('field', '')
+                        confidence = suggestion.get('confidence', 0.0)
+
+                        status = "🟢 High" if confidence >= 0.7 else "🟡 Medium" if confidence >= 0.4 else "🔴 Low"
+
+                        # Get sample data safely
+                        try:
+                            sample_data = df[column].dropna().head(3).astype(str).tolist()
+                        except Exception:
+                            sample_data = ["N/A"]
+
+                        processed_suggestions.append({
+                            "column": column,
+                            "suggested_field": field if field else "No suggestion",
+                            "confidence": confidence,
+                            "status": status,
+                            "sample_data": sample_data
+                        })
+
+                        total_confidence += confidence
+                        if confidence >= 0.6:
+                            confident_mappings += 1
+
+                    avg_confidence = total_confidence / len(suggestions) if suggestions else 0
+
+                    # Get data preview safely
+                    try:
+                        data_preview = df.head(5).to_dict('records')
+                    except Exception:
+                        data_preview = []
+
+                    result = {
+                        "filename": filename,
+                        "total_columns": len(df.columns),
+                        "total_rows": len(df),
+                        "suggestions": processed_suggestions,
+                        "avg_confidence": avg_confidence,
+                        "confident_mappings": confident_mappings,
+                        "data_preview": data_preview,
+                        "column_names": list(df.columns)
+                    }
+
+                    print(f"✅ Processed suggests analysis: {avg_confidence:.1%} avg confidence")
+                    return result
+
+                except Exception as e:
+                    print(f"❌ AI suggestions processing failed: {e}")
+                    return {"error": f"AI suggestions failed: {str(e)}"}
             else:
                 return {"error": "AI suggestions service not available"}
         else:
             return {"error": "Suggests analysis only available for uploaded files"}
-            
+
     except Exception as e:
-        logger.error(f"Error processing suggests analysis: {e}")
+        print(f"❌ Error processing suggests analysis: {e}")
         return {"error": f"Failed to process suggests: {str(e)}"}
 
 # =============================================================================
