@@ -272,7 +272,7 @@ def process_suggests_analysis(data_source: str) -> Dict[str, Any]:
 
 
 def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
-    """Create suggests analysis display components (working version)"""
+    """Create suggests analysis display components (fixed version)"""
     if "error" in suggests_data:
         return dbc.Alert(f"Error: {suggests_data['error']}", color="danger")
 
@@ -285,143 +285,85 @@ def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
         total_rows = suggests_data.get("total_rows", 0)
 
         # Summary card
-        summary_card = dbc.Card(
-            [
-                dbc.CardHeader(
-                    [html.H5(f"🤖 AI Column Mapping Analysis - {filename}")]
-                ),
-                dbc.CardBody(
-                    [
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    [
-                                        html.H6("Dataset Info"),
-                                        html.P(f"File: {filename}"),
-                                        html.P(f"Rows: {total_rows:,}"),
-                                        html.P(f"Columns: {total_columns}"),
-                                    ],
-                                    width=4,
-                                ),
-                                dbc.Col(
-                                    [
-                                        html.H6("Overall Confidence"),
-                                        dbc.Progress(
-                                            value=avg_confidence * 100,
-                                            label=f"{avg_confidence:.1%}",
-                                            color=(
-                                                "success"
-                                                if avg_confidence >= 0.7
-                                                else (
-                                                    "warning"
-                                                    if avg_confidence >= 0.4
-                                                    else "danger"
-                                                )
-                                            ),
-                                        ),
-                                    ],
-                                    width=4,
-                                ),
-                                dbc.Col(
-                                    [
-                                        html.H6("Confident Mappings"),
-                                        html.H3(
-                                            f"{confident_mappings}/{total_columns}",
-                                            className=(
-                                                "text-success"
-                                                if confident_mappings
-                                                >= total_columns * 0.7
-                                                else "text-warning"
-                                            ),
-                                        ),
-                                    ],
-                                    width=4,
-                                ),
-                            ]
+        summary_card = dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"🤖 AI Column Mapping Analysis - {filename}")
+            ]),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Dataset Info"),
+                        html.P(f"File: {filename}"),
+                        html.P(f"Rows: {total_rows:,}"),
+                        html.P(f"Columns: {total_columns}")
+                    ], width=4),
+                    dbc.Col([
+                        html.H6("Overall Confidence"),
+                        dbc.Progress(
+                            value=avg_confidence * 100,
+                            label=f"{avg_confidence:.1%}",
+                            color="success" if avg_confidence >= 0.7 else "warning" if avg_confidence >= 0.4 else "danger"
                         )
-                    ]
-                ),
-            ],
-            className="mb-3",
-        )
+                    ], width=4),
+                    dbc.Col([
+                        html.H6("Confident Mappings"),
+                        html.H3(f"{confident_mappings}/{total_columns}",
+                               className="text-success" if confident_mappings >= total_columns * 0.7 else "text-warning")
+                    ], width=4)
+                ])
+            ])
+        ], className="mb-3")
 
         # Suggestions table
         if suggestions:
             table_rows = []
             for suggestion in suggestions:
-                confidence = suggestion["confidence"]
+                confidence = suggestion['confidence']
 
                 table_rows.append(
-                    html.Tr(
-                        [
-                            html.Td(suggestion["column"]),
-                            html.Td(suggestion["suggested_field"]),
-                            html.Td(
-                                [
-                                    dbc.Progress(
-                                        value=confidence * 100,
-                                        label=f"{confidence:.1%}",
-                                        size="sm",
-                                        color=(
-                                            "success"
-                                            if confidence >= 0.7
-                                            else (
-                                                "warning"
-                                                if confidence >= 0.4
-                                                else "danger"
-                                            )
-                                        ),
-                                    )
-                                ]
-                            ),
-                            html.Td(suggestion["status"]),
-                            html.Td(
-                                html.Small(
-                                    str(suggestion["sample_data"][:2]),
-                                    className="text-muted",
-                                )
-                            ),
-                        ]
-                    )
+                    html.Tr([
+                        html.Td(suggestion['column']),
+                        html.Td(suggestion['suggested_field']),
+                        html.Td([
+                            dbc.Progress(
+                                value=confidence * 100,
+                                label=f"{confidence:.1%}",
+                                color="success" if confidence >= 0.7 else "warning" if confidence >= 0.4 else "danger"
+                            )
+                        ]),
+                        html.Td(suggestion['status']),
+                        html.Td(html.Small(str(suggestion['sample_data'][:2]), className="text-muted"))
+                    ])
                 )
 
-            suggestions_table = dbc.Card(
-                [
-                    dbc.CardHeader([html.H6("📋 Column Mapping Suggestions")]),
-                    dbc.CardBody(
-                        [
-                            dbc.Table(
-                                [
-                                    html.Thead(
-                                        [
-                                            html.Tr(
-                                                [
-                                                    html.Th("Column Name"),
-                                                    html.Th("Suggested Field"),
-                                                    html.Th("Confidence"),
-                                                    html.Th("Status"),
-                                                    html.Th("Sample Data"),
-                                                ]
-                                            )
-                                        ]
-                                    ),
-                                    html.Tbody(table_rows),
-                                ],
-                                responsive=True,
-                                striped=True,
-                            )
-                        ]
-                    ),
-                ],
-                className="mb-3",
-            )
+            suggestions_table = dbc.Card([
+                dbc.CardHeader([
+                    html.H6("📋 Column Mapping Suggestions")
+                ]),
+                dbc.CardBody([
+                    dbc.Table([
+                        html.Thead([
+                            html.Tr([
+                                html.Th("Column Name"),
+                                html.Th("Suggested Field"),
+                                html.Th("Confidence"),
+                                html.Th("Status"),
+                                html.Th("Sample Data")
+                            ])
+                        ]),
+                        html.Tbody(table_rows)
+                    ], responsive=True, striped=True)
+                ])
+            ], className="mb-3")
         else:
             suggestions_table = dbc.Alert("No suggestions available", color="warning")
 
-        return html.Div([summary_card, suggestions_table])
+        return html.Div([
+            summary_card,
+            suggestions_table
+        ])
 
     except Exception as e:
-        logger.error(f"Error creating suggests display: {e}")
         return dbc.Alert(f"Error creating display: {str(e)}", color="danger")
 
 
