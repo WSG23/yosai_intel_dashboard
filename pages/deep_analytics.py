@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Deep Analytics UI Fix - Modular Replacement Code
-Fixes suggests not showing and UI display issues
+COMPLETE DEEP ANALYTICS FIX
+Fixes all method and import errors
+Replace the broken functions in pages/deep_analytics.py
 """
 
 # =============================================================================
-# SECTION 1: CONSOLIDATED IMPORTS
-# Replace the import section at the top of pages/deep_analytics.py
+# SECTION 1: CORRECTED IMPORTS (Replace at top of pages/deep_analytics.py)
 # =============================================================================
 
 import logging
@@ -20,7 +20,7 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Internal service imports with safe fallbacks
+# Internal service imports with CORRECTED paths
 try:
     from services.analytics_service import AnalyticsService
     ANALYTICS_SERVICE_AVAILABLE = True
@@ -52,11 +52,11 @@ def get_analytics_service_safe() -> Optional[AnalyticsService]:
         return None
 
 def get_data_source_options_safe() -> List[Dict[str, str]]:
-    """Safely get available data sources with suggests integration"""
+    """CORRECTED - Get available data sources with proper imports"""
     options = []
 
     try:
-        # CORRECTED IMPORT - Use get_uploaded_data instead of get_uploaded_data_store
+        # CORRECTED IMPORT PATH - Use pages.file_upload not components.file_upload
         from pages.file_upload import get_uploaded_data
         uploaded_files = get_uploaded_data()
 
@@ -96,15 +96,16 @@ def get_data_source_options_safe() -> List[Dict[str, str]]:
             "value": "none"
         })
 
-    # Add service-based sources if available
+    # Add service-based sources if available - CORRECTED method name
     try:
         service = get_analytics_service_safe()
         if service:
-            service_sources = service.get_available_sources()
-            for source in service_sources:
+            # Use the actual method name from AnalyticsService
+            service_sources = service.get_data_source_options()  # This is the correct method name
+            for source_dict in service_sources:
                 options.append({
-                    "label": f"🔗 {source}",
-                    "value": f"service:{source}"
+                    "label": f"🔗 {source_dict.get('label', 'Unknown')}",
+                    "value": f"service:{source_dict.get('value', 'unknown')}"
                 })
     except Exception as e:
         print(f"⚠️ Service sources unavailable: {e}")
@@ -233,17 +234,18 @@ def process_suggests_analysis(data_source: str) -> Dict[str, Any]:
 # =============================================================================
 
 def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
-    """Create suggests analysis display components"""
+    """Create suggests analysis display components (working version)"""
     if "error" in suggests_data:
         return dbc.Alert(f"Error: {suggests_data['error']}", color="danger")
-    
+
     try:
         filename = suggests_data.get("filename", "Unknown")
         suggestions = suggests_data.get("suggestions", [])
         avg_confidence = suggests_data.get("avg_confidence", 0)
         confident_mappings = suggests_data.get("confident_mappings", 0)
         total_columns = suggests_data.get("total_columns", 0)
-        
+        total_rows = suggests_data.get("total_rows", 0)
+
         # Summary card
         summary_card = dbc.Card([
             dbc.CardHeader([
@@ -252,91 +254,78 @@ def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
             dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
+                        html.H6("Dataset Info"),
+                        html.P(f"File: {filename}"),
+                        html.P(f"Rows: {total_rows:,}"),
+                        html.P(f"Columns: {total_columns}")
+                    ], width=4),
+                    dbc.Col([
                         html.H6("Overall Confidence"),
                         dbc.Progress(
                             value=avg_confidence * 100,
                             label=f"{avg_confidence:.1%}",
                             color="success" if avg_confidence >= 0.7 else "warning" if avg_confidence >= 0.4 else "danger"
                         )
-                    ], width=6),
+                    ], width=4),
                     dbc.Col([
                         html.H6("Confident Mappings"),
                         html.H3(f"{confident_mappings}/{total_columns}",
                                className="text-success" if confident_mappings >= total_columns * 0.7 else "text-warning")
-                    ], width=6)
+                    ], width=4)
                 ])
             ])
         ], className="mb-3")
-        
+
         # Suggestions table
-        table_rows = []
-        for suggestion in suggestions:
-            confidence = suggestion['confidence']
-            row_color = "table-success" if confidence >= 0.7 else "table-warning" if confidence >= 0.4 else "table-danger"
-            
-            table_rows.append(
-                html.Tr([
-                    html.Td(suggestion['column']),
-                    html.Td(suggestion['suggested_field']),
-                    html.Td([
-                        dbc.Progress(
-                            value=confidence * 100,
-                            label=f"{confidence:.1%}",
-                            size="sm",
-                            color="success" if confidence >= 0.7 else "warning" if confidence >= 0.4 else "danger"
-                        )
-                    ]),
-                    html.Td(suggestion['status']),
-                    html.Td(html.Small(str(suggestion['sample_data'][:2]), className="text-muted"))
-                ], className=row_color)
-            )
-        
-        suggestions_table = dbc.Card([
-            dbc.CardHeader([
-                html.H6("📋 Column Mapping Suggestions")
-            ]),
-            dbc.CardBody([
-                dbc.Table([
-                    html.Thead([
-                        html.Tr([
-                            html.Th("Column Name"),
-                            html.Th("Suggested Field"),
-                            html.Th("Confidence"),
-                            html.Th("Status"),
-                            html.Th("Sample Data")
-                        ])
-                    ]),
-                    html.Tbody(table_rows)
-                ], responsive=True, striped=True)
-            ])
-        ], className="mb-3")
-        
-        # Data preview
-        data_preview = suggests_data.get("data_preview", [])
-        if data_preview:
-            preview_df = pd.DataFrame(data_preview)
-            preview_table = dbc.Card([
+        if suggestions:
+            table_rows = []
+            for suggestion in suggestions:
+                confidence = suggestion['confidence']
+
+                table_rows.append(
+                    html.Tr([
+                        html.Td(suggestion['column']),
+                        html.Td(suggestion['suggested_field']),
+                        html.Td([
+                            dbc.Progress(
+                                value=confidence * 100,
+                                label=f"{confidence:.1%}",
+                                size="sm",
+                                color="success" if confidence >= 0.7 else "warning" if confidence >= 0.4 else "danger"
+                            )
+                        ]),
+                        html.Td(suggestion['status']),
+                        html.Td(html.Small(str(suggestion['sample_data'][:2]), className="text-muted"))
+                    ])
+                )
+
+            suggestions_table = dbc.Card([
                 dbc.CardHeader([
-                    html.H6("📊 Data Preview (First 5 rows)")
+                    html.H6("📋 Column Mapping Suggestions")
                 ]),
                 dbc.CardBody([
-                    dbc.Table.from_dataframe(
-                        preview_df,
-                        responsive=True,
-                        striped=True,
-                        size="sm"
-                    )
+                    dbc.Table([
+                        html.Thead([
+                            html.Tr([
+                                html.Th("Column Name"),
+                                html.Th("Suggested Field"),
+                                html.Th("Confidence"),
+                                html.Th("Status"),
+                                html.Th("Sample Data")
+                            ])
+                        ]),
+                        html.Tbody(table_rows)
+                    ], responsive=True, striped=True)
                 ])
             ], className="mb-3")
         else:
-            preview_table = html.Div()
-        
+            suggestions_table = dbc.Alert("No suggestions available", color="warning")
+
         return html.Div([
             summary_card,
-            suggestions_table,
-            preview_table
+            suggestions_table
         ])
-        
+
     except Exception as e:
         logger.error(f"Error creating suggests display: {e}")
         return dbc.Alert(f"Error creating display: {str(e)}", color="danger")
@@ -467,53 +456,48 @@ def layout():
      State("analytics-type", "value")],
     prevent_initial_call=True
 )
-def consolidated_analytics_callback(n_clicks, data_source, analysis_type):
+def corrected_analytics_callback(n_clicks, data_source, analysis_type):
     """
-    CONSOLIDATED CALLBACK - Replace existing analytics callbacks
-    
+    CORRECTED CALLBACK - Replace the existing analytics callback
+
     INTEGRATION INSTRUCTIONS:
-    1. Find existing callbacks that update analytics display
-    2. Replace them with this single consolidated callback
-    3. Remove duplicate callback functions
+    1. Find the existing callback that updates "analytics-display-area"
+    2. Replace it with this entire callback function
+    3. Keep the @callback decorator
     """
     if not n_clicks or not data_source or data_source == "none":
         return dbc.Alert("Please select a valid data source", color="warning")
-    
+
     try:
-        # Loading indicator
-        loading_content = [
-            dbc.Spinner([
-                html.H5("🔄 Processing..."),
-                html.P(f"Analyzing {data_source} for {analysis_type} patterns")
-            ], color="primary")
-        ]
-        
-        # Process based on analysis type
+        print(f"🚀 Starting analysis: {analysis_type} for {data_source}")
+
+        # Handle suggests analysis (this works)
         if analysis_type == "suggests":
-            # Handle suggests analysis
             suggests_data = process_suggests_analysis(data_source)
             return create_suggests_display(suggests_data)
-            
-        elif analysis_type in ["security", "trends", "behavior", "anomaly"]:
-            # Handle other analysis types
-            try:
-                service = get_analytics_service_safe()
-                if service:
-                    # Use service for analysis
-                    results = service.analyze_data(data_source, analysis_type)
-                    return create_analysis_results_display(results, analysis_type)
-                else:
-                    return create_limited_analysis_display(data_source, analysis_type)
-            except Exception as e:
-                return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
-                
+
+        # Handle data quality analysis (corrected)
         elif analysis_type == "quality":
-            # Handle data quality analysis
-            return create_data_quality_display(data_source)
-            
+            return create_data_quality_display_corrected(data_source)
+
+        # Handle other analysis types with corrected service calls
+        elif analysis_type in ["security", "trends", "behavior", "anomaly"]:
+            try:
+                # Use the corrected service analysis function
+                results = analyze_data_with_service(data_source, analysis_type)
+
+                if "error" in results:
+                    return dbc.Alert(f"Analysis failed: {results['error']}", color="danger")
+
+                return create_analysis_results_display(results, analysis_type)
+
+            except Exception as e:
+                print(f"❌ Analysis failed: {e}")
+                return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
+
         else:
             return dbc.Alert(f"Analysis type '{analysis_type}' not supported", color="warning")
-            
+
     except Exception as e:
         logger.error(f"Analytics callback error: {e}")
         return dbc.Alert(f"Error: {str(e)}", color="danger")
@@ -556,17 +540,137 @@ def update_status_alert(trigger):
 # Add these helper functions for non-suggests analysis types
 # =============================================================================
 
+def analyze_data_with_service(data_source: str, analysis_type: str) -> Dict[str, Any]:
+    """CORRECTED - Use actual AnalyticsService methods"""
+    try:
+        service = get_analytics_service_safe()
+        if not service:
+            return {"error": "Analytics service not available"}
+
+        print(f"🔍 Using AnalyticsService for {analysis_type} analysis")
+
+        # Extract the actual source name
+        if data_source.startswith("upload:"):
+            source_name = "uploaded"
+        elif data_source.startswith("service:"):
+            source_name = data_source.replace("service:", "")
+        else:
+            source_name = data_source
+
+        # Use the ACTUAL method that exists in AnalyticsService
+        analytics_results = service.get_analytics_by_source(source_name)
+
+        if analytics_results.get('status') == 'error':
+            return {"error": analytics_results.get('message', 'Unknown error')}
+
+        # Process results based on analysis type
+        processed_results = {
+            "analysis_type": analysis_type,
+            "data_source": data_source,
+            "total_events": analytics_results.get('total_events', 0),
+            "unique_users": analytics_results.get('unique_users', 0),
+            "unique_doors": analytics_results.get('unique_doors', 0),
+            "success_rate": analytics_results.get('success_rate', 0),
+            "date_range": analytics_results.get('date_range', {}),
+            "raw_results": analytics_results
+        }
+
+        return processed_results
+
+    except Exception as e:
+        print(f"❌ Service analysis failed: {e}")
+        return {"error": f"Service analysis failed: {str(e)}"}
+
+def create_data_quality_display_corrected(data_source: str) -> html.Div:
+    """CORRECTED - Data quality analysis with proper imports"""
+    try:
+        if data_source.startswith("upload:"):
+            filename = data_source.replace("upload:", "")
+
+            # CORRECTED IMPORT PATH
+            from pages.file_upload import get_uploaded_data
+            uploaded_files = get_uploaded_data()
+
+            if filename in uploaded_files:
+                df = uploaded_files[filename]
+
+                # Basic quality metrics
+                total_rows = len(df)
+                total_cols = len(df.columns)
+                missing_values = df.isnull().sum().sum()
+                duplicate_rows = df.duplicated().sum()
+
+                quality_score = max(0, 100 - (missing_values/total_rows*100) - (duplicate_rows/total_rows*10))
+
+                return dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("📊 Data Quality Analysis")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                html.H6("Dataset Overview"),
+                                html.P(f"File: {filename}"),
+                                html.P(f"Rows: {total_rows:,}"),
+                                html.P(f"Columns: {total_cols}"),
+                                html.P(f"Missing values: {missing_values:,}"),
+                                html.P(f"Duplicate rows: {duplicate_rows:,}")
+                            ], width=6),
+                            dbc.Col([
+                                html.H6("Quality Score"),
+                                dbc.Progress(
+                                    value=quality_score,
+                                    label=f"{quality_score:.1f}%",
+                                    color="success" if quality_score >= 80 else "warning" if quality_score >= 60 else "danger"
+                                ),
+                                html.Br(),
+                                html.H6("Column Info"),
+                                html.Ul([
+                                    html.Li(f"{col}: {df[col].dtype}")
+                                    for col in df.columns[:5]
+                                ])
+                            ], width=6)
+                        ])
+                    ])
+                ])
+        return dbc.Alert("Data quality analysis only available for uploaded files", color="info")
+    except Exception as e:
+        return dbc.Alert(f"Quality analysis error: {str(e)}", color="danger")
+
 def create_analysis_results_display(results: Dict[str, Any], analysis_type: str) -> html.Div:
     """Create display for standard analysis results"""
     try:
+        total_events = results.get('total_events', 0)
+        unique_users = results.get('unique_users', 0)
+        unique_doors = results.get('unique_doors', 0)
+        success_rate = results.get('success_rate', 0)
+
         return dbc.Card([
             dbc.CardHeader([
                 html.H5(f"📊 {analysis_type.title()} Analysis Results")
             ]),
             dbc.CardBody([
-                html.P(f"Analysis completed for {analysis_type} patterns."),
-                html.P(f"Found {results.get('total_events', 0)} events to analyze."),
-                html.P("Detailed results would be displayed here.")
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Summary Statistics"),
+                        html.P(f"Total Events: {total_events:,}"),
+                        html.P(f"Unique Users: {unique_users:,}"),
+                        html.P(f"Unique Doors: {unique_doors:,}"),
+                        html.P(f"Success Rate: {success_rate:.1%}")
+                    ], width=6),
+                    dbc.Col([
+                        html.H6("Analysis Details"),
+                        html.P(f"Analysis Type: {analysis_type.title()}"),
+                        html.P(f"Data Source: {results.get('data_source', 'Unknown')}"),
+                        html.P(f"Date Range: {results.get('date_range', {}).get('start', 'Unknown')} to {results.get('date_range', {}).get('end', 'Unknown')}")
+                    ], width=6)
+                ]),
+                html.Hr(),
+                dbc.Alert([
+                    html.H6("Analysis Complete"),
+                    html.P(f"Successfully processed {total_events:,} events for {analysis_type} analysis."),
+                    html.P("Detailed charts and insights would be displayed here in the full implementation.")
+                ], color="success")
             ])
         ])
     except Exception as e:
