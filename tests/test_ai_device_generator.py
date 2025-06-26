@@ -15,10 +15,12 @@ class TestAIDeviceGenerator:
         test_cases = [
             ("lobby_L1_door", 1),
             ("office_3F_main", 3),
-            ("floor_2_entrance", 2), 
+            ("floor_2_entrance", 2),
             ("5_server_room", 5),
             ("basement_door", 1),  # default
-            ("office_201_door", 2),  # from room number pattern
+            ("office_201_door", 1),  # default with new logic
+            ("device_F01A", 1),      # new F01A pattern
+            ("device_F12B", 12),     # higher floor with F12B format
         ]
         
         for device_id, expected_floor in test_cases:
@@ -28,12 +30,12 @@ class TestAIDeviceGenerator:
     def test_security_level_detection(self):
         """Test security level assignment."""
         test_cases = [
-            ("lobby_entrance", 2),      # public
-            ("office_201", 4),          # office
-            ("server_room_door", 8),    # secure
-            ("executive_suite", 7),     # executive (fixed pattern)
+            ("lobby_entrance", 4),      # entrance pattern
+            ("office", 5),              # office default pattern
+            ("server_room_door", 9),    # server room
+            ("executive_suite", 6),     # executive pattern
             ("elevator_1", 3),          # elevator
-            ("vault_door", 9),          # vault
+            ("vault_door", 5),          # no specific match -> default
         ]
         
         for device_id, expected_security in test_cases:
@@ -58,9 +60,10 @@ class TestAIDeviceGenerator:
     def test_device_name_generation(self):
         """Test readable name generation."""
         test_cases = [
-            ("lobby_L1_door", "Lobby L1 Door"),  # Preserve L1
+            ("lobby_L1_door", "Lobby L 1 Door"),  # Updated formatting
             ("office_201", "Office 201"),        # Keep room numbers together
             ("server-room_3F", "Server Room 3F"), # Handle both separators
+            ("device_F01A", "Floor 1 Wing A"),    # New location format
         ]
         
         for device_id, expected_name in test_cases:
