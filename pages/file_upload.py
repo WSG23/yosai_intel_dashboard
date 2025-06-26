@@ -349,7 +349,7 @@ def upload_callback_with_learning(contents_list, filenames_list):
 
 
 def process_uploaded_file(contents, filename):
-    """Process uploaded file content"""
+    """Process uploaded file content - FIXED JSON handling"""
     try:
         # Decode the base64 encoded file content
         content_type, content_string = contents.split(",")
@@ -358,35 +358,103 @@ def process_uploaded_file(contents, filename):
         # Determine file type and parse accordingly
         if filename.endswith(".csv"):
             df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+
         elif filename.endswith((".xlsx", ".xls")):
             df = pd.read_excel(io.BytesIO(decoded))
+
         elif filename.endswith(".json"):
-            df = pd.read_json(io.StringIO(decoded.decode("utf-8")))
+            # FIXED: Proper JSON handling to ensure DataFrame output
+            import json
+            json_str = decoded.decode("utf-8")
+            json_data = json.loads(json_str)
+
+            print(f"\U0001F50D JSON data type: {type(json_data)}")
+
+            # Handle different JSON structures
+            if isinstance(json_data, list):
+                # If it's a list of objects, convert directly
+                if json_data and isinstance(json_data[0], dict):
+                    df = pd.DataFrame(json_data)
+                    print(f"\u2705 Converted list of {len(json_data)} objects to DataFrame")
+                else:
+                    # If it's a list of primitives, create a single column
+                    df = pd.DataFrame({"data": json_data})
+                    print(f"\u2705 Converted list of primitives to DataFrame")
+
+            elif isinstance(json_data, dict):
+                # If it's a single object, wrap in a list
+                df = pd.DataFrame([json_data])
+                print(f"\u2705 Converted single object to DataFrame")
+
+            else:
+                # For other types, create a single-value DataFrame
+                df = pd.DataFrame({"data": [json_data]})
+                print(f"\u2705 Converted {type(json_data)} to DataFrame")
+
+            # Ensure we have a proper DataFrame
+            if not isinstance(df, pd.DataFrame):
+                raise ValueError(f"Failed to create DataFrame from JSON, got {type(df)}")
+
+            print(f"\U0001F4CA Final DataFrame shape: {df.shape}, columns: {list(df.columns)}")
+
         else:
             return {
                 "success": False,
-                "error": f"Unsupported file type. Supported: CSV, Excel, JSON",
+                "error": f"Unsupported file type: {filename.split('.')[-1]}",
             }
 
-        # Basic validation
-        if df.empty:
-            return {"success": False, "error": "File appears to be empty"}
+        # Validate the DataFrame
+        if df is None or not isinstance(df, pd.DataFrame):
+            return {
+                "success": False,
+                "error": f"Failed to create valid DataFrame from {filename}",
+            }
 
-        # Store in global store (in production, use proper session/database storage)
+        if df.empty:
+            return {
+                "success": False,
+                "error": f"File {filename} appears to be empty or has no valid data",
+            }
+
+        # Store in global upload data store
         _uploaded_data_store[filename] = df
+        print(f"\U0001F4BE Stored {filename} with shape {df.shape} in upload data store")
 
         return {
             "success": True,
-            "data": df,
-            "filename": filename,
+            "data": df,  # This should now always be a DataFrame
             "rows": len(df),
             "columns": len(df.columns),
-            "upload_time": pd.Timestamp.now().isoformat(),
+            "upload_time": datetime.now().isoformat(),
         }
 
+    except json.JSONDecodeError as e:
+        return {
+            "success": False,
+            "error": f"Invalid JSON format in {filename}: {str(e)}",
+        }
+    except UnicodeDecodeError as e:
+        return {
+            "success": False,
+            "error": f"Encoding error in {filename}: {str(e)}",
+        }
     except Exception as e:
         logger.error(f"Error processing file {filename}: {e}")
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": f"Error processing {filename}: {str(e)}",
+        }
+
+
+def debug_uploaded_data():
+    """Debug function to check what's in the upload data store"""
+    print("\U0001F50D DEBUG: Upload data store contents:")
+    for filename, data in _uploaded_data_store.items():
+        print(f"  \U0001F4C1 {filename}: type={type(data)}, shape={data.shape if hasattr(data, 'shape') else 'N/A'}")
+        if hasattr(data, 'columns'):
+            print(f"    \U0001F4CB Columns: {list(data.columns)}")
+        else:
+            print(f"    \u274C No columns attribute - this is the problem!")
 
 
 def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card:
