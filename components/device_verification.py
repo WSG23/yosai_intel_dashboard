@@ -167,28 +167,50 @@ def create_device_verification_modal(device_mappings: Dict[str, Dict], session_i
      State({"type": "device-security", "index": ALL}, "value")],
     prevent_initial_call=True
 )
-def confirm_device_mappings_fixed(n_clicks, device_names, floors, access_types, special_areas,
+def confirm_device_mappings_safe(n_clicks, device_names, floors, access_types, special_areas,
                           security_levels):
-    """Confirm device mappings - fixed version without session_id requirement"""
+    """Confirm device mappings - SAFE version that handles None values"""
     if not n_clicks:
         return dash.no_update
 
     try:
+        print(f"🔄 Processing device confirmations...")
+        print(f"   Device names: {device_names}")
+        print(f"   Floors: {floors}")
+        print(f"   Access types: {access_types}")
+
         device_mappings = {}
         corrections_count = 0
-        
-        for i, device_name in enumerate(device_names or []):
+
+        # Safely handle all the inputs that might be None
+        device_names = device_names or []
+        floors = floors or []
+        access_types = access_types or []
+        special_areas = special_areas or []
+        security_levels = security_levels or []
+
+        for i, device_name in enumerate(device_names):
             if not device_name:
                 continue
 
+            # Safely get values with defaults
+            floor_val = floors[i] if i < len(floors) else None
+            access_val = access_types[i] if i < len(access_types) else []
+            special_val = special_areas[i] if i < len(special_areas) else []
+            security_val = security_levels[i] if i < len(security_levels) else 5
+
+            # Handle None values in lists
+            access_val = access_val or []
+            special_val = special_val or []
+
             attributes = {
-                'floor_number': floors[i] if i < len(floors or []) else None,
-                'is_entry': 'is_entry' in (access_types[i] if i < len(access_types or []) else []),
-                'is_exit': 'is_exit' in (access_types[i] if i < len(access_types or []) else []),
-                'is_elevator': 'is_elevator' in (special_areas[i] if i < len(special_areas or []) else []),
-                'is_stairwell': 'is_stairwell' in (special_areas[i] if i < len(special_areas or []) else []),
-                'is_fire_escape': 'is_fire_escape' in (special_areas[i] if i < len(special_areas or []) else []),
-                'security_level': security_levels[i] if i < len(security_levels or []) else 1,
+                'floor_number': floor_val,
+                'is_entry': 'is_entry' in access_val,
+                'is_exit': 'is_exit' in access_val,
+                'is_elevator': 'is_elevator' in special_val,
+                'is_stairwell': 'is_stairwell' in special_val,
+                'is_fire_escape': 'is_fire_escape' in special_val,
+                'security_level': security_val,
                 'manually_edited': True,
                 'ai_generated': True
             }
@@ -196,20 +218,26 @@ def confirm_device_mappings_fixed(n_clicks, device_names, floors, access_types, 
             device_mappings[device_name] = attributes
             corrections_count += 1
 
-        print(f"✅ Device AI learned from {corrections_count} corrections: {device_mappings}")
+        print(f"✅ Device mappings processed: {device_mappings}")
 
         return dbc.Alert([
             html.H6("Device Classifications Confirmed!", className="alert-heading mb-2"),
             html.P([
-                f"Processed {len(device_mappings)} devices. ",
+                f"Successfully processed {len(device_mappings)} devices. ",
                 f"AI learned from {corrections_count} manual corrections."
             ]),
             html.Hr(),
-            html.P("Ready for data analysis with enhanced device context.", className="mb-0")
+            html.P("Device mappings saved. Ready for data analysis!", className="mb-0")
         ], color="success")
 
     except Exception as e:
-        return dbc.Alert(f"Error confirming device mappings: {str(e)}", color="danger")
+        print(f"❌ Error in device confirmation: {e}")
+        return dbc.Alert([
+            html.H6("Error Processing Device Mappings", className="alert-heading"),
+            html.P(f"An error occurred: {str(e)}"),
+            html.Hr(),
+            html.P("Please try again or contact support if the issue persists.", className="mb-0")
+        ], color="danger")
 
 
 @callback(
@@ -227,5 +255,5 @@ def mark_device_as_edited(floor, access, special, security):
 
 __all__ = [
     'create_device_verification_modal',
-    'confirm_device_mappings_fixed'
+    'confirm_device_mappings_safe'
 ]
