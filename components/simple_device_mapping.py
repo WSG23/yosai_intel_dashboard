@@ -2,7 +2,6 @@
 
 from dash import html, dcc, callback, Input, Output, State, ALL
 import dash
-from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 from typing import List
 
@@ -124,52 +123,38 @@ def create_simple_device_modal(devices: List[str]) -> dbc.Modal:
 
 
 @callback(
+    Output("simple-device-modal", "is_open"),
     [
-        Output("simple-device-modal", "children"),
-        Output("upload-results", "children", allow_duplicate=True),
+        Input("open-device-mapping", "n_clicks"),
+        Input("device-modal-cancel", "n_clicks"),
+        Input("device-modal-save", "n_clicks"),
     ],
-    Input("open-device-mapping", "n_clicks"),
+    [State("simple-device-modal", "is_open")],
     prevent_initial_call=True,
 )
-def open_device_mapping_modal(open_clicks):
-    """Open and populate device mapping modal"""
-    if open_clicks:
-        print(
-            f"\U0001f527 Opening device mapping modal (click #{open_clicks})"
-        )
+def toggle_simple_device_modal(open_clicks, cancel_clicks, save_clicks, is_open):
+    """Control the simple device modal open/close state"""
+    ctx = dash.callback_context
 
-        sample_devices = [
-            "main_entrance",
-            "office_door_201",
-            "server_room_3f",
-            "elevator_bank",
-        ]
+    if not ctx.triggered:
+        return is_open
 
-        # Create the complete modal with is_open=True
-        modal = create_simple_device_modal(sample_devices)
-        modal.is_open = True
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(f"🎯 Modal button triggered: {button_id}")
 
-        # Show opening message
-        opening_alert = dbc.Alert(
-            "Device mapping modal opened! Fill in the device details and click Save.",
-            color="info",
-            dismissable=True,
-        )
+    if button_id == "open-device-mapping" and open_clicks:
+        print("📂 Opening device mapping modal")
+        return True
+    elif button_id in ["device-modal-cancel", "device-modal-save"]:
+        print("🚪 Closing device mapping modal")
+        return False
 
-        return modal, opening_alert
-
-    return dash.no_update, dash.no_update
+    return is_open
 
 
 @callback(
-    [
-        Output("simple-device-modal", "children", allow_duplicate=True),
-        Output("upload-results", "children", allow_duplicate=True),
-    ],
-    [
-        Input("device-modal-save", "n_clicks"),
-        Input("device-modal-cancel", "n_clicks"),
-    ],
+    Output("upload-results", "children", allow_duplicate=True),
+    Input("device-modal-save", "n_clicks"),
     [
         State({"type": "device-name", "index": ALL}, "data"),
         State({"type": "device-floor", "index": ALL}, "value"),
@@ -178,65 +163,47 @@ def open_device_mapping_modal(open_clicks):
     ],
     prevent_initial_call=True,
 )
-def handle_device_modal_actions(
-    save_clicks,
-    cancel_clicks,
-    device_names,
-    floors,
-    access_lists,
-    security_levels,
-):
-    """Handle save/cancel from device modal"""
-    ctx = dash.callback_context
+def save_device_mappings(n_clicks, device_names, floors, access_lists, security_levels):
+    """Save device mappings when Save button is clicked"""
+    if not n_clicks:
+        return dash.no_update
 
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
+    device_mappings = {}
+    for i, device in enumerate(device_names or []):
+        if device:
+            device_mappings[device] = {
+                "floor": floors[i] if i < len(floors or []) else None,
+                "access": access_lists[i] if i < len(access_lists or []) else [],
+                "security_level": security_levels[i] if i < len(security_levels or []) else 1,
+            }
 
-    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    print(f"\U0001f3af Device modal action: {button_id}")
+    print(f"✅ Device mappings saved: {device_mappings}")
 
-    # Close modal (empty div with is_open=False)
-    closed_modal = html.Div()
+    success_message = dbc.Alert(
+        [
+            html.H6("Device Mapping Complete!", className="alert-heading"),
+            html.P(f"Successfully mapped {len(device_mappings)} devices with floor and security information."),
+            html.Hr(),
+            html.P("Ready to proceed with analytics!", className="mb-0"),
+        ],
+        color="success",
+    )
 
-    if button_id == "device-modal-cancel":
-        cancel_alert = dbc.Alert(
+    return success_message
+
+
+@callback(
+    Output("upload-results", "children", allow_duplicate=True),
+    Input("device-modal-cancel", "n_clicks"),
+    prevent_initial_call=True,
+)
+def cancel_device_mappings(n_clicks):
+    """Handle cancel button"""
+    if n_clicks:
+        print("❌ Device mapping cancelled")
+        return dbc.Alert(
             "Device mapping cancelled.",
             color="warning",
-            dismissable=True,
+            dismissable=True
         )
-        return closed_modal, cancel_alert
-
-    elif button_id == "device-modal-save" and save_clicks:
-        # Process the device mappings
-        device_mappings = {}
-        for i, device in enumerate(device_names or []):
-            if device:
-                device_mappings[device] = {
-                    "floor": floors[i] if i < len(floors or []) else None,
-                    "access": (
-                        access_lists[i] if i < len(access_lists or []) else []
-                    ),
-                    "security_level": (
-                        security_levels[i]
-                        if i < len(security_levels or [])
-                        else 1
-                    ),
-                }
-
-        print(f"\u2705 Device mappings saved: {device_mappings}")
-
-        success_alert = dbc.Alert(
-            [
-                html.H6("Device Mapping Complete!", className="alert-heading"),
-                html.P(
-                    f"Successfully mapped {len(device_mappings)} devices with floor and security information."
-                ),
-                html.Hr(),
-                html.P("Ready to proceed with analytics!", className="mb-0"),
-            ],
-            color="success",
-        )
-
-        return closed_modal, success_alert
-
-    return dash.no_update, dash.no_update
+    return dash.no_update

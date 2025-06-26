@@ -151,7 +151,12 @@ def layout():
                 is_open=False,
                 size="xl",
             ),
-            html.Div(id="simple-device-modal"),
+            create_simple_device_modal([
+                "main_entrance",
+                "office_door_201",
+                "server_room_3f",
+                "elevator_bank",
+            ]),
         ],
         fluid=True,
     )
