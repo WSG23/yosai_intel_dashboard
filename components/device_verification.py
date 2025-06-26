@@ -159,31 +159,27 @@ def create_device_verification_modal(device_mappings: Dict[str, Dict], session_i
 
 
 @callback(
-    Output("upload-results", "children", allow_duplicate=True),
+    [
+        Output("upload-results", "children", allow_duplicate=True),
+        Output("device-verification-modal", "is_open", allow_duplicate=True),
+    ],
     [Input("device-verify-confirm", "n_clicks")],
     [State({"type": "device-name", "index": ALL}, "data"),
      State({"type": "device-floor", "index": ALL}, "value"),
      State({"type": "device-access", "index": ALL}, "value"),
      State({"type": "device-special", "index": ALL}, "value"),
-     State({"type": "device-security", "index": ALL}, "value"),
-     State("current-file-info-store", "data")],
+     State({"type": "device-security", "index": ALL}, "value")],
     prevent_initial_call=True
 )
-def confirm_device_mappings_with_persistence(n_clicks, device_names, floors, access_types,
-                                           special_areas, security_levels, file_info):
-    """Confirm device mappings with persistence and button preservation"""
+def confirm_device_mappings_with_success(n_clicks, device_names, floors, access_types, special_areas, security_levels):
+    """Confirm device mappings with proper success message and keep buttons available"""
     if not n_clicks:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     try:
-        from services.device_learning_service import get_device_learning_service
-        from pages.file_upload import get_uploaded_data
+        print(f"🔄 Confirming device mappings...")
 
-        learning_service = get_device_learning_service()
-
-        print(f"🔄 Confirming device mappings with persistence...")
-
-        # Process device mappings
+        # Safely handle inputs
         device_names = device_names or []
         floors = floors or []
         access_types = access_types or []
@@ -215,81 +211,59 @@ def confirm_device_mappings_with_persistence(n_clicks, device_names, floors, acc
                 'is_fire_escape': 'is_fire_escape' in special_val,
                 'security_level': security_val,
                 'manually_edited': True,
-                'learned_at': datetime.now().isoformat()
+                'ai_generated': True
             }
 
             device_mappings[device_name] = attributes
             corrections_count += 1
 
-        uploaded_data = get_uploaded_data()
-        if uploaded_data and file_info:
-            for filename, df in uploaded_data.items():
-                fingerprint = learning_service.save_device_mappings(df, filename, device_mappings)
-                print(f"💾 Saved device mappings to learning system: {fingerprint}")
-                break
+        print(f"✅ Device mappings confirmed: {device_mappings}")
 
-        print(f"✅ Device mappings saved with persistence: {device_mappings}")
+        # Store mappings globally for transfer to simple mapping
+        global _device_ai_mappings
+        _device_ai_mappings = device_mappings
 
-        success_interface = html.Div([
+        # Create success message with device mapping button still available
+        success_message = html.Div([
             dbc.Alert([
-                html.H6("🎉 Device Classifications Saved!", className="alert-heading mb-2"),
+                html.H6("🎉 Device Classifications Confirmed!", className="alert-heading mb-2"),
                 html.P([
-                    f"Successfully learned {len(device_mappings)} device mappings. ",
-                    "These settings will be automatically applied next time you upload this file!"
+                    f"Successfully processed {len(device_mappings)} devices. ",
+                    f"AI learned from {corrections_count} manual corrections."
                 ]),
                 html.Hr(),
-                html.Small([
-                    html.I(className="fas fa-info-circle me-1"),
-                    "The system now remembers your preferences for this file type."
-                ], className="text-muted")
+                html.P("Device mappings saved and available for manual mapping!", className="mb-0")
             ], color="success", className="mb-3"),
 
-            dbc.Card([
-                dbc.CardBody([
-                    html.H6("Device Mapping Options", className="card-title"),
-                    html.P("Continue working with device mappings or proceed to analytics.", className="card-text small"),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Button(
-                                [html.I(className="fas fa-robot me-1"), "Classify Devices"],
-                                id="classify-devices-btn",
-                                color="info",
-                                size="sm",
-                                className="me-2"
-                            ),
-                            dbc.Button(
-                                [html.I(className="fas fa-map-marked-alt me-1"), "Map Manual"],
-                                id="open-device-mapping",
-                                color="primary",
-                                size="sm",
-                                className="me-2"
-                            ),
-                            dbc.Button(
-                                [html.I(className="fas fa-chart-line me-1"), "View Analytics"],
-                                href="/analytics",
-                                color="success",
-                                size="sm"
-                            )
-                        ])
-                    ])
+            # Keep the device mapping button available
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button(
+                        "📍 Map Manual",
+                        id="open-device-mapping",
+                        color="outline-primary",
+                        size="sm",
+                        className="me-2"
+                    ),
+                    dbc.Button(
+                        "🤖 Classify Devices",
+                        id="classify-devices-btn",
+                        color="outline-info",
+                        size="sm"
+                    )
                 ])
-            ], className="mb-3"),
-
-            dbc.Alert([
-                html.Strong("🧠 Learning Status: "),
-                f"System has learned {corrections_count} device mappings. ",
-                "Next upload of similar files will use these settings automatically!"
-            ], color="light", className="small")
+            ])
         ])
 
-        return success_interface
+        return success_message, False  # Close modal but keep interface
 
     except Exception as e:
         print(f"❌ Error confirming device mappings: {e}")
-        return dbc.Alert([
-            html.H6("Error Saving Device Mappings", className="alert-heading"),
+        error_message = dbc.Alert([
+            html.H6("Error Processing Device Mappings", className="alert-heading"),
             html.P(f"An error occurred: {str(e)}"),
         ], color="danger")
+        return error_message, False
 
 
 @callback(
@@ -307,5 +281,5 @@ def mark_device_as_edited(floor, access, special, security):
 
 __all__ = [
     'create_device_verification_modal',
-    'confirm_device_mappings_with_persistence'
+    'confirm_device_mappings_with_success'
 ]
