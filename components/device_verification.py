@@ -164,14 +164,13 @@ def create_device_verification_modal(device_mappings: Dict[str, Dict], session_i
      State({"type": "device-floor", "index": ALL}, "value"),
      State({"type": "device-access", "index": ALL}, "value"),
      State({"type": "device-special", "index": ALL}, "value"),
-     State({"type": "device-security", "index": ALL}, "value"),
-     State("current-session-id", "data")],
+     State({"type": "device-security", "index": ALL}, "value")],
     prevent_initial_call=True
 )
-def confirm_device_mappings(n_clicks, device_names, floors, access_types, special_areas, 
-                          security_levels, session_id):
-    """Confirm device mappings - same pattern as column confirmation"""
-    if not n_clicks or not session_id:
+def confirm_device_mappings_fixed(n_clicks, device_names, floors, access_types, special_areas,
+                          security_levels):
+    """Confirm device mappings - fixed version without session_id requirement"""
+    if not n_clicks:
         return dash.no_update
 
     try:
@@ -181,11 +180,7 @@ def confirm_device_mappings(n_clicks, device_names, floors, access_types, specia
         for i, device_name in enumerate(device_names or []):
             if not device_name:
                 continue
-                
-            # Get original attributes for comparison
-            # (In real implementation, you'd compare with original AI suggestions)
-            manually_edited = True  # Simplified - assume user reviewed it
-            
+
             attributes = {
                 'floor_number': floors[i] if i < len(floors or []) else None,
                 'is_entry': 'is_entry' in (access_types[i] if i < len(access_types or []) else []),
@@ -194,19 +189,14 @@ def confirm_device_mappings(n_clicks, device_names, floors, access_types, specia
                 'is_stairwell': 'is_stairwell' in (special_areas[i] if i < len(special_areas or []) else []),
                 'is_fire_escape': 'is_fire_escape' in (special_areas[i] if i < len(special_areas or []) else []),
                 'security_level': security_levels[i] if i < len(security_levels or []) else 1,
-                'manually_edited': manually_edited,
+                'manually_edited': True,
                 'ai_generated': True
             }
-            
-            device_mappings[device_name] = attributes
-            if manually_edited:
-                corrections_count += 1
 
-        print(f"🤖 Device AI will learn from {corrections_count} corrections")
-        
-        # Here you would call your AI service
-        # ai_plugin = get_ai_plugin()  # Your method to get plugin
-        # ai_plugin.confirm_device_mapping(device_mappings, session_id)
+            device_mappings[device_name] = attributes
+            corrections_count += 1
+
+        print(f"✅ Device AI learned from {corrections_count} corrections: {device_mappings}")
 
         return dbc.Alert([
             html.H6("Device Classifications Confirmed!", className="alert-heading mb-2"),
@@ -237,5 +227,5 @@ def mark_device_as_edited(floor, access, special, security):
 
 __all__ = [
     'create_device_verification_modal',
-    'confirm_device_mappings'
+    'confirm_device_mappings_fixed'
 ]

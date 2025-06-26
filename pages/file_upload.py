@@ -113,6 +113,7 @@ def layout():
             # Store for uploaded data info
             dcc.Store(id="file-info-store", data={}),
             dcc.Store(id="current-file-info-store"),
+            dcc.Store(id="current-session-id", data="session_123"),
             dbc.Modal(
                 [
                     dbc.ModalHeader(dbc.ModalTitle("Column Mapping")),
@@ -685,6 +686,63 @@ def open_device_modal(n_clicks):
         )
         return alert, True
     return dash.no_update, False
+
+
+@callback(
+    Output("device-modal-body", "children"),
+    Input("device-verification-modal", "is_open"),
+    State("current-file-info-store", "data"),
+    prevent_initial_call=True,
+)
+def populate_device_modal_content(is_open, file_info):
+    """Populate device verification modal with AI suggestions"""
+    if not is_open or not file_info:
+        return dash.no_update
+
+    try:
+        from services.door_mapping_service import door_mapping_service
+
+        df = _uploaded_data_store.get(file_info.get("filename"))
+        if df is None:
+            return html.Div("No data for device mapping")
+
+        service_result = door_mapping_service.process_uploaded_data(df)
+        devices = {
+            d["door_id"]: {
+                "floor_number": d.get("floor"),
+                "is_entry": d.get("entry"),
+                "is_exit": d.get("exit"),
+                "is_elevator": d.get("elevator"),
+                "is_stairwell": d.get("stairwell"),
+                "is_fire_escape": d.get("fire_escape"),
+                "security_level": d.get("security_level", 1),
+                "confidence": (d.get("confidence", 50) / 100.0),
+            }
+            for d in service_result.get("devices", [])
+        }
+
+        session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        return create_device_verification_modal(devices, session_id).children
+
+    except Exception as e:  # pragma: no cover - best effort
+        print(f"❌ Error populating device modal: {e}")
+        return html.Div("Error loading device data")
+
+
+@callback(
+    Output("device-verification-modal", "is_open", allow_duplicate=True),
+    [
+        Input("device-verify-cancel", "n_clicks"),
+        Input("device-verify-confirm", "n_clicks"),
+    ],
+    prevent_initial_call=True,
+)
+def close_device_modal(cancel_clicks, confirm_clicks):
+    """Close device modal when cancel or confirm is clicked"""
+    if cancel_clicks or confirm_clicks:
+        print("🚪 Closing device modal")
+        return False
+    return dash.no_update
 
 
 @callback(
