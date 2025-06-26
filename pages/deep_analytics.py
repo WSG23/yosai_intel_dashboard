@@ -35,13 +35,22 @@ logger = logging.getLogger(__name__)
 
 
 def get_analytics_service_safe():
-    """Safely obtain analytics service"""
-    if not ANALYTICS_SERVICE_AVAILABLE:
-        return None
+    """Get analytics service with working fallback"""
+
+    # First try the original service
+    if ANALYTICS_SERVICE_AVAILABLE:
+        try:
+            return get_analytics_service()
+        except Exception as e:
+            print(f"⚠️ Original service failed: {e}")
+
+    # Fall back to working service
     try:
-        return get_analytics_service()
-    except Exception as e:
-        logger.error(f"Failed to get analytics service: {e}")
+        from services.working_analytics_service import get_working_analytics_service
+        print("✅ Using working analytics service")
+        return get_working_analytics_service()
+    except ImportError:
+        print("❌ Working service not available")
         return None
 
 
@@ -615,3 +624,33 @@ If you still see a blank page:
 print(integration_instructions)
 
 __all__ = ["layout"]
+
+
+@callback(
+    Output("service-health-store", "data"),
+    Input("hidden-trigger", "children"),
+    prevent_initial_call=False
+)
+def update_service_health(trigger):
+    """Update service health status"""
+    try:
+        service = get_analytics_service_safe()
+        if service:
+            health = service.health_check()
+            return health
+        else:
+            return {"service": "limited", "message": "Service unavailable"}
+    except Exception as e:
+        return {"service": "error", "message": str(e)}
+
+
+@callback(
+    Output("analytics-data-source", "options"),
+    Input("refresh-sources-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+def refresh_data_sources(n_clicks):
+    """Refresh available data sources"""
+    if n_clicks:
+        return get_data_source_options_safe()
+    return get_data_source_options_safe()
