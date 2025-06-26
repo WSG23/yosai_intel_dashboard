@@ -150,15 +150,30 @@ class AIDeviceGenerator:
         """Generate human-readable device name."""
         # Replace underscores and hyphens with spaces
         name = re.sub(r'[_-]', ' ', device_id)
-        
+
         # Add spaces before numbers, but preserve existing letter-number combinations
         # Don't add space if there's already a space or if it's like "L1"
-        name = re.sub(r'([a-zA-Z])([0-9])', lambda m: 
-                     f"{m.group(1)} {m.group(2)}" if len(m.group(1)) > 1 else m.group(0), name)
-        
-        # Capitalize words
-        name = ' '.join(word.capitalize() for word in name.split())
-        
+        name = re.sub(
+            r'([a-zA-Z])([0-9])',
+            lambda m: f"{m.group(1)} {m.group(2)}" if len(m.group(1)) > 1 else m.group(0),
+            name,
+        )
+
+        # Split into words and capitalize, but preserve floor indicators like "3F"
+        words = name.split()
+        capitalized_words = []
+
+        for word in words:
+            # Check if word is a floor indicator (number followed by F)
+            if re.match(r'^\d+[Ff]$', word):
+                # Preserve but ensure F is uppercase
+                capitalized_words.append(word.upper())
+            else:
+                # Normal capitalization
+                capitalized_words.append(word.capitalize())
+
+        name = ' '.join(capitalized_words)
+
         reasoning.append(f"Generated readable name")
         return name
 
