@@ -840,15 +840,21 @@ def populate_device_modal_with_learning(is_open, file_info):
                                     id={"type": "device-special", "index": i},
                                     options=[
                                         {"label": "Elevator", "value": "is_elevator"},
-                                        {
-                                            "label": "Restricted",
-                                            "value": "is_restricted",
-                                        },
-                                    ],
+                                        {"label": "Restricted", "value": "is_restricted"},
+                                        {"label": "Stairwell", "value": "is_stairwell"},
+                                        {"label": "Fire Exit", "value": "is_fire_escape"},
+                                    ],  # ADDED Stairwell and Fire Exit
                                     value=[
                                         k
                                         for k, v in ai_attributes.items()
-                                        if k in ["is_elevator", "is_restricted"] and v
+                                        if k
+                                        in [
+                                            "is_elevator",
+                                            "is_restricted",
+                                            "is_stairwell",
+                                            "is_fire_escape",
+                                        ]
+                                        and v
                                     ],
                                     inline=False,
                                 )
