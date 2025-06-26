@@ -361,32 +361,61 @@ def process_uploaded_file(contents, filename):
         elif filename.endswith((".xlsx", ".xls")):
             df = pd.read_excel(io.BytesIO(decoded))
         elif filename.endswith(".json"):
-            df = pd.read_json(io.StringIO(decoded.decode("utf-8")))
+            # Fix for JSON processing to ensure DataFrame is returned
+            try:
+                import json
+                json_data = json.loads(decoded.decode("utf-8"))
+
+                # Handle different JSON structures
+                if isinstance(json_data, list):
+                    df = pd.DataFrame(json_data)
+                elif isinstance(json_data, dict):
+                    if 'data' in json_data:
+                        df = pd.DataFrame(json_data['data'])
+                    else:
+                        df = pd.DataFrame([json_data])
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Unsupported JSON structure: {type(json_data)}"
+                    }
+            except json.JSONDecodeError as e:
+                return {
+                    "success": False,
+                    "error": f"Invalid JSON format: {str(e)}"
+                }
         else:
             return {
                 "success": False,
-                "error": f"Unsupported file type. Supported: CSV, Excel, JSON",
+                "error": f"Unsupported file type. Supported: .csv, .json, .xlsx, .xls"
             }
 
-        # Basic validation
-        if df.empty:
-            return {"success": False, "error": "File appears to be empty"}
+        # Validate the DataFrame
+        if not isinstance(df, pd.DataFrame):
+            return {
+                "success": False,
+                "error": f"Processing resulted in {type(df)} instead of DataFrame"
+            }
 
-        # Store in global store (in production, use proper session/database storage)
-        _uploaded_data_store[filename] = df
+        if df.empty:
+            return {
+                "success": False,
+                "error": "File contains no data"
+            }
 
         return {
             "success": True,
             "data": df,
-            "filename": filename,
             "rows": len(df),
-            "columns": len(df.columns),
-            "upload_time": pd.Timestamp.now().isoformat(),
+            "columns": list(df.columns),
+            "upload_time": datetime.now(),
         }
 
     except Exception as e:
-        logger.error(f"Error processing file {filename}: {e}")
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": f"Error processing file: {str(e)}"
+        }
 
 
 def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card:
