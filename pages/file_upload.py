@@ -169,6 +169,11 @@ def layout():
             dbc.Row([dbc.Col([html.Div(id="file-preview")])]),
             # Navigation to analytics
             dbc.Row([dbc.Col([html.Div(id="upload-nav")])]),
+            # PLACEHOLDER BUTTONS - prevent callback reference errors
+            html.Div([
+                dbc.Button("", id="verify-columns-btn-simple", style={"display": "none"}),
+                dbc.Button("", id="classify-devices-btn", style={"display": "none"}),
+            ], style={"display": "none"}),
             # Store for uploaded data info
             dcc.Store(id="file-info-store", data={}),
             dcc.Store(id="current-file-info-store"),
