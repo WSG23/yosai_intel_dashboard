@@ -1,656 +1,592 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """
-Deep Analytics UI - Safe Implementation
-This module replaces the previous implementation with a safer version
-including comprehensive error handling and service fallbacks.
+Deep Analytics UI Fix - Modular Replacement Code
+Fixes suggests not showing and UI display issues
 """
+
+# =============================================================================
+# SECTION 1: CONSOLIDATED IMPORTS
+# Replace the import section at the top of pages/deep_analytics.py
+# =============================================================================
 
 import logging
+from typing import Dict, List, Any, Optional, Tuple
 import pandas as pd
 from datetime import datetime
-from typing import Dict, Any, Optional, List
-import json
 
-from dash import html, dcc, callback, Input, Output, State, no_update
-from dash.exceptions import PreventUpdate
+# Dash core imports
+from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 
+# Internal service imports with safe fallbacks
 try:
-    from services.analytics_service import get_analytics_service
+    from services.analytics_service import AnalyticsService
     ANALYTICS_SERVICE_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Analytics service not available: {e}")
+except ImportError:
     ANALYTICS_SERVICE_AVAILABLE = False
 
 try:
-    from components import create_summary_cards, create_analytics_charts
-    COMPONENTS_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Components not available: {e}")
-    COMPONENTS_AVAILABLE = False
+    from components.column_verification import get_ai_suggestions_for_file
+    AI_SUGGESTIONS_AVAILABLE = True
+except ImportError:
+    AI_SUGGESTIONS_AVAILABLE = False
 
+# Logger setup
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# SECTION 2: SAFE SERVICE UTILITIES 
+# Add these utility functions to pages/deep_analytics.py
+# =============================================================================
 
-def get_analytics_service_safe():
-    """Get analytics service with working fallback"""
-
-    # First try the original service
-    if ANALYTICS_SERVICE_AVAILABLE:
-        try:
-            return get_analytics_service()
-        except Exception as e:
-            print(f"⚠️ Original service failed: {e}")
-
-    # Fall back to working service
+def get_analytics_service_safe() -> Optional[AnalyticsService]:
+    """Safely get analytics service instance"""
     try:
-        from services.working_analytics_service import get_working_analytics_service
-        print("✅ Using working analytics service")
-        return get_working_analytics_service()
-    except ImportError:
-        print("❌ Working service not available")
+        if ANALYTICS_SERVICE_AVAILABLE:
+            return AnalyticsService()
+        return None
+    except Exception as e:
+        logger.warning(f"Analytics service unavailable: {e}")
         return None
 
-
 def get_data_source_options_safe() -> List[Dict[str, str]]:
-    """Return available data source options with fallback."""
-    service = get_analytics_service_safe()
-    if service:
-        try:
-            return service.get_data_source_options()
-        except Exception as e:
-            logger.error(f"Failed to get data source options: {e}")
-
-    return [
-        {"label": "📊 Sample Data", "value": "sample"},
-        {"label": "📁 Uploaded Files", "value": "uploaded"},
-        {"label": "🗄️ Database", "value": "database"},
-    ]
-
-
-def layout():
-    """Return the Deep Analytics page layout with error handling"""
-    print("🚀 Creating Deep Analytics layout...")
-
+    """Safely get available data sources with suggests integration"""
+    options = []
+    
     try:
-        options = get_data_source_options_safe()
-        print(f"📊 Data source options: {len(options)} available")
-
-        layout_components: List[Any] = []
-
-        layout_components.append(
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H1("🔍 Deep Analytics", className="text-primary mb-2"),
-                            html.P(
-                                "Advanced data analysis and security insights",
-                                className="text-muted mb-3",
-                            ),
-                            html.Div(
-                                id="service-health-indicator",
-                                children=[
-                                    dbc.Badge(
-                                        "🟢 System Ready" if ANALYTICS_SERVICE_AVAILABLE else "🟡 Limited Mode",
-                                        color="success" if ANALYTICS_SERVICE_AVAILABLE else "warning",
-                                    )
-                                ],
-                            ),
-                        ]
-                    )
-                ],
-                className="mb-4",
-            )
-        )
-
-        layout_components.append(
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            dbc.Card(
-                                [
-                                    dbc.CardHeader([html.H5("📊 Analytics Configuration", className="mb-0")]),
-                                    dbc.CardBody(
-                                        [
-                                            dbc.Row(
-                                                [
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Data Source:"),
-                                                            dcc.Dropdown(
-                                                                id="analytics-data-source",
-                                                                options=options,
-                                                                value="sample",
-                                                                placeholder="Choose data source...",
-                                                                style={"marginBottom": "10px"},
-                                                            ),
-                                                            html.Small(
-                                                                id="data-source-info",
-                                                                className="text-muted",
-                                                            ),
-                                                        ],
-                                                        width=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Analysis Type:"),
-                                                            dcc.Dropdown(
-                                                                id="analytics-type",
-                                                                options=[
-                                                                    {"label": "🔒 Security Patterns", "value": "security"},
-                                                                    {"label": "📈 Access Trends", "value": "trends"},
-                                                                    {"label": "👤 User Behavior", "value": "behavior"},
-                                                                    {"label": "🚨 Anomaly Detection", "value": "anomaly"},
-                                                                ],
-                                                                value="security",
-                                                                placeholder="Select analysis type...",
-                                                                style={"marginBottom": "10px"},
-                                                            ),
-                                                        ],
-                                                        width=6,
-                                                    ),
-                                                ]
-                                            ),
-                                            html.Hr(),
-                                            dbc.ButtonGroup(
-                                                [
-                                                    dbc.Button(
-                                                        "🚀 Generate Analytics",
-                                                        id="generate-analytics-btn",
-                                                        color="primary",
-                                                        size="lg",
-                                                    ),
-                                                    dbc.Button(
-                                                        "🔄 Refresh Data Sources",
-                                                        id="refresh-sources-btn",
-                                                        color="outline-secondary",
-                                                        size="lg",
-                                                    ),
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                ]
-                            )
-                        ]
-                    )
-                ],
-                className="mb-4",
-            )
-        )
-
-        layout_components.append(
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.Div(
-                                id="analytics-display-area",
-                                children=[
-                                    dbc.Alert(
-                                        "👆 Select data source and analysis type, then click 'Generate Analytics' to begin",
-                                        color="info",
-                                    )
-                                ],
-                            )
-                        ]
-                    )
-                ]
-            )
-        )
-
-        layout_components.extend(
-            [
-                dcc.Store(id="analytics-results-store", data={}),
-                dcc.Store(id="service-health-store", data={}),
-                html.Div(id="hidden-trigger", style={"display": "none"}),
-            ]
-        )
-
-        final_layout = dbc.Container(layout_components, fluid=True)
-        print("✅ Deep Analytics layout created successfully")
-        return final_layout
-
-    except Exception as e:  # pragma: no cover - critical runtime safeguard
-        logger.error(f"Critical error creating layout: {e}")
-        print(f"❌ Layout creation failed: {e}")
-        return dbc.Container(
-            [
-                dbc.Alert(
-                    [
-                        html.H4("⚠️ Page Loading Error"),
-                        html.P(f"Error: {str(e)}"),
-                        html.P("This page is temporarily unavailable. Please try refreshing or contact support."),
-                        dbc.Button("🔄 Refresh Page", id="refresh-page-btn", color="primary"),
-                    ],
-                    color="danger",
-                )
-            ]
-        )
-
-
-def create_error_alert(message: str, title: str = "Error") -> dbc.Alert:
-    return dbc.Alert(
-        [
-            html.H4(f"❌ {title}"),
-            html.P(message),
-            html.Hr(),
-            html.P("Troubleshooting:", className="fw-bold"),
-            html.Ul(
-                [
-                    html.Li("Check your internet connection"),
-                    html.Li("Verify data files are uploaded correctly"),
-                    html.Li("Try refreshing the page"),
-                    html.Li("Contact support if the issue persists"),
-                ]
-            ),
-        ],
-        color="danger",
-    )
-
-
-def create_warning_alert(message: str) -> dbc.Alert:
-    return dbc.Alert(
-        [html.H4("⚠️ Warning"), html.P(message)],
-        color="warning",
-    )
-
-
-def create_info_alert(message: str) -> dbc.Alert:
-    return dbc.Alert(
-        [html.H4("ℹ️ Information"), html.P(message)],
-        color="info",
-    )
-
-
-def create_success_alert(message: str) -> dbc.Alert:
-    return dbc.Alert(
-        [html.H4("✅ Success"), html.P(message)],
-        color="success",
-    )
-
-
-def create_loading_spinner(message: str = "Loading...") -> dbc.Spinner:
-    return dbc.Spinner(
-        [
-            html.Div([
-                html.H5(message),
-                html.P("Please wait while we process your request..."),
-            ])
-        ],
-        color="primary",
-    )
-
-
-@callback(
-    Output("data-source-info", "children"),
-    [Input("analytics-data-source", "value")],
-    prevent_initial_call=True,
-)
-def update_data_source_info_safe(selected_source):
-    if not selected_source:
-        return ""
-    try:
-        if selected_source == "sample":
-            return "Using generated sample data for demonstration"
-        elif selected_source == "uploaded":
-            try:
-                from pages.file_upload import get_uploaded_filenames
-                uploaded_files = get_uploaded_filenames()
-                return f"Using {len(uploaded_files)} uploaded file(s)"
-            except ImportError:
-                return "Uploaded files (status unknown)"
-        elif selected_source == "database":
-            return "Using database connection"
-        else:
-            return f"Unknown source: {selected_source}"
+        # Add uploaded files with AI suggestions status
+        from components.file_upload import get_uploaded_data_store
+        uploaded_files = get_uploaded_data_store()
+        
+        for filename in uploaded_files.keys():
+            # Check if AI suggestions are available for this file
+            has_suggestions = False
+            if AI_SUGGESTIONS_AVAILABLE:
+                try:
+                    df = uploaded_files[filename]
+                    suggestions = get_ai_suggestions_for_file(df, filename)
+                    has_suggestions = bool(suggestions and any(
+                        s.get('field') for s in suggestions.values()
+                    ))
+                except Exception:
+                    pass
+            
+            suggestion_indicator = " 🤖" if has_suggestions else " 📄"
+            options.append({
+                "label": f"{filename}{suggestion_indicator}",
+                "value": f"upload:{filename}"
+            })
     except Exception as e:
-        return f"Error getting source info: {str(e)}"
-
-
-@callback(
-    [Output("analytics-display-area", "children"), Output("analytics-results-store", "data")],
-    [Input("generate-analytics-btn", "n_clicks")],
-    [State("analytics-data-source", "value"), State("analytics-type", "value")],
-    prevent_initial_call=True,
-)
-def generate_analytics_display_safe(n_clicks, data_source, analysis_type):
-    if not n_clicks:
-        raise PreventUpdate
-
-    if not data_source or not analysis_type:
-        return [create_warning_alert("Please select both data source and analysis type"), {}]
-
-    print(f"🚀 Generating analytics: source='{data_source}', type='{analysis_type}'")
-    _spinner = create_loading_spinner(
-        f"Generating {analysis_type} analytics from {data_source} source..."
-    )
-
-    try:
-        if not ANALYTICS_SERVICE_AVAILABLE:
-            return [
-                create_error_alert(
-                    "Analytics service is not available. Please check the system configuration.",
-                    "Service Unavailable",
-                ),
-                {},
-            ]
-
-        analytics_service = get_analytics_service_safe()
-        if not analytics_service:
-            return [
-                create_error_alert(
-                    "Failed to initialize analytics service. Please try again later.",
-                    "Service Error",
-                ),
-                {},
-            ]
-
-        analytics_results = analytics_service.get_analytics_by_source(data_source)
-        if not analytics_results:
-            return [create_error_alert("No analytics results returned", "Analytics Error"), {}]
-
-        if analytics_results.get("status") == "error":
-            err = analytics_results.get("message", "Unknown error")
-            return [create_error_alert(f"Analytics error: {err}", "Analytics Failed"), {}]
-
-        if analytics_results.get("status") == "no_data":
-            if data_source == "uploaded":
-                return [
-                    create_warning_alert(
-                        "No uploaded files found. Please upload a data file first using the File Upload page."
-                    ),
-                    {},
-                ]
-            return [create_warning_alert(f"No data available for source: {data_source}"), {}]
-
-        total_events = analytics_results.get("total_events", 0)
-        if total_events == 0:
-            return [
-                create_info_alert(
-                    f"Analytics completed but found 0 events. Data source: {data_source}, Status: {analytics_results.get('status', 'unknown')}"
-                ),
-                analytics_results,
-            ]
-
-        success_message = (
-            f"✅ Analytics completed successfully! Processed {total_events:,} events from {data_source} source."
-        )
-        dashboard_content = create_analytics_dashboard_safe(
-            analytics_results, analysis_type, success_message
-        )
-        return [dashboard_content, analytics_results]
-
-    except Exception as e:  # pragma: no cover - runtime safeguard
-        error_msg = f"Analytics generation failed: {str(e)}"
-        logger.error(error_msg)
-        print(f"❌ Analytics error: {error_msg}")
-        return [create_error_alert(error_msg, "Critical Error"), {}]
-
-
-def create_analytics_dashboard_safe(analytics_results, analysis_type, success_message):
-    try:
-        components: List[Any] = []
-        components.append(create_success_alert(success_message))
-
-        summary_data = {
-            "total_events": analytics_results.get("total_events", 0),
-            "unique_users": analytics_results.get("unique_users", 0),
-            "unique_doors": analytics_results.get("unique_doors", 0),
-            "success_rate": analytics_results.get("success_rate", 0),
-        }
-
-        components.append(
-            dbc.Row(
-                [
-                    dbc.Col(
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.H4(f"{summary_data['total_events']:,}", className="text-primary"),
-                                    html.P("Total Events", className="text-muted mb-0"),
-                                ]
-                            )
-                        ),
-                        width=3,
-                    ),
-                    dbc.Col(
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.H4(f"{summary_data['unique_users']:,}", className="text-success"),
-                                    html.P("Unique Users", className="text-muted mb-0"),
-                                ]
-                            )
-                        ),
-                        width=3,
-                    ),
-                    dbc.Col(
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.H4(f"{summary_data['unique_doors']:,}", className="text-warning"),
-                                    html.P("Unique Doors", className="text-muted mb-0"),
-                                ]
-                            )
-                        ),
-                        width=3,
-                    ),
-                    dbc.Col(
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.H4(f"{summary_data['success_rate']:.1f}%", className="text-info"),
-                                    html.P("Success Rate", className="text-muted mb-0"),
-                                ]
-                            )
-                        ),
-                        width=3,
-                    ),
-                ],
-                className="mb-4",
-            )
-        )
-
-        if analysis_type == "security":
-            components.append(create_security_analysis_section(analytics_results))
-        elif analysis_type == "trends":
-            components.append(create_trends_analysis_section(analytics_results))
-        elif analysis_type == "behavior":
-            components.append(create_behavior_analysis_section(analytics_results))
-        elif analysis_type == "anomaly":
-            components.append(create_anomaly_analysis_section(analytics_results))
-
-        components.append(
-            dbc.Card(
-                [
-                    dbc.CardHeader([html.H5("📊 Raw Analytics Data", className="mb-0")]),
-                    dbc.CardBody(
-                        [
-                            html.Details(
-                                [
-                                    html.Summary("View Raw Data"),
-                                    html.Pre(
-                                        json.dumps(analytics_results, indent=2, default=str),
-                                        style={"maxHeight": "400px", "overflow": "auto"},
-                                    ),
-                                ]
-                            )
-                        ]
-                    ),
-                ],
-                className="mt-4",
-            )
-        )
-
-        return html.Div(components)
-    except Exception as e:
-        logger.error(f"Error creating dashboard: {e}")
-        return create_error_alert(f"Dashboard creation failed: {str(e)}")
-
-
-def create_security_analysis_section(analytics_results):
-    return dbc.Card(
-        [
-            dbc.CardHeader([html.H5("🔒 Security Analysis")]),
-            dbc.CardBody(
-                [
-                    html.P(f"Security Score: {analytics_results.get('security_score', 'N/A')}"),
-                    html.P(f"Failed Attempts: {analytics_results.get('failed_attempts', 0)}"),
-                    html.P("Detailed security patterns analysis would appear here."),
-                ]
-            ),
-        ],
-        className="mb-3",
-    )
-
-
-def create_trends_analysis_section(analytics_results):
-    return dbc.Card(
-        [
-            dbc.CardHeader([html.H5("📈 Trends Analysis")]),
-            dbc.CardBody(
-                [
-                    html.P("Access trends and patterns would be displayed here."),
-                    html.P(
-                        f"Data covers: {analytics_results.get('date_range', {}).get('start', 'Unknown')} to {analytics_results.get('date_range', {}).get('end', 'Unknown')}"
-                    ),
-                ]
-            ),
-        ],
-        className="mb-3",
-    )
-
-
-def create_behavior_analysis_section(analytics_results):
-    return dbc.Card(
-        [
-            dbc.CardHeader([html.H5("👤 User Behavior Analysis")]),
-            dbc.CardBody(
-                [
-                    html.P("User behavior patterns and insights would be shown here."),
-                    html.P(f"Analyzing {analytics_results.get('unique_users', 0)} unique users"),
-                ]
-            ),
-        ],
-        className="mb-3",
-    )
-
-
-def create_anomaly_analysis_section(analytics_results):
-    return dbc.Card(
-        [
-            dbc.CardHeader([html.H5("🚨 Anomaly Detection")]),
-            dbc.CardBody(
-                [
-                    html.P(
-                        "Detected anomalies and security threats would be listed here."
-                    ),
-                    html.P(
-                        "No critical anomalies detected"
-                        if analytics_results.get("total_events", 0) > 0
-                        else "Insufficient data for anomaly detection"
-                    ),
-                ]
-            ),
-        ],
-        className="mb-3",
-    )
-
-
-integration_instructions = """
-🔧 DEEP ANALYTICS UI FIX - INTEGRATION STEPS
-============================================
-
-CRITICAL: The UI is not showing because of missing imports and broken functions.
-
-STEP 1: BACKUP YOUR CURRENT FILE
---------------------------------
-cp pages/deep_analytics.py pages/deep_analytics.py.backup
-
-STEP 2: REPLACE THE TOP SECTION
--------------------------------
-Replace everything from the top of pages/deep_analytics.py up to and including 
-the layout() function with the code from this fix.
-
-Key sections to replace:
-- All import statements at the top
-- The layout() function (completely replace)
-- Add all the safe utility functions
-- Add the safe callback functions
-
-STEP 3: KEEP YOUR EXISTING CALLBACKS
------------------------------------
-If you have other callbacks in the file that aren't included in this fix,
-keep them but ensure they have proper error handling.
-
-STEP 4: TEST THE FIX
--------------------
-1. Restart your Dash application
-2. Navigate to /analytics
-3. Verify the UI loads properly
-4. Test the dropdowns and buttons
-
-EXPECTED RESULTS:
-✅ Page loads with proper UI elements
-✅ Dropdowns are populated
-✅ Buttons are clickable
-✅ Error messages are clear and helpful
-✅ Loading states work properly
-
-COMMON ISSUES AFTER FIX:
-❌ Import errors → Check all required packages are installed
-❌ Service errors → Analytics will work in limited mode
-❌ Style issues → Verify Bootstrap CSS is loaded
-
-IMMEDIATE TEST:
---------------
-After applying this fix, you should see:
-1. Page title: "🔍 Deep Analytics"
-2. Configuration card with dropdowns
-3. "Generate Analytics" button
-4. Service status indicator
-
-If you still see a blank page:
-1. Check browser console for JavaScript errors
-2. Check Python console for import errors
-3. Verify Dash and Dash Bootstrap Components are installed
-"""
-
-print(integration_instructions)
-
-__all__ = ["layout"]
-
-
-@callback(
-    Output("service-health-store", "data"),
-    Input("hidden-trigger", "children"),
-    prevent_initial_call=False
-)
-def update_service_health(trigger):
-    """Update service health status"""
+        logger.warning(f"Error getting uploaded files: {e}")
+    
+    # Add service-based sources if available
     try:
         service = get_analytics_service_safe()
         if service:
-            health = service.health_check()
-            return health
-        else:
-            return {"service": "limited", "message": "Service unavailable"}
+            service_sources = service.get_available_sources()
+            for source in service_sources:
+                options.append({
+                    "label": f"🔗 {source}",
+                    "value": f"service:{source}"
+                })
     except Exception as e:
-        return {"service": "error", "message": str(e)}
+        logger.warning(f"Error getting service sources: {e}")
+    
+    if not options:
+        options.append({
+            "label": "No data sources available",
+            "value": "none"
+        })
+    
+    return options
 
+def get_analysis_type_options() -> List[Dict[str, str]]:
+    """Get available analysis types including suggests analysis"""
+    return [
+        {"label": "🔒 Security Patterns", "value": "security"},
+        {"label": "📈 Access Trends", "value": "trends"},
+        {"label": "👤 User Behavior", "value": "behavior"},
+        {"label": "🚨 Anomaly Detection", "value": "anomaly"},
+        {"label": "🤖 AI Column Suggestions", "value": "suggests"},
+        {"label": "📊 Data Quality", "value": "quality"}
+    ]
+
+# =============================================================================
+# SECTION 3: SUGGESTS ANALYSIS PROCESSOR
+# Add this new function to handle suggests display
+# =============================================================================
+
+def process_suggests_analysis(data_source: str) -> Dict[str, Any]:
+    """Process AI suggestions analysis for the selected data source"""
+    try:
+        if not data_source or data_source == "none":
+            return {"error": "No data source selected"}
+        
+        if data_source.startswith("upload:"):
+            filename = data_source.replace("upload:", "")
+            
+            # Get the uploaded file
+            from components.file_upload import get_uploaded_data_store
+            uploaded_files = get_uploaded_data_store()
+            
+            if filename not in uploaded_files:
+                return {"error": f"File {filename} not found"}
+            
+            df = uploaded_files[filename]
+            
+            # Get AI suggestions
+            if AI_SUGGESTIONS_AVAILABLE:
+                suggestions = get_ai_suggestions_for_file(df, filename)
+                
+                # Process suggestions for display
+                processed_suggestions = []
+                total_confidence = 0
+                confident_mappings = 0
+                
+                for column, suggestion in suggestions.items():
+                    field = suggestion.get('field', '')
+                    confidence = suggestion.get('confidence', 0.0)
+                    
+                    status = "🟢 High" if confidence >= 0.7 else "🟡 Medium" if confidence >= 0.4 else "🔴 Low"
+                    
+                    processed_suggestions.append({
+                        "column": column,
+                        "suggested_field": field if field else "No suggestion",
+                        "confidence": confidence,
+                        "status": status,
+                        "sample_data": df[column].dropna().head(3).tolist()
+                    })
+                    
+                    total_confidence += confidence
+                    if confidence >= 0.6:
+                        confident_mappings += 1
+                
+                avg_confidence = total_confidence / len(suggestions) if suggestions else 0
+                
+                return {
+                    "filename": filename,
+                    "total_columns": len(df.columns),
+                    "suggestions": processed_suggestions,
+                    "avg_confidence": avg_confidence,
+                    "confident_mappings": confident_mappings,
+                    "data_preview": df.head(5).to_dict('records'),
+                    "column_names": list(df.columns)
+                }
+            else:
+                return {"error": "AI suggestions service not available"}
+        else:
+            return {"error": "Suggests analysis only available for uploaded files"}
+            
+    except Exception as e:
+        logger.error(f"Error processing suggests analysis: {e}")
+        return {"error": f"Failed to process suggests: {str(e)}"}
+
+# =============================================================================
+# SECTION 4: SUGGESTS DISPLAY COMPONENTS
+# Add these functions to create suggests UI components
+# =============================================================================
+
+def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
+    """Create suggests analysis display components"""
+    if "error" in suggests_data:
+        return dbc.Alert(f"Error: {suggests_data['error']}", color="danger")
+    
+    try:
+        filename = suggests_data.get("filename", "Unknown")
+        suggestions = suggests_data.get("suggestions", [])
+        avg_confidence = suggests_data.get("avg_confidence", 0)
+        confident_mappings = suggests_data.get("confident_mappings", 0)
+        total_columns = suggests_data.get("total_columns", 0)
+        
+        # Summary card
+        summary_card = dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"🤖 AI Column Mapping Analysis - {filename}")
+            ]),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Overall Confidence"),
+                        dbc.Progress(
+                            value=avg_confidence * 100,
+                            label=f"{avg_confidence:.1%}",
+                            color="success" if avg_confidence >= 0.7 else "warning" if avg_confidence >= 0.4 else "danger"
+                        )
+                    ], width=6),
+                    dbc.Col([
+                        html.H6("Confident Mappings"),
+                        html.H3(f"{confident_mappings}/{total_columns}",
+                               className="text-success" if confident_mappings >= total_columns * 0.7 else "text-warning")
+                    ], width=6)
+                ])
+            ])
+        ], className="mb-3")
+        
+        # Suggestions table
+        table_rows = []
+        for suggestion in suggestions:
+            confidence = suggestion['confidence']
+            row_color = "table-success" if confidence >= 0.7 else "table-warning" if confidence >= 0.4 else "table-danger"
+            
+            table_rows.append(
+                html.Tr([
+                    html.Td(suggestion['column']),
+                    html.Td(suggestion['suggested_field']),
+                    html.Td([
+                        dbc.Progress(
+                            value=confidence * 100,
+                            label=f"{confidence:.1%}",
+                            size="sm",
+                            color="success" if confidence >= 0.7 else "warning" if confidence >= 0.4 else "danger"
+                        )
+                    ]),
+                    html.Td(suggestion['status']),
+                    html.Td(html.Small(str(suggestion['sample_data'][:2]), className="text-muted"))
+                ], className=row_color)
+            )
+        
+        suggestions_table = dbc.Card([
+            dbc.CardHeader([
+                html.H6("📋 Column Mapping Suggestions")
+            ]),
+            dbc.CardBody([
+                dbc.Table([
+                    html.Thead([
+                        html.Tr([
+                            html.Th("Column Name"),
+                            html.Th("Suggested Field"),
+                            html.Th("Confidence"),
+                            html.Th("Status"),
+                            html.Th("Sample Data")
+                        ])
+                    ]),
+                    html.Tbody(table_rows)
+                ], responsive=True, striped=True)
+            ])
+        ], className="mb-3")
+        
+        # Data preview
+        data_preview = suggests_data.get("data_preview", [])
+        if data_preview:
+            preview_df = pd.DataFrame(data_preview)
+            preview_table = dbc.Card([
+                dbc.CardHeader([
+                    html.H6("📊 Data Preview (First 5 rows)")
+                ]),
+                dbc.CardBody([
+                    dbc.Table.from_dataframe(
+                        preview_df,
+                        responsive=True,
+                        striped=True,
+                        size="sm"
+                    )
+                ])
+            ], className="mb-3")
+        else:
+            preview_table = html.Div()
+        
+        return html.Div([
+            summary_card,
+            suggestions_table,
+            preview_table
+        ])
+        
+    except Exception as e:
+        logger.error(f"Error creating suggests display: {e}")
+        return dbc.Alert(f"Error creating display: {str(e)}", color="danger")
+
+# =============================================================================
+# SECTION 5: LAYOUT FUNCTION REPLACEMENT
+# COMPLETELY REPLACE the layout() function in pages/deep_analytics.py
+# =============================================================================
+
+def layout():
+    """
+    COMPLETE REPLACEMENT for the layout function in pages/deep_analytics.py
+    
+    INTEGRATION STEPS:
+    1. Find the existing layout() function in pages/deep_analytics.py
+    2. Replace the ENTIRE function with this code
+    3. Keep the function name as 'layout'
+    """
+    try:
+        # Header section
+        header = dbc.Row([
+            dbc.Col([
+                html.H1("🔍 Deep Analytics", className="text-primary"),
+                html.P("Advanced data analysis with AI-powered column mapping suggestions",
+                       className="lead text-muted"),
+                dbc.Alert(
+                    "✅ UI components loaded successfully",
+                    color="success",
+                    dismissable=True,
+                    id="status-alert"
+                )
+            ])
+        ], className="mb-4")
+        
+        # Configuration section
+        config_card = dbc.Card([
+            dbc.CardHeader([
+                html.H5("⚙️ Analysis Configuration")
+            ]),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("Data Source", className="fw-bold"),
+                        dcc.Dropdown(
+                            id="analytics-data-source",
+                            options=get_data_source_options_safe(),
+                            placeholder="Select data source...",
+                            value=None
+                        )
+                    ], width=6),
+                    dbc.Col([
+                        html.Label("Analysis Type", className="fw-bold"),
+                        dcc.Dropdown(
+                            id="analytics-type",
+                            options=get_analysis_type_options(),
+                            value="suggests",
+                            placeholder="Select analysis type..."
+                        )
+                    ], width=6)
+                ], className="mb-3"),
+                html.Hr(),
+                dbc.ButtonGroup([
+                    dbc.Button(
+                        "🚀 Generate Analytics",
+                        id="generate-analytics-btn",
+                        color="primary",
+                        size="lg"
+                    ),
+                    dbc.Button(
+                        "🔄 Refresh Data Sources",
+                        id="refresh-sources-btn",
+                        color="outline-secondary",
+                        size="lg"
+                    )
+                ])
+            ])
+        ], className="mb-4")
+        
+        # Results display area
+        results_area = html.Div(
+            id="analytics-display-area",
+            children=[
+                dbc.Alert(
+                    [
+                        html.H6("👆 Get Started"),
+                        html.P("1. Select a data source (files with 🤖 have AI suggestions)"),
+                        html.P("2. Choose 'AI Column Suggestions' to see mapping analysis"),
+                        html.P("3. Click 'Generate Analytics' to begin")
+                    ],
+                    color="info"
+                )
+            ]
+        )
+        
+        # Hidden stores and triggers
+        stores = [
+            dcc.Store(id="analytics-results-store", data={}),
+            dcc.Store(id="service-health-store", data={}),
+            html.Div(id="hidden-trigger", style={"display": "none"})
+        ]
+        
+        # Complete layout
+        return dbc.Container([
+            header,
+            config_card,
+            results_area
+        ] + stores, fluid=True)
+        
+    except Exception as e:
+        logger.error(f"Critical error creating layout: {e}")
+        return dbc.Container([
+            dbc.Alert([
+                html.H4("⚠️ Page Loading Error"),
+                html.P(f"Error: {str(e)}"),
+                html.P("Please check imports and dependencies.")
+            ], color="danger")
+        ])
+
+# =============================================================================
+# SECTION 6: CONSOLIDATED CALLBACKS
+# REPLACE the existing callbacks in pages/deep_analytics.py with these
+# =============================================================================
+
+@callback(
+    Output("analytics-display-area", "children"),
+    [Input("generate-analytics-btn", "n_clicks")],
+    [State("analytics-data-source", "value"),
+     State("analytics-type", "value")],
+    prevent_initial_call=True
+)
+def consolidated_analytics_callback(n_clicks, data_source, analysis_type):
+    """
+    CONSOLIDATED CALLBACK - Replace existing analytics callbacks
+    
+    INTEGRATION INSTRUCTIONS:
+    1. Find existing callbacks that update analytics display
+    2. Replace them with this single consolidated callback
+    3. Remove duplicate callback functions
+    """
+    if not n_clicks or not data_source or data_source == "none":
+        return dbc.Alert("Please select a valid data source", color="warning")
+    
+    try:
+        # Loading indicator
+        loading_content = [
+            dbc.Spinner([
+                html.H5("🔄 Processing..."),
+                html.P(f"Analyzing {data_source} for {analysis_type} patterns")
+            ], color="primary")
+        ]
+        
+        # Process based on analysis type
+        if analysis_type == "suggests":
+            # Handle suggests analysis
+            suggests_data = process_suggests_analysis(data_source)
+            return create_suggests_display(suggests_data)
+            
+        elif analysis_type in ["security", "trends", "behavior", "anomaly"]:
+            # Handle other analysis types
+            try:
+                service = get_analytics_service_safe()
+                if service:
+                    # Use service for analysis
+                    results = service.analyze_data(data_source, analysis_type)
+                    return create_analysis_results_display(results, analysis_type)
+                else:
+                    return create_limited_analysis_display(data_source, analysis_type)
+            except Exception as e:
+                return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
+                
+        elif analysis_type == "quality":
+            # Handle data quality analysis
+            return create_data_quality_display(data_source)
+            
+        else:
+            return dbc.Alert(f"Analysis type '{analysis_type}' not supported", color="warning")
+            
+    except Exception as e:
+        logger.error(f"Analytics callback error: {e}")
+        return dbc.Alert(f"Error: {str(e)}", color="danger")
 
 @callback(
     Output("analytics-data-source", "options"),
     Input("refresh-sources-btn", "n_clicks"),
     prevent_initial_call=True
 )
-def refresh_data_sources(n_clicks):
-    """Refresh available data sources"""
+def refresh_data_sources_callback(n_clicks):
+    """Refresh data sources when button clicked"""
     if n_clicks:
         return get_data_source_options_safe()
     return get_data_source_options_safe()
+
+@callback(
+    Output("status-alert", "children"),
+    Input("hidden-trigger", "children"),
+    prevent_initial_call=False
+)
+def update_status_alert(trigger):
+    """Update status based on service health"""
+    try:
+        service = get_analytics_service_safe()
+        suggests_available = AI_SUGGESTIONS_AVAILABLE
+        
+        if service and suggests_available:
+            return "✅ All services available - Full functionality enabled"
+        elif suggests_available:
+            return "⚠️ Analytics service limited - AI suggestions available"
+        elif service:
+            return "⚠️ AI suggestions unavailable - Analytics service available"
+        else:
+            return "🔄 Running in limited mode - Some features may be unavailable"
+    except Exception:
+        return "❌ Service status unknown"
+
+# =============================================================================
+# SECTION 7: HELPER DISPLAY FUNCTIONS
+# Add these helper functions for non-suggests analysis types
+# =============================================================================
+
+def create_analysis_results_display(results: Dict[str, Any], analysis_type: str) -> html.Div:
+    """Create display for standard analysis results"""
+    try:
+        return dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"📊 {analysis_type.title()} Analysis Results")
+            ]),
+            dbc.CardBody([
+                html.P(f"Analysis completed for {analysis_type} patterns."),
+                html.P(f"Found {results.get('total_events', 0)} events to analyze."),
+                html.P("Detailed results would be displayed here.")
+            ])
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Error displaying results: {str(e)}", color="danger")
+
+def create_limited_analysis_display(data_source: str, analysis_type: str) -> html.Div:
+    """Create limited analysis display when service unavailable"""
+    return dbc.Card([
+        dbc.CardHeader([
+            html.H5(f"⚠️ Limited {analysis_type.title()} Analysis")
+        ]),
+        dbc.CardBody([
+            dbc.Alert([
+                html.H6("Service Limitations"),
+                html.P("Full analytics service is not available."),
+                html.P("Basic analysis results would be shown here.")
+            ], color="warning"),
+            html.P(f"Data source: {data_source}"),
+            html.P(f"Analysis type: {analysis_type}")
+        ])
+    ])
+
+def create_data_quality_display(data_source: str) -> html.Div:
+    """Create data quality analysis display"""
+    try:
+        if data_source.startswith("upload:"):
+            filename = data_source.replace("upload:", "")
+            from components.file_upload import get_uploaded_data_store
+            uploaded_files = get_uploaded_data_store()
+            
+            if filename in uploaded_files:
+                df = uploaded_files[filename]
+                
+                # Basic quality metrics
+                total_rows = len(df)
+                total_cols = len(df.columns)
+                missing_values = df.isnull().sum().sum()
+                duplicate_rows = df.duplicated().sum()
+                
+                return dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("📊 Data Quality Analysis")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                html.H6("Dataset Overview"),
+                                html.P(f"Rows: {total_rows:,}"),
+                                html.P(f"Columns: {total_cols}"),
+                                html.P(f"Missing values: {missing_values:,}"),
+                                html.P(f"Duplicate rows: {duplicate_rows:,}")
+                            ], width=6),
+                            dbc.Col([
+                                html.H6("Quality Score"),
+                                dbc.Progress(
+                                    value=max(0, 100 - (missing_values/total_rows*100) - (duplicate_rows/total_rows*10)),
+                                    label="Quality",
+                                    color="success"
+                                )
+                            ], width=6)
+                        ])
+                    ])
+                ])
+        return dbc.Alert("Data quality analysis only available for uploaded files", color="info")
+    except Exception as e:
+        return dbc.Alert(f"Quality analysis error: {str(e)}", color="danger")
+
