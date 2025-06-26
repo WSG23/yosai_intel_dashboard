@@ -8,7 +8,6 @@ import pandas as pd
 import logging
 
 # ADD after existing imports
-from services.consolidated_learning_service import get_learning_service
 from services.door_mapping_service import door_mapping_service
 
 logger = logging.getLogger(__name__)
@@ -24,9 +23,9 @@ special_areas_options = [
 _device_ai_mappings = {}
 
 
-def apply_learned_mappings_to_devices(df: pd.DataFrame, filename: str) -> bool:
+def apply_learned_device_mappings(df: pd.DataFrame, filename: str) -> bool:
     """
-    Apply learned device mappings to global AI mappings store.
+    Apply learned device mappings using the door mapping service
 
     Args:
         df: Source dataframe
@@ -35,18 +34,14 @@ def apply_learned_mappings_to_devices(df: pd.DataFrame, filename: str) -> bool:
     Returns:
         True if learned mappings were applied
     """
-    global _device_ai_mappings
-
-    applied = door_mapping_service.apply_learned_mappings(df, filename)
-    if applied:
-        logger.info(f"Applied {len(_device_ai_mappings)} learned device mappings")
-    return applied
+    return door_mapping_service.apply_learned_mappings(df, filename)
 
 
-def save_confirmed_device_mappings(df: pd.DataFrame, filename: str,
-                                   confirmed_mappings: Dict[str, Any]) -> str:
+def save_confirmed_device_mappings(
+    df: pd.DataFrame, filename: str, confirmed_mappings: Dict[str, Any]
+) -> str:
     """
-    Save confirmed device mappings for future learning.
+    Save confirmed device mappings using the door mapping service
 
     Args:
         df: Source dataframe
@@ -56,10 +51,15 @@ def save_confirmed_device_mappings(df: pd.DataFrame, filename: str,
     Returns:
         Fingerprint ID of saved mapping
     """
-    fingerprint = door_mapping_service.save_confirmed_mappings(
-        df, filename, list(confirmed_mappings.values()) if isinstance(confirmed_mappings, dict) else confirmed_mappings
+    devices_list = []
+    for device_id, mapping in confirmed_mappings.items():
+        device_data = {"door_id": device_id}
+        device_data.update(mapping)
+        devices_list.append(device_data)
+
+    return door_mapping_service.save_confirmed_mappings(
+        df, filename, devices_list
     )
-    return fingerprint
 
 
 def generate_ai_device_defaults(df: pd.DataFrame, client_profile: str = "auto"):
