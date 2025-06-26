@@ -324,7 +324,10 @@ class SecurityPatternAnalyzer:
         
         # Temporal recommendations
         if 'hourly_distribution' in patterns and patterns['hourly_distribution']:
-            after_hours = sum(patterns['hourly_distribution'].get(hour, 0) for hour in range(22, 24) + list(range(0, 6)))
+            after_hours_hours = list(range(22, 24)) + list(range(0, 6))
+            after_hours = sum(
+                patterns["hourly_distribution"].get(hour, 0) for hour in after_hours_hours
+            )
             if after_hours > 0:
                 recommendations.append(f"🌙 {after_hours} after-hours access events detected - review for anomalies")
         

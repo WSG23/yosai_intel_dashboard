@@ -11,8 +11,10 @@ from datetime import datetime
 
 import pandas as pd
 from typing import Optional, Dict, Any, List
-from dash import html, dcc, callback_context, no_update
+from dash import html, dcc
+from dash.dash import no_update
 from dash._callback import callback
+from dash._callback_context import callback_context
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from services.device_learning_service import DeviceLearningService
@@ -315,7 +317,7 @@ def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card | dbc.Alert
                         ),
                         html.Hr(),
                         html.H6("Sample Data:", className="text-primary mt-3"),
-                        dbc.Table.from_dataframe(
+                        dbc.Table.from_dataframe(  # type: ignore[attr-defined]
                             df.head(5),
                             striped=True,
                             bordered=True,
@@ -484,7 +486,7 @@ def consolidated_upload_callback(
                             ]),
                             dbc.CardBody([
                                 html.H6("First 5 rows:"),
-                                dbc.Table.from_dataframe(
+                                dbc.Table.from_dataframe(  # type: ignore[attr-defined]
                                     preview_df, striped=True, bordered=True, hover=True, size="sm"
                                 ),
                                 html.Hr(),
@@ -574,7 +576,9 @@ def consolidated_upload_callback(
                                 ]),
                                 dbc.CardBody([
                                     html.H6("First 5 rows:"),
-                                    dbc.Table.from_dataframe(preview_df, striped=True, bordered=True, hover=True, size="sm"),
+                                    dbc.Table.from_dataframe(  # type: ignore[attr-defined]
+                                        preview_df, striped=True, bordered=True, hover=True, size="sm"
+                                    ),
                                     html.Hr(),
                                     html.P([html.Strong("Columns: "), ", ".join(df.columns.tolist()[:10])]),
                                 ])

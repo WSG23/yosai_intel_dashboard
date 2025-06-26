@@ -5,7 +5,10 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
-from dash import html, callback, Input, Output, callback_context
+from dash import html
+from dash._callback import callback
+from dash.dependencies import Input, Output
+from dash._callback_context import callback_context
 
 logger = logging.getLogger(__name__)
 
