@@ -9,6 +9,10 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 
+# ADD after existing imports
+from services.ai_device_generator import AIDeviceGenerator, DeviceAttributes
+from services.consolidated_learning_service import get_learning_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,42 +90,48 @@ class DoorMappingService:
     
     def _generate_ai_attributes(self, door_id: str, df: pd.DataFrame, client_profile: str) -> DeviceAttributeData:
         """
-        Generate AI-based attribute assignments for a device
-        
+        Generate AI-based attribute assignments using modular AI generator
+
         Args:
             door_id: Device identifier
             df: Source data
             client_profile: Client configuration
-            
+
         Returns:
             DeviceAttributeData with AI-generated attributes
         """
-        # Get device-specific data
+        # Use consolidated AI generator
+        ai_generator = AIDeviceGenerator()
         device_rows = df[df['door_id'] == door_id]
-        
-        # Generate device name (clean up door_id)
-        device_name = self._generate_device_name(door_id, device_rows)
-        
-        # AI logic for attribute assignment based on door_id patterns
-        attributes = self._analyze_door_patterns(door_id, device_rows, client_profile)
-        
-        # Calculate confidence score
-        confidence = self._calculate_confidence_score(door_id, attributes, device_rows)
-        
-        return DeviceAttributeData(
-            door_id=door_id,
-            name=device_name,
-            entry=attributes.get('entry', False),
-            exit=attributes.get('exit', False),
-            elevator=attributes.get('elevator', False),
-            stairwell=attributes.get('stairwell', False),
-            fire_escape=attributes.get('fire_escape', False),
-            other=attributes.get('other', False),
-            security_level=attributes.get('security_level', 50),
-            confidence=confidence,
+
+        # Generate attributes using AI
+        ai_attributes = ai_generator.generate_device_attributes(door_id, device_rows)
+
+        # Convert to existing DeviceAttributeData format
+        device_data = DeviceAttributeData(
+            door_id=ai_attributes.device_id,
+            name=ai_attributes.device_name,
+            entry=ai_attributes.is_entry,
+            exit=ai_attributes.is_exit,
+            elevator=ai_attributes.is_elevator,
+            stairwell=ai_attributes.is_stairwell,
+            fire_escape=ai_attributes.is_fire_escape,
+            other=False,
+            security_level=ai_attributes.security_level,
+            confidence=int(ai_attributes.confidence * 100),
             ai_generated=True,
             manually_edited=False
         )
+
+        # Add additional attributes if they exist in AI output
+        if hasattr(ai_attributes, 'is_elevator'):
+            device_data.elevator = ai_attributes.is_elevator
+        if hasattr(ai_attributes, 'is_stairwell'):
+            device_data.stairwell = ai_attributes.is_stairwell
+        if hasattr(ai_attributes, 'is_fire_escape'):
+            device_data.fire_escape = ai_attributes.is_fire_escape
+
+        return device_data
     
     def _generate_device_name(self, door_id: str, device_rows: pd.DataFrame) -> str:
         """Generate a human-readable device name"""

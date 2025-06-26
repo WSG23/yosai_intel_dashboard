@@ -8,6 +8,7 @@ import pandas as pd
 from dash import html
 from dash._callback import callback
 from dash.dependencies import Input, Output
+from services.consolidated_learning_service import get_learning_service
 from dash._callback_context import callback_context
 
 logger = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ def get_device_learning_service() -> DeviceLearningService:
 
 
 def create_learning_callbacks():
-    """Consolidated callback for device learning persistence"""
+    """Updated callback using consolidated learning service."""
 
     @callback(
         Output("device-learning-status", "children"),
@@ -179,7 +180,7 @@ def create_learning_callbacks():
         prevent_initial_call=True,
     )
     def handle_device_learning(upload_data, confirmed_mappings):
-        """Handle both file upload and mapping confirmation"""
+        """Handle learning using consolidated service."""
         ctx = callback_context
 
         if not ctx.triggered:
@@ -187,15 +188,14 @@ def create_learning_callbacks():
 
         trigger_id = ctx.triggered[0]["prop_id"]
 
-        # Initialize learning service
-        learning_service = DeviceLearningService()
+        learning_service = get_learning_service()
 
         if "file-upload-store" in trigger_id and upload_data:
             # File uploaded - try to apply learned mappings
             df = pd.DataFrame(upload_data["data"])
             filename = upload_data["filename"]
 
-            if learning_service.apply_learned_mappings_to_global_store(df, filename):
+            if learning_service.apply_to_global_store(df, filename):
                 return html.Div(
                     [
                         html.I(className="fas fa-brain me-2"),
@@ -210,12 +210,12 @@ def create_learning_callbacks():
             filename = confirmed_mappings["filename"]
             mappings = confirmed_mappings["mappings"]
 
-            fingerprint = learning_service.save_device_mappings(df, filename, mappings)
+            fingerprint = learning_service.save_complete_mapping(df, filename, mappings)
 
             return html.Div(
                 [
                     html.I(className="fas fa-save me-2"),
-                    f"Device mappings saved for future use! ID: {fingerprint[:8]}",
+                    f"Mappings saved! ID: {fingerprint[:8]}",
                 ],
                 className="text-success",
             )
