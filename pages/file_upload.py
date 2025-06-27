@@ -401,7 +401,7 @@ def consolidated_upload_callback(
 
     # Handle page load restoration FIRST
     if not ctx.triggered or ctx.triggered[0]["prop_id"] == "url.pathname":
-        if pathname == "/file-upload" and _uploaded_data_store:
+        if pathname in ("/file-upload", "/upload") and _uploaded_data_store:
             print(
                 f"🔄 Restoring upload state for {len(_uploaded_data_store.get_filenames())} files"
             )
