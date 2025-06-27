@@ -6,6 +6,7 @@ Integrates with analytics system
 import logging
 from datetime import datetime
 from pathlib import Path
+import json
 
 import pandas as pd
 from typing import Optional, Dict, Any, List

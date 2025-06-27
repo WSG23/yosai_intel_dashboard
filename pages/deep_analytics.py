@@ -1305,4 +1305,5 @@ def analyze_unique_patterns(n_clicks):
             return html.P(f"Error: {results.get('message', 'Analysis failed')}")
     except Exception as e:
         return html.P(f"Error: {str(e)}")
-\nfrom . import deep_analytics_callbacks  # noqa: F401
+
+from . import deep_analytics_callbacks  # noqa: F401
