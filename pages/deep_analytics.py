@@ -583,28 +583,6 @@ def layout():
             ])
         ], className="mb-4")
 
-        # Unique patterns analysis card
-        unique_patterns_card = dbc.Card([
-            dbc.CardHeader([
-                html.H3("🔍 Unique Patterns Analysis", className="mb-0"),
-                html.Small("Comprehensive analysis of unique users and devices", className="text-muted")
-            ]),
-            dbc.CardBody([
-                dbc.Row([
-                    dbc.Col([
-                        html.P("Analyze unique behavior patterns, user classifications, device usage, and temporal trends in your access control data."),
-                        dbc.Button(
-                            [html.I(className="fas fa-chart-line me-2"), "Run Unique Patterns Analysis"],
-                            id="run-unique-patterns-btn",
-                            color="primary",
-                            size="lg",
-                            className="mb-3"
-                        )
-                    ], width=12)
-                ]),
-                html.Div(id="unique-patterns-analysis-output")
-            ])
-        ], className="mb-4")
 
         simple_unique_patterns_card = dbc.Card([
             dbc.CardHeader("Unique Patterns Analysis"),
@@ -634,7 +612,7 @@ def layout():
             html.Div(id="hidden-trigger", style={"display": "none"})
         ]
 
-        return dbc.Container([header, config_card, unique_patterns_card, simple_unique_patterns_card, results_area] + stores, fluid=True)
+        return dbc.Container([header, config_card, simple_unique_patterns_card, results_area] + stores, fluid=True)
 
     except Exception as e:
         logger.error(f"Layout creation error: {e}")
@@ -707,22 +685,194 @@ def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggest
         elif analysis_type == "quality":
             results = process_quality_analysis_safe(data_source)
         elif analysis_type == "unique_patterns":
-            from services.analytics_service import AnalyticsService
-            analytics_service = AnalyticsService()
-            results = analytics_service.get_unique_patterns_analysis()
+            try:
+                from services.analytics_service import AnalyticsService
+                analytics_service = AnalyticsService()
+                results = analytics_service.get_unique_patterns_analysis()
 
-            if results['status'] == 'success':
-                return html.Div([
-                    html.H4("Unique Patterns Analysis Results"),
-                    html.P(f"Total Records: {results['data_summary']['total_records']:,}"),
-                    html.P(f"Unique Users: {results['data_summary']['unique_entities']['users']:,}"),
-                    html.P(f"Unique Devices: {results['data_summary']['unique_entities']['devices']:,}"),
-                    html.P(f"Power Users: {len(results['user_patterns']['user_classifications']['power_users'])}"),
-                    html.P(f"High Traffic Devices: {len(results['device_patterns']['device_classifications']['high_traffic_devices'])}"),
-                    html.P(f"Success Rate: {results['access_patterns']['overall_success_rate']:.1%}")
-                ])
-            else:
-                return dbc.Alert(f"Analysis failed: {results.get('message', 'Unknown error')}", color="danger")
+                if results['status'] == 'success':
+                    # Extract key data
+                    data_summary = results['data_summary']
+                    user_patterns = results['user_patterns']
+                    device_patterns = results['device_patterns']
+                    interaction_patterns = results['interaction_patterns']
+                    temporal_patterns = results['temporal_patterns']
+                    access_patterns = results['access_patterns']
+                    recommendations = results['recommendations']
+
+                    return html.Div([
+                        # Header with key metrics
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.H4("Database Overview", className="card-title"),
+                                        html.H2(f"{data_summary['total_records']:,}", className="text-primary"),
+                                        html.P("Total Access Events"),
+                                        html.Small(f"Spanning {data_summary['date_range']['span_days']} days")
+                                    ])
+                                ], color="light")
+                            ], width=3),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.H4("Unique Users", className="card-title"),
+                                        html.H2(f"{data_summary['unique_entities']['users']:,}", className="text-success"),
+                                        html.P("Individual Users"),
+                                        html.Small(f"Avg: {user_patterns['user_statistics']['mean_events_per_user']:.1f} events/user")
+                                    ])
+                                ], color="light")
+                            ], width=3),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.H4("Unique Devices", className="card-title"),
+                                        html.H2(f"{data_summary['unique_entities']['devices']:,}", className="text-info"),
+                                        html.P("Access Points"),
+                                        html.Small(f"Avg: {device_patterns['device_statistics']['mean_events_per_device']:.1f} events/device")
+                                    ])
+                                ], color="light")
+                            ], width=3),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.H4("Interactions", className="card-title"),
+                                        html.H2(f"{interaction_patterns['total_unique_interactions']:,}", className="text-warning"),
+                                        html.P("User-Device Pairs"),
+                                        html.Small(f"Success: {access_patterns['overall_success_rate']:.1%}")
+                                    ])
+                                ], color="light")
+                            ], width=3)
+                        ]),
+
+                        html.Hr(),
+
+                        # User and Device Pattern Analysis
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader(html.H4("User Pattern Analysis")),
+                                    dbc.CardBody([
+                                        html.Div([
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    html.H5("User Classifications"),
+                                                    html.P(f"Power Users: {len(user_patterns['user_classifications']['power_users'])}"),
+                                                    html.P(f"Regular Users: {len(user_patterns['user_classifications']['regular_users'])}"),
+                                                    html.P(f"Occasional Users: {len(user_patterns['user_classifications']['occasional_users'])}")
+                                                ], width=6),
+                                                dbc.Col([
+                                                    html.H5("Access Patterns"),
+                                                    html.P(f"Single-Door Users: {len(user_patterns['user_classifications']['single_door_users'])}"),
+                                                    html.P(f"Multi-Door Users: {len(user_patterns['user_classifications']['multi_door_users'])}"),
+                                                    html.P(f"Problematic Users: {len(user_patterns['user_classifications']['problematic_users'])}")
+                                                ], width=6)
+                                            ])
+                                        ])
+                                    ])
+                                ])
+                            ], width=6),
+
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader(html.H4("Device Pattern Analysis")),
+                                    dbc.CardBody([
+                                        html.Div([
+                                            dbc.Row([
+                                                dbc.Col([
+                                                    html.H5("Traffic Classifications"),
+                                                    html.P(f"High Traffic: {len(device_patterns['device_classifications']['high_traffic_devices'])}"),
+                                                    html.P(f"Moderate Traffic: {len(device_patterns['device_classifications']['moderate_traffic_devices'])}"),
+                                                    html.P(f"Low Traffic: {len(device_patterns['device_classifications']['low_traffic_devices'])}")
+                                                ], width=6),
+                                                dbc.Col([
+                                                    html.H5("Security Status"),
+                                                    html.P(f"Secure Devices: {len(device_patterns['device_classifications']['secure_devices'])}"),
+                                                    html.P(f"Popular Devices: {len(device_patterns['device_classifications']['popular_devices'])}"),
+                                                    html.P(f"Problematic: {len(device_patterns['device_classifications']['problematic_devices'])}")
+                                                ], width=6)
+                                            ])
+                                        ])
+                                    ])
+                                ])
+                            ], width=6)
+                        ]),
+
+                        html.Hr(),
+
+                        # Temporal Analysis
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader(html.H4("Temporal Patterns")),
+                                    dbc.CardBody([
+                                        html.P(f"Peak Hours: {', '.join(map(str, temporal_patterns['peak_hours']))}"),
+                                        html.P(f"Peak Days: {', '.join(temporal_patterns['peak_days'])}"),
+                                        html.H6("Hourly Distribution:"),
+                                        html.Div([
+                                            html.Span(f"{hour}h: {count} ", className="badge badge-secondary me-1")
+                                            for hour, count in sorted(temporal_patterns['hourly_distribution'].items())
+                                        ])
+                                    ])
+                                ])
+                            ], width=8),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader(html.H4("Key Statistics")),
+                                    dbc.CardBody([
+                                        html.P(f"Success Rate: {access_patterns['overall_success_rate']:.1%}"),
+                                        html.P(f"Users w/ Low Success: {access_patterns['users_with_low_success']}"),
+                                        html.P(f"Devices w/ Issues: {access_patterns['devices_with_low_success']}"),
+                                        html.P(f"Avg Doors/User: {user_patterns['user_statistics']['mean_doors_per_user']:.1f}")
+                                    ])
+                                ])
+                            ], width=4)
+                        ]),
+
+                        html.Hr(),
+
+                        # Recommendations
+                        html.H4("Recommendations", className="mb-3"),
+                        html.Div([
+                            dbc.Alert([
+                                html.H5(f"{rec['category']} - {rec['priority']} Priority", className="alert-heading"),
+                                html.P(rec['recommendation']),
+                                html.Hr(),
+                                html.P(f"Action: {rec['action']}", className="mb-0")
+                            ], color="warning" if rec['priority'] == 'High' else "info")
+                            for rec in recommendations
+                        ]) if recommendations else dbc.Alert("No specific recommendations at this time.", color="success"),
+
+                        # Timestamp
+                        html.Hr(),
+                        html.P(f"Analysis completed at: {results['analysis_timestamp']}", className="text-muted")
+                    ])
+
+                elif results['status'] == 'no_data':
+                    return dbc.Alert([
+                        html.H4("No Data Available"),
+                        html.P("No processed data found for analysis."),
+                        html.P("Please ensure:"),
+                        html.Ul([
+                            html.Li("Data files have been uploaded"),
+                            html.Li("Column mapping has been completed"),
+                            html.Li("Device mapping has been completed")
+                        ])
+                    ], color="warning")
+
+                else:
+                    return dbc.Alert([
+                        html.H4("Analysis Failed"),
+                        html.P(f"Error: {results.get('message', 'Unknown error')}"),
+                        html.P("Please check the system logs for more details.")
+                    ], color="danger")
+
+            except Exception as e:
+                return dbc.Alert([
+                    html.H4("System Error"),
+                    html.P(f"Exception: {str(e)}"),
+                    html.P("Please check your configuration and try again.")
+                ], color="danger")
         else:
             results = analyze_data_with_service_safe(data_source, analysis_type)
         
@@ -771,194 +921,6 @@ def update_status_alert(trigger):
         return "❌ Service status unknown"
 
 
-@callback(
-    Output('unique-patterns-analysis-output', 'children'),
-    Input('run-unique-patterns-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def run_unique_patterns_analysis(n_clicks):
-    """Run comprehensive unique patterns analysis"""
-    if not n_clicks:
-        return "Click to analyze unique user and device patterns"
-
-    try:
-        # Get the analytics service
-        from services.analytics_service import AnalyticsService
-        analytics_service = AnalyticsService()
-
-        # Run the unique patterns analysis
-        results = analytics_service.get_unique_patterns_analysis()
-
-        if results['status'] == 'success':
-            # Extract key data
-            data_summary = results['data_summary']
-            user_patterns = results['user_patterns']
-            device_patterns = results['device_patterns']
-            interaction_patterns = results['interaction_patterns']
-            temporal_patterns = results['temporal_patterns']
-            access_patterns = results['access_patterns']
-            recommendations = results['recommendations']
-
-            return html.Div([
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.H4("📊 Database Overview", className="card-title"),
-                                html.H2(f"{data_summary['total_records']:,}", className="text-primary"),
-                                html.P("Total Access Events"),
-                                html.Small(f"Spanning {data_summary['date_range']['span_days']} days")
-                            ])
-                        ], color="light")
-                    ], width=3),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.H4("👥 Unique Users", className="card-title"),
-                                html.H2(f"{data_summary['unique_entities']['users']:,}", className="text-success"),
-                                html.P("Individual Users"),
-                                html.Small(f"Avg: {user_patterns['user_statistics']['mean_events_per_user']:.1f} events/user")
-                            ])
-                        ], color="light")
-                    ], width=3),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.H4("🚪 Unique Devices", className="card-title"),
-                                html.H2(f"{data_summary['unique_entities']['devices']:,}", className="text-info"),
-                                html.P("Access Points"),
-                                html.Small(f"Avg: {device_patterns['device_statistics']['mean_events_per_device']:.1f} events/device")
-                            ])
-                        ], color="light")
-                    ], width=3),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.H4("🔄 Interactions", className="card-title"),
-                                html.H2(f"{interaction_patterns['total_unique_interactions']:,}", className="text-warning"),
-                                html.P("User-Device Pairs"),
-                                html.Small(f"Success: {access_patterns['overall_success_rate']:.1%}")
-                            ])
-                        ], color="light")
-                    ], width=3)
-                ]),
-                html.Hr(),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader(html.H4("👥 User Pattern Analysis")),
-                            dbc.CardBody([
-                                html.Div([
-                                    dbc.Row([
-                                        dbc.Col([
-                                            html.H5("User Classifications"),
-                                            html.P(f"Power Users: {len(user_patterns['user_classifications']['power_users'])}"),
-                                            html.P(f"Regular Users: {len(user_patterns['user_classifications']['regular_users'])}"),
-                                            html.P(f"Occasional Users: {len(user_patterns['user_classifications']['occasional_users'])}")
-                                        ], width=6),
-                                        dbc.Col([
-                                            html.H5("Access Patterns"),
-                                            html.P(f"Single-Door Users: {len(user_patterns['user_classifications']['single_door_users'])}"),
-                                            html.P(f"Multi-Door Users: {len(user_patterns['user_classifications']['multi_door_users'])}"),
-                                            html.P(f"Problematic Users: {len(user_patterns['user_classifications']['problematic_users'])}")
-                                        ], width=6)
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader(html.H4("🚪 Device Pattern Analysis")),
-                            dbc.CardBody([
-                                html.Div([
-                                    dbc.Row([
-                                        dbc.Col([
-                                            html.H5("Traffic Classifications"),
-                                            html.P(f"High Traffic: {len(device_patterns['device_classifications']['high_traffic_devices'])}"),
-                                            html.P(f"Moderate Traffic: {len(device_patterns['device_classifications']['moderate_traffic_devices'])}"),
-                                            html.P(f"Low Traffic: {len(device_patterns['device_classifications']['low_traffic_devices'])}")
-                                        ], width=6),
-                                        dbc.Col([
-                                            html.H5("Security Status"),
-                                            html.P(f"Secure Devices: {len(device_patterns['device_classifications']['secure_devices'])}"),
-                                            html.P(f"Popular Devices: {len(device_patterns['device_classifications']['popular_devices'])}"),
-                                            html.P(f"Problematic: {len(device_patterns['device_classifications']['problematic_devices'])}")
-                                        ], width=6)
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ], width=6)
-                ]),
-                html.Hr(),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader(html.H4("⏰ Temporal Patterns")),
-                            dbc.CardBody([
-                                html.P(f"Peak Hours: {', '.join(map(str, temporal_patterns['peak_hours']))}"),
-                                html.P(f"Peak Days: {', '.join(temporal_patterns['peak_days'])}"),
-                                html.H6("Hourly Distribution:"),
-                                html.Div([
-                                    html.Span(f"{hour}h: {count} ", className="badge badge-secondary me-1")
-                                    for hour, count in sorted(temporal_patterns['hourly_distribution'].items())
-                                ])
-                            ])
-                        ])
-                    ], width=8),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader(html.H4("🎯 Key Statistics")),
-                            dbc.CardBody([
-                                html.P(f"Success Rate: {access_patterns['overall_success_rate']:.1%}"),
-                                html.P(f"Users w/ Low Success: {access_patterns['users_with_low_success']}"),
-                                html.P(f"Devices w/ Issues: {access_patterns['devices_with_low_success']}"),
-                                html.P(f"Avg Doors/User: {user_patterns['user_statistics']['mean_doors_per_user']:.1f}")
-                            ])
-                        ])
-                    ], width=4)
-                ]),
-                html.Hr(),
-                html.H4("🎯 Recommendations", className="mb-3"),
-                html.Div([
-                    dbc.Alert([
-                        html.H5(f"{rec['category']} - {rec['priority']} Priority", className="alert-heading"),
-                        html.P(rec['recommendation']),
-                        html.Hr(),
-                        html.P(f"Action: {rec['action']}", className="mb-0")
-                    ], color="warning" if rec['priority'] == 'High' else "info")
-                    for rec in recommendations
-                ]) if recommendations else dbc.Alert("No specific recommendations at this time.", color="success"),
-                html.Hr(),
-                html.P(f"Analysis completed at: {results['analysis_timestamp']}", className="text-muted")
-            ])
-
-        elif results['status'] == 'no_data':
-            return dbc.Alert([
-                html.H4("📋 No Data Available"),
-                html.P("No processed data found for analysis."),
-                html.P("Please ensure:"),
-                html.Ul([
-                    html.Li("Data files have been uploaded"),
-                    html.Li("Column mapping has been completed"),
-                    html.Li("Device mapping has been completed")
-                ])
-            ], color="warning")
-
-        else:
-            return dbc.Alert([
-                html.H4("❌ Analysis Failed"),
-                html.P(f"Error: {results.get('message', 'Unknown error')}"),
-                html.P("Please check the system logs for more details.")
-            ], color="danger")
-
-    except Exception as e:
-        return dbc.Alert([
-            html.H4("💥 System Error"),
-            html.P(f"Exception: {str(e)}"),
-            html.P("Please check your configuration and try again.")
-        ], color="danger")
 
 
 # =============================================================================
