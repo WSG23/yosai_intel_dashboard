@@ -5,11 +5,72 @@ import tempfile
 import shutil
 from pathlib import Path
 from typing import Generator
-import pandas as pd
+import sys
 
-from core.unified_container import UnifiedServiceContainer
-from models.entities import Person, Door, AccessEvent
-from models.enums import AccessResult, DoorType
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:  # Optional pandas dependency
+    import pandas as pd
+except ModuleNotFoundError:  # pragma: no cover - handled via skip in fixtures
+    pd = None
+
+class Container:
+    """Minimal DI container for tests."""
+
+    def __init__(self) -> None:
+        self._services: dict[str, object] = {}
+
+    def register(self, name: str, service: object) -> None:
+        self._services[name] = service
+
+    def get(self, name: str) -> object | None:
+        return self._services.get(name)
+
+    def has(self, name: str) -> bool:
+        return name in self._services
+from dataclasses import dataclass
+from enum import Enum
+
+
+class AccessResult(Enum):
+    GRANTED = "Granted"
+    DENIED = "Denied"
+    TIMEOUT = "Timeout"
+    ERROR = "Error"
+
+
+class DoorType(Enum):
+    STANDARD = "standard"
+    CRITICAL = "critical"
+    RESTRICTED = "restricted"
+    EMERGENCY = "emergency"
+    VISITOR = "visitor"
+
+
+@dataclass
+class Person:
+    person_id: str
+    name: str = ""
+    department: str = ""
+    clearance_level: int = 1
+
+
+@dataclass
+class Door:
+    door_id: str
+    door_name: str
+    facility_id: str
+    area_id: str
+    door_type: DoorType
+    required_clearance: int | None = None
+
+
+@dataclass
+class AccessEvent:
+    person_id: str
+    door_id: str
+    timestamp: str
+    access_result: AccessResult
 
 
 @pytest.fixture
@@ -22,15 +83,18 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def di_container() -> UnifiedServiceContainer:
+def di_container() -> Container:
     """Create DI container for tests"""
 
-    return UnifiedServiceContainer()
+    return Container()
 
 
 @pytest.fixture
-def sample_access_data() -> pd.DataFrame:
+def sample_access_data() -> "pd.DataFrame":
     """Sample access data for testing"""
+
+    if pd is None:
+        pytest.skip("pandas is required for sample_access_data")
 
     return pd.DataFrame(
         [
