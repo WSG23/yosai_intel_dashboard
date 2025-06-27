@@ -587,10 +587,10 @@ def layout():
         ], className="mb-4")
 
         simple_unique_patterns_card = dbc.Card([
+            dbc.CardHeader("Unique Patterns Analysis"),
             dbc.CardBody([
-                html.H4("🔍 Unique Patterns Analysis"),
-                dbc.Button("Analyze Patterns", id="unique-patterns-btn", color="primary", className="mb-3"),
-                html.Div(id="unique-patterns-output")
+                dbc.Button("Analyze Patterns", id="unique-patterns-btn", color="primary"),
+                html.Div(id="unique-patterns-output", className="mt-3")
             ])
         ])
 
@@ -1519,7 +1519,7 @@ def analyze_unique_patterns(n_clicks):
             device_patterns = results['device_patterns']
 
             return html.Div([
-                html.H4("📊 Analysis Results"),
+                html.H4("Analysis Results"),
                 html.P(f"Total Records: {data_summary['total_records']:,}"),
                 html.P(f"Unique Users: {data_summary['unique_entities']['users']:,}"),
                 html.P(f"Unique Devices: {data_summary['unique_entities']['devices']:,}"),
