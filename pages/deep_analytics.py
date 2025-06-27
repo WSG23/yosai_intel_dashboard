@@ -415,6 +415,16 @@ def get_analysis_buttons_section():
                     size="sm",
                     className="w-100 mb-2"
                 )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "Unique Patterns",
+                    id="unique-patterns-btn",
+                    color="primary",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
             ], width=6)
         ])
     ], width=6)
@@ -544,7 +554,17 @@ def layout():
                                     id="quality-btn",
                                     color="secondary",
                                     outline=True,
-                                    size="sm", 
+                                    size="sm",
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Unique Patterns",
+                                    id="unique-patterns-btn",
+                                    color="primary",
+                                    outline=True,
+                                    size="sm",
                                     className="w-100 mb-2"
                                 )
                             ], width=6)
@@ -640,12 +660,13 @@ def layout():
         Input("behavior-btn", "n_clicks"), 
         Input("anomaly-btn", "n_clicks"),
         Input("suggests-btn", "n_clicks"),
-        Input("quality-btn", "n_clicks")
+        Input("quality-btn", "n_clicks"),
+        Input("unique-patterns-btn", "n_clicks")
     ],
     [State("analytics-data-source", "value")],
     prevent_initial_call=True
 )
-def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggests_n, quality_n, data_source):
+def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggests_n, quality_n, unique_n, data_source):
     """Handle analysis button clicks with safe text encoding"""
     
     if not callback_context.triggered:
@@ -665,7 +686,8 @@ def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggest
         "behavior-btn": "behavior",
         "anomaly-btn": "anomaly",
         "suggests-btn": "suggests",
-        "quality-btn": "quality"
+        "quality-btn": "quality",
+        "unique-patterns-btn": "unique_patterns"
     }
     
     analysis_type = analysis_map.get(button_id)
@@ -683,7 +705,24 @@ def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggest
         if analysis_type == "suggests":
             results = process_suggests_analysis_safe(data_source)
         elif analysis_type == "quality":
-            results = process_quality_analysis_safe(data_source) 
+            results = process_quality_analysis_safe(data_source)
+        elif analysis_type == "unique_patterns":
+            from services.analytics_service import AnalyticsService
+            analytics_service = AnalyticsService()
+            results = analytics_service.get_unique_patterns_analysis()
+
+            if results['status'] == 'success':
+                return html.Div([
+                    html.H4("Unique Patterns Analysis Results"),
+                    html.P(f"Total Records: {results['data_summary']['total_records']:,}"),
+                    html.P(f"Unique Users: {results['data_summary']['unique_entities']['users']:,}"),
+                    html.P(f"Unique Devices: {results['data_summary']['unique_entities']['devices']:,}"),
+                    html.P(f"Power Users: {len(results['user_patterns']['user_classifications']['power_users'])}"),
+                    html.P(f"High Traffic Devices: {len(results['device_patterns']['device_classifications']['high_traffic_devices'])}"),
+                    html.P(f"Success Rate: {results['access_patterns']['overall_success_rate']:.1%}")
+                ])
+            else:
+                return dbc.Alert(f"Analysis failed: {results.get('message', 'Unknown error')}", color="danger")
         else:
             results = analyze_data_with_service_safe(data_source, analysis_type)
         
