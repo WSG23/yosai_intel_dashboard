@@ -75,85 +75,6 @@ def analyze_device_name_with_ai(device_name):
         }
 
 
-def create_device_mapping_table_with_saved_values(devices):
-    """Create device table showing saved user values"""
-    from components.simple_device_mapping import _device_ai_mappings
-
-    table_rows = []
-    for i, device_name in enumerate(devices):
-        # Get saved values from global mappings
-        saved_data = _device_ai_mappings.get(device_name, {})
-
-        # Show saved values or defaults
-        floor_val = saved_data.get('floor_number', 1)
-        security_val = saved_data.get('security_level', 5)
-        is_entry = saved_data.get('is_entry', False)
-        is_exit = saved_data.get('is_exit', False)
-        source = saved_data.get('source', 'ai_generated')
-
-        # Create status badge
-        if source == 'user_confirmed':
-            status_badge = dbc.Badge("✅ User Confirmed", color="success", className="small")
-        else:
-            status_badge = dbc.Badge(f"🤖 AI: {saved_data.get('confidence', 0.5):.0%}", color="info", className="small")
-
-        table_rows.append(
-            html.Tr([
-                html.Td([
-                    html.Strong(device_name),
-                    html.Br(),
-                    status_badge
-                ]),
-                html.Td([
-                    dbc.Input(
-                        id={"type": "device-floor", "index": i},
-                        type="number",
-                        min=0,
-                        max=50,
-                        value=floor_val,
-                        size="sm",
-                    )
-                ]),
-                html.Td([
-                    dbc.Input(
-                        id={"type": "device-security", "index": i},
-                        type="number",
-                        min=1,
-                        max=10,
-                        value=security_val,
-                        size="sm",
-                    )
-                ]),
-                html.Td([
-                    dbc.Checklist(
-                        id={"type": "device-access", "index": i},
-                        options=[
-                            {"label": "Entry", "value": "entry"},
-                            {"label": "Exit", "value": "exit"},
-                        ],
-                        value=[
-                            "entry" if is_entry else None,
-                            "exit" if is_exit else None,
-                        ],
-                        inline=True,
-                    )
-                ]),
-            ])
-        )
-
-    return dbc.Table([
-        html.Thead([
-            html.Tr([
-                html.Th("Device"),
-                html.Th("Floor"),
-                html.Th("Security Level"),
-                html.Th("Access Type"),
-            ])
-        ]),
-        html.Tbody(table_rows),
-    ], striped=True, bordered=True, hover=True)
-
-
 def layout():
     """File upload page layout with persistent storage"""
     return dbc.Container(
@@ -901,19 +822,110 @@ def populate_device_modal_with_learning(is_open, file_info):
                 color="warning",
             )
 
-        device_table = create_device_mapping_table_with_saved_values(actual_devices)
+        # Create device mapping table (your existing table creation code)
+        table_rows = []
+        for i, device_name in enumerate(actual_devices):
+            ai_attributes = analyze_device_name_with_ai(device_name)
 
-        return html.Div([
-            html.H5("🚪 Device Mapping Configuration"),
-            html.P(f"Found {len(actual_devices)} devices. Configure their properties below:"),
-            html.Div(device_table, id="device-mapping-table"),
-            html.Hr(),
-            dbc.Button(
-                "✅ Confirm Device Mappings",
-                id="device-verify-confirm",
-                color="success",
-            ),
-        ])
+            table_rows.append(
+                html.Tr(
+                    [
+                        html.Td(
+                            [
+                                html.Strong(device_name),
+                                html.Br(),
+                                html.Small(
+                                    f"AI Confidence: {ai_attributes.get('confidence', 0.5):.0%}",
+                                    className="text-success",
+                                ),
+                            ]
+                        ),
+                        html.Td(
+                            [
+                                dbc.Input(
+                                    id={"type": "device-floor", "index": i},
+                                    type="number",
+                                    min=0,
+                                    max=50,
+                                    value=ai_attributes.get("floor_number", 1),
+                                    placeholder="Floor",
+                                    size="sm",
+                                )
+                            ]
+                        ),
+                        html.Td(
+                            dbc.Checklist(
+                                id={"type": "device-access", "index": i},
+                                options=[
+                                    {"label": "Entry", "value": "is_entry"},
+                                    {"label": "Exit", "value": "is_exit"},
+                                    {"label": "Elevator", "value": "is_elevator"},
+                                    {"label": "Stairwell", "value": "is_stairwell"},
+                                    {"label": "Fire Exit", "value": "is_fire_escape"},
+                                ],
+                                value=[
+                                    k
+                                    for k, v in ai_attributes.items()
+                                    if k
+                                    in [
+                                        "is_entry",
+                                        "is_exit",
+                                        "is_elevator",
+                                        "is_stairwell",
+                                        "is_fire_escape",
+                                    ]
+                                    and v
+                                ],
+                                inline=False,
+                            ),
+                        ),
+                        html.Td(
+                            dbc.Input(
+                                id={"type": "device-security", "index": i},
+                                type="number",
+                                min=0,
+                                max=10,
+                                value=ai_attributes.get("security_level", 5),
+                                placeholder="0-10",
+                                size="sm",
+                            )
+                        ),
+                    ]
+                )
+            )
+
+        # Return your existing table structure
+        return dbc.Container(
+            [
+                dbc.Alert(
+                    [
+                        html.Strong("🤖 AI Analysis: "),
+                        f"Analyzed {len(actual_devices)} devices. Check console for detailed AI debug info.",
+                    ],
+                    color="info",
+                    className="mb-3",
+                ),
+                dbc.Table(
+                    [
+                        html.Thead(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Th("Device Name"),
+                                        html.Th("Floor"),
+                                        html.Th("Access Types"),
+                                        html.Th("Security Level"),
+                                    ]
+                                )
+                            ]
+                        ),
+                        html.Tbody(table_rows),
+                    ],
+                    striped=True,
+                    hover=True,
+                ),
+            ]
+        )
 
     except Exception as e:
         print(f"❌ Error in device modal: {e}")
@@ -1022,9 +1034,8 @@ def populate_modal_content(is_open, file_info):
 
 @callback(
     [Output("toast-container", "children", allow_duplicate=True),
-     Output("column-verify-modal", "is_open", allow_duplicate=True),
-     Output("device-verify-modal", "is_open", allow_duplicate=True),
-     Output("device-mapping-table", "children", allow_duplicate=True)],
+     Output("column-verification-modal", "is_open", allow_duplicate=True),
+     Output("device-verification-modal", "is_open", allow_duplicate=True)],
     [Input("device-verify-confirm", "n_clicks")],
     [State({"type": "device-floor", "index": ALL}, "value"),
      State({"type": "device-security", "index": ALL}, "value"),
@@ -1032,47 +1043,58 @@ def populate_modal_content(is_open, file_info):
      State("current-file-info-store", "data")],
     prevent_initial_call=True,
 )
-def save_and_refresh_device_mappings(confirm_clicks, floors, security, access, file_info):
-    """Save device mappings and refresh the UI immediately"""
+def save_confirmed_device_mappings(confirm_clicks, floors, security, access, file_info):
+    """Save confirmed device mappings to database"""
     if not confirm_clicks or not file_info:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     try:
         devices = file_info.get("devices", [])
+        filename = file_info.get("filename", "")
 
-        # Save user inputs to global mappings immediately
-        from components.simple_device_mapping import _device_ai_mappings
-
+        # Create user mappings from inputs
+        user_mappings = {}
         for i, device in enumerate(devices):
-            _device_ai_mappings[device] = {
-                'floor_number': floors[i] if i < len(floors) else 1,
-                'security_level': security[i] if i < len(security) else 5,
-                'is_entry': 'entry' in (access[i] if i < len(access) else []),
-                'is_exit': 'exit' in (access[i] if i < len(access) else []),
-                'confidence': 1.0,
-                'device_name': device,
-                'source': 'user_confirmed',
-                'ai_reasoning': 'User confirmed mapping'
+            user_mappings[device] = {
+                "floor_number": floors[i] if i < len(floors) else 1,
+                "security_level": security[i] if i < len(security) else 5,
+                "is_entry": "entry" in (access[i] if i < len(access) else []),
+                "is_exit": "exit" in (access[i] if i < len(access) else []),
+                "confidence": 1.0,
+                "device_name": device,
+                "source": "user_confirmed",
+                "saved_at": datetime.now().isoformat(),
             }
 
-        print(f"✅ Updated {len(devices)} device mappings in global store")
+        # Save to learning service database
+        learning_service.save_user_device_mappings(filename, user_mappings)
 
-        # Regenerate the device table with new values
-        updated_table = create_device_mapping_table_with_saved_values(devices)
+        # Update global mappings
+        from components.simple_device_mapping import _device_ai_mappings
+        _device_ai_mappings.update(user_mappings)
+
+        print(f"\u2705 Saved {len(user_mappings)} confirmed device mappings to database")
 
         success_alert = dbc.Toast(
-            "✅ Device mappings saved and updated!",
-            header="Saved",
+            "✅ Device mappings saved to database!",
+            header="Confirmed & Saved",
             is_open=True,
             dismissable=True,
-            duration=3000
+            duration=3000,
         )
 
-        return success_alert, False, False, updated_table
+        return success_alert, False, False
 
     except Exception as e:
-        print(f"❌ Error: {e}")
-        return no_update, no_update, no_update, no_update
+        print(f"\u274c Error saving device mappings: {e}")
+        error_alert = dbc.Toast(
+            f"❌ Error saving mappings: {e}",
+            header="Error",
+            is_open=True,
+            dismissable=True,
+            duration=5000,
+        )
+        return error_alert, no_update, no_update
 
 
 # Export functions for integration with other modules
