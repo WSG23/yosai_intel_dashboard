@@ -178,8 +178,13 @@ def create_simple_device_modal_with_ai(devices: List[str]) -> dbc.Modal:
             )
         )
 
+    device_store = dcc.Store(id="current-devices-list", data=devices)
+    status_div = html.Div(id="device-save-status")
+
     modal_body = html.Div(
         [
+            device_store,
+            status_div,
             dbc.Alert(
                 [
                     "Manually assign floor numbers and security levels to devices. ",
@@ -384,3 +389,40 @@ def toggle_simple_device_modal(open_clicks, cancel_clicks, save_clicks, is_open)
         return False
 
     return is_open
+
+
+@callback(
+    Output("device-save-status", "children"),
+    [
+        Input({"type": "device-floor", "index": ALL}, "value"),
+        Input({"type": "device-security", "index": ALL}, "value"),
+        Input({"type": "device-access", "index": ALL}, "value"),
+    ],
+    [State("current-devices-list", "data")],
+    prevent_initial_call=True,
+)
+def save_user_inputs(floors, security, access, devices):
+    """Save user inputs immediately when they change"""
+    global _device_ai_mappings
+
+    if not devices:
+        return ""
+
+    # Update global mappings with user inputs
+    for i, device in enumerate(devices):
+        user_floor = floors[i] if i < len(floors) and floors[i] is not None else 1
+        user_security = security[i] if i < len(security) and security[i] is not None else 5
+        user_access = access[i] if i < len(access) else []
+
+        _device_ai_mappings[device] = {
+            "floor_number": user_floor,
+            "security_level": user_security,
+            "is_entry": "entry" in user_access,
+            "is_exit": "exit" in user_access,
+            "confidence": 1.0,
+            "device_name": device,
+            "ai_reasoning": "User input",
+            "source": "user",
+        }
+
+    return ""
