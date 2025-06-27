@@ -331,6 +331,11 @@ def _register_global_callbacks(app: dash.Dash) -> None:
     except ImportError as e:
         logger.warning(f"Device learning callbacks not available: {e}")
 
+    # Execute upload page callbacks via module import
+    import pages.file_upload  # This executes the @callback decorators
+
+    logger.info("✅ Global callbacks registered successfully")
+
 
 def _initialize_services() -> None:
     """Initialize all application services"""
