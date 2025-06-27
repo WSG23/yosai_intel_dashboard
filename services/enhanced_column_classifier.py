@@ -17,8 +17,8 @@ class EnhancedColumnClassifier:
         self.model_path = Path(model_path)
         self.vectorizer_path = Path("data/column_vectorizer.joblib")
         self.confidence_threshold = confidence_threshold
-        self.classifier = None
-        self.vectorizer = None
+        self.classifier: Optional[Any] = None
+        self.vectorizer: Optional[Any] = None
         self.logger = logging.getLogger(__name__)
 
         # Standard field patterns for heuristic fallback
@@ -62,6 +62,8 @@ class EnhancedColumnClassifier:
         method = "ml_with_fallback"
 
         try:
+            assert self.vectorizer is not None, "Vectorizer is not loaded"
+            assert self.classifier is not None, "Classifier is not loaded"
             features = self.vectorizer.transform(headers)
             predictions = self.classifier.predict_proba(features)
 
