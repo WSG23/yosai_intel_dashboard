@@ -739,7 +739,7 @@ def analyze_data_with_service(data_source: str, analysis_type: str) -> Dict[str,
 
         # Generate DIFFERENT results based on analysis type
         if analysis_type == "security":
-            result = {
+            return {
                 "analysis_type": "Security Patterns",
                 "data_source": data_source,
                 "total_events": total_events,
@@ -752,21 +752,6 @@ def analyze_data_with_service(data_source: str, analysis_type: str) -> Dict[str,
                 "date_range": analytics_results.get('date_range', {}),
                 "analysis_focus": "Security threats, failed access attempts, and unauthorized access patterns",
             }
-
-            from pages.file_upload import get_uploaded_data
-            uploaded = get_uploaded_data()
-            df = None
-            if data_source.startswith("upload:"):
-                filename = data_source.replace("upload:", "")
-                df = uploaded.get(filename)
-            elif uploaded:
-                df = list(uploaded.values())[0]
-            if df is not None:
-                from analytics.security_patterns import SecurityPatternsAnalyzer
-                analyzer = SecurityPatternsAnalyzer()
-                result["security_details"] = analyzer.analyze_patterns(df)
-
-            return result
 
         elif analysis_type == "trends":
             return {
@@ -987,43 +972,11 @@ def create_analysis_results_display(results: Dict[str, Any], analysis_type: str)
 
         # Create type-specific content
         if analysis_type == "security":
-            details = results.get('security_details', {})
-            breakdown = details.get('failure_breakdown', {}).get('breakdown', {})
-            hotspots = details.get('hotspots', {})
-            trend = details.get('trend_over_time', {})
-            user_risk = details.get('user_risk_profile', [])
-            floor_scores = details.get('security_score_by_floor', {})
-
-            graphs = []
-            if breakdown:
-                fig = px.bar(x=list(breakdown.keys()), y=[v['count'] for v in breakdown.values()], labels={'x': 'Reason', 'y': 'Count'})
-                graphs.append(dcc.Graph(figure=fig))
-            if trend:
-                trend_fig = go.Figure()
-                trend_fig.add_trace(go.Scatter(x=trend.get('timestamps', []), y=trend.get('success_rate', []), name='Success'))
-                trend_fig.add_trace(go.Scatter(x=trend.get('timestamps', []), y=trend.get('failure_rate', []), name='Failure'))
-                graphs.append(dcc.Graph(figure=trend_fig))
-            if hotspots:
-                hot_fig = px.bar(x=list(hotspots.keys()), y=list(hotspots.values()), labels={'x': 'Door', 'y': 'Failures'})
-                graphs.append(dcc.Graph(figure=hot_fig))
-            if user_risk:
-                user_list = html.Ul([html.Li(f"{u['user']}: {u['failure_rate']:.1f}% fails, tailgating {u['tailgating_attempts']}") for u in user_risk])
-            else:
-                user_list = html.P("No high risk users")
-            if floor_scores:
-                gauges = [html.Div([
-                    html.Span(f"Floor {floor}"),
-                    dbc.Progress(value=score, label=f"{score}")
-                ]) for floor, score in floor_scores.items()]
-            else:
-                gauges = []
-
             specific_content = [
                 html.P(f"Security Score: {results.get('security_score', 0):.1f}/100"),
                 html.P(f"Failed Attempts: {results.get('failed_attempts', 0):,}"),
                 html.P(f"Risk Level: {results.get('risk_level', 'Unknown')}")
-            ] + graphs + [user_list] + gauges
-
+            ]
             color = "danger" if results.get('risk_level') == "High" else "warning" if results.get('risk_level') == "Medium" else "success"
 
         elif analysis_type == "trends":
@@ -1271,31 +1224,14 @@ def analyze_data_with_service_safe(data_source, analysis_type):
         analytics_results = service.get_analytics_by_source(source_name)
         if analytics_results.get('status') == 'error':
             return {"error": analytics_results.get('message', 'Unknown error')}
-
-        result = {
+        return {
             "analysis_type": analysis_type.title(),
             "data_source": data_source,
             "total_events": analytics_results.get('total_events', 0),
             "unique_users": analytics_results.get('unique_users', 0),
             "success_rate": analytics_results.get('success_rate', 0),
-            "status": "completed",
+            "status": "completed"
         }
-
-        if analysis_type == "security":
-            from pages.file_upload import get_uploaded_data
-            uploaded = get_uploaded_data()
-            df = None
-            if data_source.startswith("upload:"):
-                filename = data_source.replace("upload:", "")
-                df = uploaded.get(filename)
-            elif uploaded:
-                df = list(uploaded.values())[0]
-            if df is not None:
-                from analytics.security_patterns import SecurityPatternsAnalyzer
-                analyzer = SecurityPatternsAnalyzer()
-                result["security_details"] = analyzer.analyze_patterns(df)
-
-        return result
     except Exception as e:
         return {"error": f"Service analysis failed: {str(e)}"}
 
@@ -1334,22 +1270,6 @@ def create_analysis_results_display_safe(results, analysis_type):
                 html.P(f"Unique users: {results.get('unique_users', 0):,}"),
                 html.P(f"Success rate: {results.get('success_rate', 0):.1%}")
             ])
-            if analysis_type == "security":
-                details = results.get('security_details', {})
-                breakdown = details.get('failure_breakdown', {}).get('breakdown', {})
-                hotspots = details.get('hotspots', {})
-                user_risk = details.get('user_risk_profile', [])
-                if breakdown:
-                    content.append(html.H6("Failure Breakdown"))
-                    for k, v in breakdown.items():
-                        content.append(html.P(f"{k}: {v['count']}"))
-                if hotspots:
-                    content.append(html.H6("Hotspots"))
-                    for door, cnt in hotspots.items():
-                        content.append(html.P(f"{door}: {cnt}"))
-                if user_risk:
-                    content.append(html.H6("Risky Users"))
-                    content.extend([html.P(f"{u['user']}: {u['failure_rate']:.1f}%") for u in user_risk])
         return dbc.Card([
             dbc.CardBody(content)
         ])

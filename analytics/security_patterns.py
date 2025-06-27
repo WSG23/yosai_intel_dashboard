@@ -42,12 +42,7 @@ class SecurityPatternsAnalyzer:
                 'badge_anomalies': self._analyze_badge_anomalies(df),
                 'device_security_issues': self._analyze_device_issues(df),
                 'access_violations': self._analyze_access_violations(df),
-                'failure_breakdown': self._failure_breakdown(df),
-                'trend_over_time': self._trend_over_time(df),
-                'hotspots': self._hotspot_analysis(df),
-                'user_risk_profile': self._user_risk_profile(df),
                 'security_score': self._calculate_security_score(df),
-                'security_score_by_floor': self._calculate_security_score_by_floor(df),
                 'threat_summary': self._generate_threat_summary(df)
             }
             
@@ -305,91 +300,6 @@ class SecurityPatternsAnalyzer:
             'threats': threats,
             'overall_risk': self._assess_overall_risk(threats)
         }
-
-    # New advanced analytics methods
-
-    def _failure_breakdown(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Break down failures by reason"""
-        failed = df[df['access_result'] == 'Denied']
-        total = len(failed)
-        if total == 0:
-            return {'total': 0, 'breakdown': {}}
-
-        breakdown = {}
-
-        invalid_badge = failed[failed['badge_status'] != 'Valid']
-        breakdown['invalid_badge'] = {
-            'count': len(invalid_badge),
-            'rate': len(invalid_badge) / total * 100,
-        }
-
-        door_jam = failed[failed.get('door_held_open_time', 0) > 30]
-        breakdown['door_jam'] = {
-            'count': len(door_jam),
-            'rate': len(door_jam) / total * 100,
-        }
-
-        timeout = failed[failed.get('device_status') == 'timeout'] if 'device_status' in failed.columns else failed[[]]
-        breakdown['timeout'] = {
-            'count': len(timeout),
-            'rate': len(timeout) / total * 100,
-        }
-
-        other_count = total - sum(v['count'] for v in breakdown.values())
-        if other_count > 0:
-            breakdown['other'] = {
-                'count': other_count,
-                'rate': other_count / total * 100,
-            }
-
-        return {'total': total, 'breakdown': breakdown}
-
-    def _trend_over_time(self, df: pd.DataFrame, freq: str = 'D') -> Dict[str, Any]:
-        """Calculate success vs failure rate trend over time"""
-        df = df.set_index('timestamp')
-        success = (df['access_result'] == 'Granted').resample(freq).mean() * 100
-        failure = (df['access_result'] == 'Denied').resample(freq).mean() * 100
-        return {
-            'frequency': freq,
-            'timestamps': success.index.strftime('%Y-%m-%d').tolist(),
-            'success_rate': success.fillna(0).round(2).tolist(),
-            'failure_rate': failure.fillna(0).round(2).tolist(),
-        }
-
-    def _hotspot_analysis(self, df: pd.DataFrame) -> Dict[str, int]:
-        """Identify doors with the most failures"""
-        failed = df[df['access_result'] == 'Denied']
-        if failed.empty:
-            return {}
-        return failed['door_id'].value_counts().head(10).to_dict()
-
-    def _user_risk_profile(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
-        """Get users with highest failure rates"""
-        grouped = df.groupby('person_id').agg(
-            attempts=('event_id', 'count'),
-            failures=('access_result', lambda x: (x == 'Denied').sum()),
-            tailgating=('entry_without_badge', 'sum') if 'entry_without_badge' in df.columns else ('event_id', lambda x: 0),
-        )
-        grouped['failure_rate'] = grouped['failures'] / grouped['attempts'] * 100
-        high_risk = grouped[grouped['failure_rate'] > 5]
-        high_risk = high_risk.sort_values('failure_rate', ascending=False).head(10)
-        profiles = []
-        for user, row in high_risk.iterrows():
-            profiles.append({
-                'user': user,
-                'failure_rate': round(row['failure_rate'], 2),
-                'tailgating_attempts': int(row['tailgating']),
-            })
-        return profiles
-
-    def _calculate_security_score_by_floor(self, df: pd.DataFrame) -> Dict[str, int]:
-        """Calculate security score per floor if available"""
-        if 'floor_number' not in df.columns:
-            return {}
-        scores = {}
-        for floor, sub in df.groupby('floor_number'):
-            scores[floor] = self._calculate_security_score(sub)
-        return scores
     
     # Helper methods
     def _extract_failure_patterns(self, failed_attempts: pd.DataFrame) -> List[Dict]:
@@ -484,12 +394,7 @@ class SecurityPatternsAnalyzer:
             'badge_anomalies': {'total': 0, 'issues': {}},
             'device_security_issues': {'total': 0, 'issues': {}},
             'access_violations': {'total': 0, 'violation_types': {}},
-            'failure_breakdown': {'total': 0, 'breakdown': {}},
-            'trend_over_time': {},
-            'hotspots': {},
-            'user_risk_profile': [],
             'security_score': 0,
-            'security_score_by_floor': {},
             'threat_summary': {'threat_count': 0, 'threats': []}
         }
 
