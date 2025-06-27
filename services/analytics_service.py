@@ -540,8 +540,14 @@ class AnalyticsService:
     def _get_analytics_with_fixed_processor(self) -> Dict[str, Any]:
         """Get analytics using the FIXED file processor"""
 
-        csv_file = "/Users/tombrayman/Library/CloudStorage/Dropbox/1. YOSAI CODING/03_Data/Datasets/Demo3_data.csv"
-        json_file = "/Users/tombrayman/Library/CloudStorage/Dropbox/1. YOSAI CODING/03_Data/Datasets/key_fob_access_log_sample.json"
+        csv_file = os.getenv("ANALYTICS_CSV_FILE")
+        json_file = os.getenv("ANALYTICS_JSON_FILE")
+
+        if not csv_file or not json_file:
+            logger.debug(
+                "Analytics file paths not set; skipping fixed processor analytics"
+            )
+            return {"status": "no_data", "message": "File paths not configured"}
 
         try:
             from services.file_processor import FileProcessor

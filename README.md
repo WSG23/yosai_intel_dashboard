@@ -169,6 +169,18 @@ When `YOSAI_ENV=production` the application will refuse to start unless both
 `DB_PASSWORD` and `SECRET_KEY` are provided via environment variables or Docker
 secrets.
 
+### Analytics Data Files
+
+The optional fixed processor analytics rely on sample CSV and JSON files. Set
+the paths to these files via environment variables:
+
+```bash
+ANALYTICS_CSV_FILE=/path/to/data.csv
+ANALYTICS_JSON_FILE=/path/to/data.json
+```
+
+If either variable is unset the fixed processor step is skipped.
+
 ### Environment Overrides
 
 `ConfigManager` loads YAML files from `config/` and then checks for
