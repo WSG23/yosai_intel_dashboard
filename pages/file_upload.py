@@ -12,8 +12,7 @@ import pandas as pd
 from typing import Optional, Dict, Any, List
 from dash import html, dcc
 from dash.dash import no_update
-from dash._callback import callback
-from dash._callback_context import callback_context
+from dash import callback, callback_context
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from services.device_learning_service import DeviceLearningService
