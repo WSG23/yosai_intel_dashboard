@@ -647,6 +647,13 @@ def consolidated_upload_callback(
 
     elif "device-verify-confirm" in trigger_id and confirm_dev_clicks:
         print("✅ Device mappings confirmed")
+
+        # ADD THESE 3 LINES FOR LEARNING:
+        from services.consolidated_learning_service import get_learning_service
+        learning_service = get_learning_service()
+        fingerprint = learning_service.save_complete_mapping(_uploaded_data_store[list(_uploaded_data_store.keys())[0]], 
+                                                            list(_uploaded_data_store.keys())[0], {})
+
         success_alert = dbc.Toast([html.P("✅ Device mappings saved!")],
                                  header="Saved", is_open=True, dismissable=True, duration=3000)
         return success_alert, no_update, no_update, no_update, no_update, no_update, False
