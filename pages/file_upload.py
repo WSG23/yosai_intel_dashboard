@@ -12,7 +12,7 @@ import pandas as pd
 from typing import Optional, Dict, Any, List
 from dash import html, dcc
 from dash.dash import no_update
-from dash import callback, callback_context
+from dash import callback, ctx
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from services.device_learning_service import DeviceLearningService
@@ -538,13 +538,13 @@ def consolidated_upload_callback(
 ):
     """Fixed consolidated callback - handles file upload properly"""
     
-    ctx = callback_context
+    dash_ctx = ctx
     
     # Default returns
     default_returns = (no_update, no_update, no_update, no_update, no_update, no_update, no_update)
     
     # Handle file upload FIRST and IMMEDIATELY
-    if ctx.triggered and "upload-data.contents" in ctx.triggered[0]["prop_id"]:
+    if dash_ctx.triggered and "upload-data.contents" in dash_ctx.triggered[0]["prop_id"]:
         if not contents_list or not filenames_list:
             return default_returns
             
@@ -643,8 +643,8 @@ def consolidated_upload_callback(
         )
     
     # Handle other callbacks (column verification, etc.)
-    if ctx.triggered:
-        trigger_id = ctx.triggered[0]["prop_id"]
+    if dash_ctx.triggered:
+        trigger_id = dash_ctx.triggered[0]["prop_id"]
         
         if "verify-columns-btn-simple" in trigger_id and verify_clicks:
             # Open column verification modal
