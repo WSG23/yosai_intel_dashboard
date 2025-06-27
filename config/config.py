@@ -205,9 +205,13 @@ class ConfigManager:
             if self.config.app.host == "127.0.0.1":
                 warnings.append("Production should not run on localhost")
         
-        # Log warnings
-        for warning in warnings:
-            logger.warning(f"Configuration warning: {warning}")
+        # Log warnings or fail fast in production
+        if warnings:
+            if self.config.environment == "production":
+                joined = "; ".join(warnings)
+                raise RuntimeError(f"Invalid production configuration: {joined}")
+            for warning in warnings:
+                logger.warning(f"Configuration warning: {warning}")
     
     def get_app_config(self) -> AppConfig:
         """Get app configuration"""
