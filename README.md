@@ -165,6 +165,18 @@ PORT=8050            # Application port
 SECRET_KEY=your-key  # Change for production
 ```
 
+### Required Environment Variables
+
+These variables **must** be provided in production, either via `.env` or your
+shell environment:
+
+```bash
+SECRET_KEY=<your secret key>
+DB_PASSWORD=<database password>
+```
+The application will not start in production if these contain placeholder
+values.
+
 When `YOSAI_ENV=production` the application will refuse to start unless both
 `DB_PASSWORD` and `SECRET_KEY` are provided via environment variables or Docker
 secrets.
