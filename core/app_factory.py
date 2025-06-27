@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Complete App Factory Integration - FIXED CALLBACK REGISTRATION
 """
@@ -59,7 +60,6 @@ def _create_main_layout() -> html.Div:
     )
 
 
-
 def _create_navbar() -> dbc.Navbar:
     """Create navigation bar"""
     return dbc.Navbar(
@@ -98,14 +98,14 @@ def _create_navbar() -> dbc.Navbar:
                                                 dbc.NavLink(
                                                     "Analytics",
                                                     href="/analytics",
-                                                    active="exact"
+                                                    active="exact",
                                                 )
                                             ),
                                             dbc.NavItem(
                                                 dbc.NavLink(
                                                     "Upload",
                                                     href="/upload",
-                                                    active="exact"
+                                                    active="exact",
                                                 )
                                             ),
                                         ],
@@ -272,25 +272,26 @@ def display_page(pathname):
 
 
 def _register_all_callbacks(app: dash.Dash) -> None:
-    """FIXED: Register ALL callbacks including page callbacks"""
+    """FIXED: Register ALL callbacks including page callbacks with direct registration"""
     
     # Register global callbacks first
     _register_global_callbacks(app)
     
-    # CRITICAL FIX: Import page modules to register their callbacks
+    # CRITICAL FIX: Use direct callback registration instead of decorator imports
     try:
         logger.info("Registering page callbacks...")
         
-        # Import file_upload module to register its callbacks
-        import pages.file_upload
+        # Import and directly register file upload callbacks
+        from pages.file_upload import register_upload_callbacks
+        register_upload_callbacks(app)
         logger.info("✅ File upload callbacks registered")
         
-        # Import analytics callbacks if available
+        # Import analytics page (but no separate callbacks file to avoid duplicates)
         try:
-            import pages.deep_analytics_callbacks
-            logger.info("✅ Analytics callbacks registered")
+            import pages.deep_analytics
+            logger.info("✅ Analytics page imported")
         except ImportError:
-            logger.warning("Analytics callbacks not available")
+            logger.warning("Analytics page not available")
             
     except ImportError as e:
         logger.error(f"Failed to register page callbacks: {e}")
