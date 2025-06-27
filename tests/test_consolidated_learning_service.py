@@ -1,6 +1,8 @@
 """
 Test suite for consolidated learning service.
 """
+import pytest
+pytest.importorskip("pandas")
 import pandas as pd
 import tempfile
 from pathlib import Path

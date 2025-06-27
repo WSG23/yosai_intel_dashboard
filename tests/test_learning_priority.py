@@ -1,4 +1,5 @@
 import pytest
+pytest.importorskip("pandas")
 from pages.file_upload import analyze_device_name_with_ai
 from components.simple_device_mapping import _device_ai_mappings
 from services.ai_device_generator import AIDeviceGenerator, DeviceAttributes

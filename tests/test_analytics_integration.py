@@ -3,6 +3,7 @@
 Complete Integration Tests for Analytics System
 """
 import pytest
+pytest.importorskip("pandas")
 import pandas as pd
 from services.analytics_service import get_analytics_service
 from models.base import ModelFactory

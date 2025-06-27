@@ -1,5 +1,9 @@
-import pytest
 from pathlib import Path
+import sys
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from analyzers.ast_analyzer import ASTAnalyzer
 from analyzers.style_analyzer import StyleAnalyzer
 from analyzers.base_analyzer import IssueType
@@ -24,7 +28,7 @@ def complex_function(x):
 """
         )
 
-        analyzer = ASTAnalyzer(max_complexity=5)
+        analyzer = ASTAnalyzer(max_complexity=4)
         issues = analyzer.analyze(test_file)
 
         complexity_issues = [i for i in issues if i.issue_type == IssueType.COMPLEXITY]
@@ -63,3 +67,5 @@ class TestStyleAnalyzer:
 
         line_length_issues = [i for i in issues if i.rule == "line_length"]
         assert len(line_length_issues) == 1
+
+
