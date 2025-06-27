@@ -17,6 +17,7 @@ from .analytics_computation import (
 )
 from .result_formatting import format_dashboard_summary
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +26,9 @@ class AnalyticsService:
 
     def __init__(self):
         self.database_manager: Optional[Any] = None
+        self.stats = StatsCalculator()
+        self.loader = DataLoader()
+        self.anomaly_detector = AnomalyDetector()
         self._initialize_database()
 
     def _initialize_database(self):
