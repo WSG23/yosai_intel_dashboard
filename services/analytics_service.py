@@ -614,7 +614,7 @@ class AnalyticsService:
             return {'status': 'error', 'message': str(e)}
 
     def get_unique_patterns_analysis(self):
-        """Get unique patterns analysis with all required fields"""
+        """Get unique patterns analysis with all required fields including date_range"""
         try:
             from pages.file_upload import get_uploaded_data
             uploaded_data = get_uploaded_data()
@@ -638,6 +638,17 @@ class AnalyticsService:
                 unique_users = df['person_id'].nunique() if 'person_id' in df.columns else 0
                 unique_devices = df['door_id'].nunique() if 'door_id' in df.columns else 0
 
+                # Calculate date range
+                if 'timestamp' in df.columns:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                    valid_dates = df['timestamp'].dropna()
+                    if len(valid_dates) > 0:
+                        date_span = (valid_dates.max() - valid_dates.min()).days
+                    else:
+                        date_span = 0
+                else:
+                    date_span = 0
+
                 # Analyze user patterns
                 if 'person_id' in df.columns:
                     user_stats = df.groupby('person_id').size()
@@ -660,11 +671,14 @@ class AnalyticsService:
                 else:
                     success_rate = 0.95
 
-                # Return ALL required fields
+                # Return ALL required fields including date_range
                 return {
                     'status': 'success',
                     'data_summary': {
                         'total_records': total_records,
+                        'date_range': {
+                            'span_days': date_span
+                        },
                         'unique_entities': {
                             'users': unique_users,
                             'devices': unique_devices
