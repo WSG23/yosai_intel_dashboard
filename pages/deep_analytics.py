@@ -15,7 +15,8 @@ import pandas as pd
 from datetime import datetime
 
 # Dash core imports
-from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx, callback_context
+from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
+from dash import callback_context
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
@@ -61,88 +62,49 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def get_analytics_service_safe() -> Optional[AnalyticsService]:
-    """Safely get analytics service instance"""
+
+def get_analytics_service_safe():
+    """Safely get analytics service"""
     try:
-        if ANALYTICS_SERVICE_AVAILABLE:
-            return AnalyticsService()
+        from services.analytics_service import AnalyticsService
+        return AnalyticsService()
+    except ImportError:
         return None
-    except Exception as e:
-        logger.warning(f"Analytics service unavailable: {e}")
+    except Exception:
         return None
 
 
-def get_data_source_options_safe() -> List[Dict[str, str]]:
-    """CORRECTED - Get available data sources with proper imports"""
+def get_data_source_options_safe():
+    """Get data source options without Unicode issues"""
     options = []
-
     try:
-        # CORRECTED IMPORT PATH - Use pages.file_upload not components.file_upload
         from pages.file_upload import get_uploaded_data
-
         uploaded_files = get_uploaded_data()
-
-        print(f"🔍 Found {len(uploaded_files)} uploaded files")
-
-        for filename, df in uploaded_files.items():
-            print(f"   📄 {filename}: {len(df):,} rows × {len(df.columns)} columns")
-
-            # Check if AI suggestions are available for this file
-            has_suggestions = False
-            if AI_SUGGESTIONS_AVAILABLE:
-                try:
-                    suggestions = get_ai_suggestions_for_file(df, filename)
-                    has_suggestions = bool(
-                        suggestions
-                        and any(s.get("field") for s in suggestions.values())
-                    )
-                    print(
-                        f"      🤖 AI suggestions: {'Available' if has_suggestions else 'None'}"
-                    )
-                except Exception as e:
-                    print(f"      ⚠️ AI suggestions failed: {e}")
-                    pass
-
-            suggestion_indicator = " 🤖" if has_suggestions else " 📄"
-            options.append(
-                {
-                    "label": f"{filename}{suggestion_indicator}",
-                    "value": f"upload:{filename}",
-                }
-            )
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        options.append({"label": "⚠️ File upload module not available", "value": "none"})
-    except Exception as e:
-        print(f"❌ Error getting uploaded files: {e}")
-        options.append({"label": f"⚠️ Error: {str(e)}", "value": "none"})
-
-    # Add service-based sources if available - CORRECTED method name
+        if uploaded_files:
+            for filename in uploaded_files.keys():
+                options.append({
+                    "label": f"File: {filename}",
+                    "value": f"upload:{filename}"
+                })
+    except ImportError:
+        pass
     try:
         service = get_analytics_service_safe()
         if service:
-            # Use the actual method name from AnalyticsService
-            service_sources = (
-                service.get_data_source_options()
-            )  # This is the correct method name
+            service_sources = service.get_available_sources()
             for source_dict in service_sources:
-                options.append(
-                    {
-                        "label": f"🔗 {source_dict.get('label', 'Unknown')}",
-                        "value": f"service:{source_dict.get('value', 'unknown')}",
-                    }
-                )
-    except Exception as e:
-        print(f"⚠️ Service sources unavailable: {e}")
-
+                options.append({
+                    "label": f"Service: {source_dict.get('label', 'Unknown')}",
+                    "value": f"service:{source_dict.get('value', 'unknown')}"
+                })
+    except Exception:
+        pass
     if not options:
-        options.append(
-            {"label": "No data sources available - Upload files first", "value": "none"}
-        )
-
-    print(f"✅ Generated {len(options)} data source options")
+        options.append({
+            "label": "No data sources available - Upload files first",
+            "value": "none"
+        })
     return options
-
 
 def get_analysis_type_options() -> List[Dict[str, str]]:
     """Get available analysis types including suggests analysis"""
@@ -470,102 +432,151 @@ def get_initial_message():
 
 
 def layout():
-    """
-    COMPLETE REPLACEMENT for the layout function in pages/deep_analytics.py
-
-    INTEGRATION STEPS:
-    1. Find the existing layout() function in pages/deep_analytics.py
-    2. Replace the ENTIRE function with this code
-    3. Keep the function name as 'layout'
-    """
+    """Fixed layout without problematic Unicode characters"""
     try:
-        # Header section
-        header = dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        html.H1("🔍 Deep Analytics", className="text-primary"),
-                        html.P(
-                            "Advanced data analysis with AI-powered column mapping suggestions",
-                            className="lead text-muted",
-                        ),
-                        dbc.Alert(
-                            "✅ UI components loaded successfully",
-                            color="success",
-                            dismissable=True,
-                            id="status-alert",
-                        ),
-                    ]
+        # Header section - using safe ASCII characters
+        header = dbc.Row([
+            dbc.Col([
+                html.H1("Deep Analytics", className="text-primary"),
+                html.P(
+                    "Advanced data analysis with AI-powered column mapping suggestions",
+                    className="lead text-muted"
+                ),
+                dbc.Alert(
+                    "UI components loaded successfully",
+                    color="success",
+                    dismissable=True,
+                    id="status-alert"
                 )
-            ],
-            className="mb-4",
-        )
+            ])
+        ], className="mb-4")
 
         # Configuration section
-        config_card = dbc.Card(
-            [
-                dbc.CardHeader([html.H5("⚙️ Analysis Configuration")]),
-                dbc.CardBody(
-                    [
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    [
-                                        html.Label("Data Source", className="fw-bold"),
-                                        dcc.Dropdown(
-                                            id="analytics-data-source",
-                                            options=get_data_source_options_safe(),
-                                            placeholder="Select data source...",
-                                            value=None,
-                                        ),
-                                    ],
-                                    width=6,
-                                ),
-                                # REPLACED: analysis type dropdown with buttons
-                                get_analysis_buttons_section(),
-                            ],
-                            className="mb-3",
-                        ),
-                        html.Hr(),
-                        # REPLACED: generate analytics button group
-                        get_updated_button_group()
-                    ]
-                ),
-            ],
-            className="mb-4",
-        )
+        config_card = dbc.Card([
+            dbc.CardHeader([html.H5("Analysis Configuration")]),
+            dbc.CardBody([
+                dbc.Row([
+                    # Data source column
+                    dbc.Col([
+                        html.Label("Data Source", className="fw-bold"),
+                        dcc.Dropdown(
+                            id="analytics-data-source",
+                            options=get_data_source_options_safe(),
+                            placeholder="Select data source...",
+                            value=None
+                        )
+                    ], width=6),
+                    
+                    # Analysis buttons column  
+                    dbc.Col([
+                        html.Label("Analysis Type", className="fw-bold mb-3"),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Button(
+                                    "Security Analysis",
+                                    id="security-btn",
+                                    color="danger",
+                                    outline=True,
+                                    size="sm",
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Trends Analysis", 
+                                    id="trends-btn",
+                                    color="info",
+                                    outline=True,
+                                    size="sm", 
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Behavior Analysis",
+                                    id="behavior-btn", 
+                                    color="warning",
+                                    outline=True,
+                                    size="sm",
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Anomaly Detection",
+                                    id="anomaly-btn",
+                                    color="dark", 
+                                    outline=True,
+                                    size="sm",
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "AI Suggestions",
+                                    id="suggests-btn",
+                                    color="success",
+                                    outline=True, 
+                                    size="sm",
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Data Quality",
+                                    id="quality-btn",
+                                    color="secondary",
+                                    outline=True,
+                                    size="sm", 
+                                    className="w-100 mb-2"
+                                )
+                            ], width=6)
+                        ])
+                    ], width=6)
+                ], className="mb-3"),
+                html.Hr(),
+                dbc.ButtonGroup([
+                    dbc.Button(
+                        "Refresh Data Sources",
+                        id="refresh-sources-btn",
+                        color="outline-secondary", 
+                        size="lg"
+                    )
+                ])
+            ])
+        ], className="mb-4")
 
         # Results display area
         results_area = html.Div(
             id="analytics-display-area",
-            children=[get_initial_message()],
-        )
-
-        # Hidden stores and triggers
-        stores = [
-            dcc.Store(id="analytics-results-store", data={}),
-            dcc.Store(id="service-health-store", data={}),
-            html.Div(id="hidden-trigger", style={"display": "none"}),
-        ]
-
-        # Complete layout
-        return dbc.Container([header, config_card, results_area] + stores, fluid=True)
-
-    except Exception as e:
-        logger.error(f"Critical error creating layout: {e}")
-        return dbc.Container(
-            [
-                dbc.Alert(
-                    [
-                        html.H4("⚠️ Page Loading Error"),
-                        html.P(f"Error: {str(e)}"),
-                        html.P("Please check imports and dependencies."),
-                    ],
-                    color="danger",
-                )
+            children=[
+                dbc.Alert([
+                    html.H6("Get Started"),
+                    html.P("1. Select a data source from the dropdown"),
+                    html.P("2. Click any analysis button to run immediately"),
+                    html.P("Each button runs its analysis type automatically")
+                ], color="info")
             ]
         )
 
+        # Hidden stores
+        stores = [
+            dcc.Store(id="analytics-results-store", data={}),
+            dcc.Store(id="service-health-store", data={}),
+            html.Div(id="hidden-trigger", style={"display": "none"})
+        ]
+
+        return dbc.Container([header, config_card, results_area] + stores, fluid=True)
+
+    except Exception as e:
+        logger.error(f"Layout creation error: {e}")
+        return dbc.Container([
+            dbc.Alert([
+                html.H4("Page Loading Error"),
+                html.P(f"Error: {str(e)}"),
+                html.P("Please check imports and dependencies")
+            ], color="danger")
+        ], fluid=True)
 
 # =============================================================================
 # SECTION 6: CONSOLIDATED CALLBACKS
@@ -586,59 +597,71 @@ def layout():
     [State("analytics-data-source", "value")],
     prevent_initial_call=True,
 )
-def handle_analysis_buttons(
-    security_n, trends_n, behavior_n, anomaly_n, suggests_n, quality_n, data_source
-):
-    """Handle analysis button clicks - runs analysis immediately"""
 
+@callback(
+    Output("analytics-display-area", "children"),
+    [
+        Input("security-btn", "n_clicks"),
+        Input("trends-btn", "n_clicks"),
+        Input("behavior-btn", "n_clicks"), 
+        Input("anomaly-btn", "n_clicks"),
+        Input("suggests-btn", "n_clicks"),
+        Input("quality-btn", "n_clicks")
+    ],
+    [State("analytics-data-source", "value")],
+    prevent_initial_call=True
+)
+def handle_analysis_buttons(security_n, trends_n, behavior_n, anomaly_n, suggests_n, quality_n, data_source):
+    """Handle analysis button clicks with safe text encoding"""
+    
     if not callback_context.triggered:
-        return get_initial_message()
-
+        return get_initial_message_safe()
+    
     # Check data source first
     if not data_source or data_source == "none":
         return dbc.Alert("Please select a data source first", color="warning")
-
+    
     # Get which button was clicked
-    button_id = callback_context.triggered[0]["prop_id"].split(".")[0]
-
+    button_id = callback_context.triggered[0]['prop_id'].split('.')[0]
+    
     # Map button to analysis type
     analysis_map = {
         "security-btn": "security",
-        "trends-btn": "trends",
+        "trends-btn": "trends", 
         "behavior-btn": "behavior",
         "anomaly-btn": "anomaly",
         "suggests-btn": "suggests",
-        "quality-btn": "quality",
+        "quality-btn": "quality"
     }
-
+    
     analysis_type = analysis_map.get(button_id)
     if not analysis_type:
         return dbc.Alert("Unknown analysis type", color="danger")
-
-    # Show loading
-    loading_msg = dbc.Alert(
-        f"\ud83d\udd04 Running {analysis_type.title()} Analysis...", color="primary"
-    )
-
+    
     try:
+        # Show loading message with safe text
+        loading_msg = dbc.Alert(
+            f"Running {analysis_type.title()} Analysis...", 
+            color="primary"
+        )
+        
         # Run the analysis based on type
         if analysis_type == "suggests":
-            results = process_suggests_analysis(data_source)
+            results = process_suggests_analysis_safe(data_source)
         elif analysis_type == "quality":
-            results = process_quality_analysis(data_source)
+            results = process_quality_analysis_safe(data_source) 
         else:
-            results = analyze_data_with_service(data_source, analysis_type)
-
+            results = analyze_data_with_service_safe(data_source, analysis_type)
+        
         # Check for errors
-        if "error" in results:
-            return dbc.Alert(results["error"], color="danger")
-
-        # Display results
-        return create_analysis_results_display(results, analysis_type)
-
+        if isinstance(results, dict) and "error" in results:
+            return dbc.Alert(str(results["error"]), color="danger")
+        
+        # Display results with safe text
+        return create_analysis_results_display_safe(results, analysis_type)
+        
     except Exception as e:
         return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
-
 
 @callback(
     Output("analytics-data-source", "options"),
@@ -1114,3 +1137,141 @@ def create_data_quality_display(data_source: str) -> html.Div:
         )
     except Exception as e:
         return dbc.Alert(f"Quality analysis error: {str(e)}", color="danger")
+
+def get_initial_message_safe():
+    """Initial message with safe ASCII text"""
+    return dbc.Alert([
+        html.H6("Get Started"),
+        html.P("1. Select a data source from dropdown"),
+        html.P("2. Click any analysis button to run immediately"),
+        html.P("Each button runs its analysis type automatically")
+    ], color="info")
+
+
+def process_suggests_analysis_safe(data_source):
+    """Safe AI suggestions analysis"""
+    try:
+        if data_source.startswith("upload:") or data_source == "service:uploaded":
+            from pages.file_upload import get_uploaded_data
+            uploaded_files = get_uploaded_data()
+            if not uploaded_files:
+                return {"error": "No uploaded files found"}
+            filename = data_source.replace("upload:", "") if data_source.startswith("upload:") else list(uploaded_files.keys())[0]
+            df = uploaded_files.get(filename)
+            if df is None:
+                return {"error": f"File {filename} not found"}
+            suggestions = {}
+            for col in df.columns:
+                col_lower = str(col).lower().strip()
+                if any(word in col_lower for word in ["time", "date", "stamp"]):
+                    suggestions[col] = {"field": "timestamp", "confidence": 0.8}
+                elif any(word in col_lower for word in ["person", "user", "employee"]):
+                    suggestions[col] = {"field": "person_id", "confidence": 0.7}
+                elif any(word in col_lower for word in ["door", "location", "device"]):
+                    suggestions[col] = {"field": "door_id", "confidence": 0.7}
+                else:
+                    suggestions[col] = {"field": "other", "confidence": 0.5}
+            return {
+                "analysis_type": "AI Column Suggestions",
+                "filename": filename,
+                "suggestions": suggestions,
+                "total_columns": len(df.columns),
+                "total_rows": len(df)
+            }
+        return {"error": "AI suggestions only available for uploaded files"}
+    except Exception as e:
+        return {"error": f"AI analysis error: {str(e)}"}
+
+
+def process_quality_analysis_safe(data_source):
+    """Safe data quality analysis"""
+    try:
+        if data_source.startswith("upload:") or data_source == "service:uploaded":
+            from pages.file_upload import get_uploaded_data
+            uploaded_files = get_uploaded_data()
+            if not uploaded_files:
+                return {"error": "No uploaded files found"}
+            filename = data_source.replace("upload:", "") if data_source.startswith("upload:") else list(uploaded_files.keys())[0]
+            df = uploaded_files.get(filename)
+            if df is None:
+                return {"error": f"File {filename} not found"}
+            total_rows = len(df)
+            total_cols = len(df.columns)
+            missing_values = df.isnull().sum().sum()
+            duplicate_rows = df.duplicated().sum()
+            quality_score = max(0, 100 - (missing_values + duplicate_rows) / total_rows * 100)
+            return {
+                "analysis_type": "Data Quality",
+                "filename": filename,
+                "total_rows": total_rows,
+                "total_columns": total_cols,
+                "missing_values": int(missing_values),
+                "duplicate_rows": int(duplicate_rows),
+                "quality_score": round(quality_score, 1)
+            }
+        return {"error": "Data quality analysis only available for uploaded files"}
+    except Exception as e:
+        return {"error": f"Quality analysis error: {str(e)}"}
+
+
+def analyze_data_with_service_safe(data_source, analysis_type):
+    """Safe service-based analysis"""
+    try:
+        service = get_analytics_service_safe()
+        if not service:
+            return {"error": "Analytics service not available"}
+        source_name = data_source.replace("service:", "") if data_source.startswith("service:") else "uploaded"
+        analytics_results = service.get_analytics_by_source(source_name)
+        if analytics_results.get('status') == 'error':
+            return {"error": analytics_results.get('message', 'Unknown error')}
+        return {
+            "analysis_type": analysis_type.title(),
+            "data_source": data_source,
+            "total_events": analytics_results.get('total_events', 0),
+            "unique_users": analytics_results.get('unique_users', 0),
+            "success_rate": analytics_results.get('success_rate', 0),
+            "status": "completed"
+        }
+    except Exception as e:
+        return {"error": f"Service analysis failed: {str(e)}"}
+
+
+def create_analysis_results_display_safe(results, analysis_type):
+    """Create safe results display without Unicode issues"""
+    try:
+        if isinstance(results, dict) and "error" in results:
+            return dbc.Alert(str(results["error"]), color="danger")
+        content = [
+            html.H5(f"{analysis_type.title()} Results"),
+            html.Hr()
+        ]
+        if analysis_type == "suggests" and "suggestions" in results:
+            content.extend([
+                html.P(f"File: {results.get('filename', 'Unknown')}"),
+                html.P(f"Columns analyzed: {results.get('total_columns', 0)}"),
+                html.P(f"Rows processed: {results.get('total_rows', 0)}"),
+                html.H6("AI Column Suggestions:"),
+                html.Div([
+                    html.P(f"{col}: {info.get('field', 'unknown')} (confidence: {info.get('confidence', 0):.1f})")
+                    for col, info in results.get('suggestions', {}).items()
+                ])
+            ])
+        elif analysis_type == "quality":
+            content.extend([
+                html.P(f"Total rows: {results.get('total_rows', 0):,}"),
+                html.P(f"Total columns: {results.get('total_columns', 0)}"),
+                html.P(f"Missing values: {results.get('missing_values', 0):,}"),
+                html.P(f"Duplicate rows: {results.get('duplicate_rows', 0):,}"),
+                html.P(f"Quality score: {results.get('quality_score', 0):.1f}%")
+            ])
+        else:
+            content.extend([
+                html.P(f"Total events: {results.get('total_events', 0):,}"),
+                html.P(f"Unique users: {results.get('unique_users', 0):,}"),
+                html.P(f"Success rate: {results.get('success_rate', 0):.1%}")
+            ])
+        return dbc.Card([
+            dbc.CardBody(content)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Display error: {str(e)}", color="danger")
