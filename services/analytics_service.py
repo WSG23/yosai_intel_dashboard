@@ -2,15 +2,21 @@
 """
 Analytics Service - Enhanced with Unique Patterns Analysis
 """
-
+import json
 import logging
 import os
-import json
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
-from .analytics_helpers import DataLoader, StatsCalculator, AnomalyDetector
+import pandas as pd
+
+from .analytics_ingestion import AnalyticsDataAccessor
+from .analytics_computation import (
+    generate_basic_analytics,
+    generate_sample_analytics,
+)
+from .result_formatting import format_dashboard_summary
+
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +120,7 @@ class AnalyticsService:
             print(f"[SUCCESS] Combined data: {len(combined_df)} total records")
 
             # Generate analytics from the properly processed data
-            analytics = self._generate_basic_analytics(combined_df)
+            analytics = generate_basic_analytics(combined_df)
 
             # Add processing information
             analytics.update(
@@ -162,7 +168,7 @@ class AnalyticsService:
 
         # Original logic for when no uploaded data
         if source == "sample":
-            return self._generate_sample_analytics()
+            return generate_sample_analytics()
         elif source == "uploaded":
             return {"status": "no_data", "message": "No uploaded files available"}
         elif source == "database":
@@ -406,17 +412,6 @@ class AnalyticsService:
                 "total_events": 0,
             }
 
-    def _generate_sample_analytics(self) -> Dict[str, Any]:
-        """Generate sample analytics data"""
-        return self.stats.sample_analytics()
-
-    def _generate_basic_analytics(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Generate basic analytics from DataFrame"""
-        try:
-            return self.stats.basic_analytics(df)
-        except Exception as e:
-            logger.error(f"Error generating basic analytics: {e}")
-            return {"status": "error", "message": str(e)}
 
     def _get_analytics_with_fixed_processor(self) -> Dict[str, Any]:
         """Get analytics using the FIXED file processor"""
@@ -497,7 +492,7 @@ class AnalyticsService:
         """Get a basic dashboard summary"""
         try:
             summary = self.get_analytics_from_uploaded_data()
-            return summary
+            return format_dashboard_summary(summary)
         except Exception as e:
             logger.error(f"Dashboard summary failed: {e}")
             return {"status": "error", "message": str(e)}
