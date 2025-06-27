@@ -22,7 +22,6 @@ from services.device_learning_service import DeviceLearningService
 from components.column_verification import (
     save_verified_mappings,
 )
-from components.simple_device_mapping import save_confirmed_device_mappings
 
 
 logger = logging.getLogger(__name__)
@@ -47,12 +46,9 @@ def analyze_device_name_with_ai(device_name):
                 return mapping
 
         # Only use AI if no user mapping exists
-        print(
-            f"\U0001f916 No user mapping found, generating AI analysis for '{device_name}'"
-        )
+        print(f"\U0001f916 No user mapping found, generating AI analysis for '{device_name}'")
 
         from services.ai_device_generator import AIDeviceGenerator
-
         ai_generator = AIDeviceGenerator()
         result = ai_generator.generate_device_attributes(device_name)
 
@@ -422,8 +418,6 @@ def highlight_upload_area(n_clicks):
         "cursor": "pointer",
         "backgroundColor": "#f8f9fa",
     }
-
-
 @callback(
     [
         Output("upload-results", "children"),
@@ -455,27 +449,17 @@ def highlight_upload_area(n_clicks):
     prevent_initial_call=False,
 )
 def consolidated_upload_callback(
-    contents_list,
-    verify_clicks,
-    classify_clicks,
-    confirm_clicks,
-    cancel_col_clicks,
-    cancel_dev_clicks,
-    confirm_dev_clicks,
-    pathname,
-    filenames_list,
-    dropdown_values,
-    dropdown_ids,
-    file_info,
-    col_modal_open,
-    dev_modal_open,
+    contents_list, verify_clicks, classify_clicks, confirm_clicks,
+    cancel_col_clicks, cancel_dev_clicks, confirm_dev_clicks, pathname,
+    filenames_list, dropdown_values, dropdown_ids, file_info,
+    col_modal_open, dev_modal_open
 ):
     """Single consolidated callback that handles both upload and page restoration"""
 
     ctx = callback_context
 
     # Handle page load restoration FIRST
-    if not ctx.triggered or ctx.triggered[0]["prop_id"] == "url.pathname":
+    if not ctx.triggered or ctx.triggered[0]['prop_id'] == 'url.pathname':
         if pathname == "/file-upload" and _uploaded_data_store:
             print(f"🔄 Restoring upload state for {len(_uploaded_data_store)} files")
 
@@ -488,103 +472,47 @@ def consolidated_upload_callback(
                 cols = len(df.columns)
 
                 upload_results.append(
-                    dbc.Alert(
-                        [
-                            html.H6(
-                                [
-                                    html.I(className="fas fa-check-circle me-2"),
-                                    f"Previously uploaded: {filename}",
-                                ],
-                                className="alert-heading",
-                            ),
-                            html.P(f"📊 {rows:,} rows × {cols} columns"),
-                        ],
-                        color="success",
-                        className="mb-3",
-                    )
+                    dbc.Alert([
+                        html.H6([
+                            html.I(className="fas fa-check-circle me-2"),
+                            f"Previously uploaded: {filename}"
+                        ], className="alert-heading"),
+                        html.P(f"📊 {rows:,} rows × {cols} columns"),
+                    ], color="success", className="mb-3")
                 )
 
                 preview_df = df.head(5)
                 file_preview_components.append(
-                    html.Div(
-                        [
-                            dbc.Card(
-                                [
-                                    dbc.CardHeader(
-                                        [
-                                            html.H6(
-                                                f"📄 Data Preview: {filename}",
-                                                className="mb-0",
-                                            )
-                                        ]
-                                    ),
-                                    dbc.CardBody(
-                                        [
-                                            html.H6("First 5 rows:"),
-                                            dbc.Table.from_dataframe(  # type: ignore[attr-defined]
-                                                preview_df,
-                                                striped=True,
-                                                bordered=True,
-                                                hover=True,
-                                                size="sm",
-                                            ),
-                                            html.Hr(),
-                                            html.P(
-                                                [
-                                                    html.Strong("Columns: "),
-                                                    ", ".join(df.columns.tolist()[:10]),
-                                                    (
-                                                        "..."
-                                                        if len(df.columns) > 10
-                                                        else ""
-                                                    ),
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                ],
-                                className="mb-3",
-                            ),
-                            dbc.Card(
-                                [
-                                    dbc.CardHeader(
-                                        [
-                                            html.H6(
-                                                "📋 Data Configuration",
-                                                className="mb-0",
-                                            )
-                                        ]
-                                    ),
-                                    dbc.CardBody(
-                                        [
-                                            html.P(
-                                                "Configure your data for analysis:",
-                                                className="mb-3",
-                                            ),
-                                            dbc.ButtonGroup(
-                                                [
-                                                    dbc.Button(
-                                                        "📋 Verify Columns",
-                                                        id="verify-columns-btn-simple",
-                                                        color="primary",
-                                                        size="sm",
-                                                    ),
-                                                    dbc.Button(
-                                                        "🤖 Classify Devices",
-                                                        id="classify-devices-btn",
-                                                        color="info",
-                                                        size="sm",
-                                                    ),
-                                                ],
-                                                className="w-100",
-                                            ),
-                                        ]
-                                    ),
-                                ],
-                                className="mb-3",
-                            ),
-                        ]
-                    )
+                    html.Div([
+                        dbc.Card([
+                            dbc.CardHeader([
+                                html.H6(f"📄 Data Preview: {filename}", className="mb-0")
+                            ]),
+                            dbc.CardBody([
+                                html.H6("First 5 rows:"),
+                                dbc.Table.from_dataframe(  # type: ignore[attr-defined]
+                                    preview_df, striped=True, bordered=True, hover=True, size="sm"
+                                ),
+                                html.Hr(),
+                                html.P([
+                                    html.Strong("Columns: "),
+                                    ", ".join(df.columns.tolist()[:10]),
+                                    "..." if len(df.columns) > 10 else ""
+                                ]),
+                            ])
+                        ], className="mb-3"),
+
+                        dbc.Card([
+                            dbc.CardHeader([html.H6("📋 Data Configuration", className="mb-0")]),
+                            dbc.CardBody([
+                                html.P("Configure your data for analysis:", className="mb-3"),
+                                dbc.ButtonGroup([
+                                    dbc.Button("📋 Verify Columns", id="verify-columns-btn-simple", color="primary", size="sm"),
+                                    dbc.Button("🤖 Classify Devices", id="classify-devices-btn", color="info", size="sm"),
+                                ], className="w-100"),
+                            ])
+                        ], className="mb-3")
+                    ])
                 )
 
                 current_file_info = {
@@ -592,43 +520,20 @@ def consolidated_upload_callback(
                     "rows": rows,
                     "columns": cols,
                     "column_names": df.columns.tolist(),
-                    "ai_suggestions": get_ai_column_suggestions(df.columns.tolist()),
+                    "ai_suggestions": get_ai_column_suggestions(df.columns.tolist())
                 }
 
-            upload_nav = html.Div(
-                [
-                    html.Hr(),
-                    html.H5("Ready to analyze?"),
-                    dbc.Button(
-                        "🚀 Go to Analytics",
-                        href="/analytics",
-                        color="success",
-                        size="lg",
-                    ),
-                ]
-            )
+            upload_nav = html.Div([
+                html.Hr(),
+                html.H5("Ready to analyze?"),
+                dbc.Button("🚀 Go to Analytics", href="/analytics", color="success", size="lg")
+            ])
 
-            return (
-                upload_results,
-                file_preview_components,
-                {},
-                upload_nav,
-                current_file_info,
-                False,
-                False,
-            )
+            return upload_results, file_preview_components, {}, upload_nav, current_file_info, False, False
 
-        return (
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-        )
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
 
-    trigger_id = ctx.triggered[0]["prop_id"]
+    trigger_id = ctx.triggered[0]['prop_id']
     print(f"🎯 Callback triggered by: {trigger_id}")
 
     if "upload-data.contents" in trigger_id and contents_list:
@@ -657,100 +562,43 @@ def consolidated_upload_callback(
                     _uploaded_data_store[filename] = df
 
                     upload_results.append(
-                        dbc.Alert(
-                            [
-                                html.H6(
-                                    [
-                                        html.I(className="fas fa-check-circle me-2"),
-                                        f"Successfully uploaded {filename}",
-                                    ],
-                                    className="alert-heading",
-                                ),
-                                html.P(f"📊 {rows:,} rows × {cols} columns processed"),
-                            ],
-                            color="success",
-                            className="mb-3",
-                        )
+                        dbc.Alert([
+                            html.H6([
+                                html.I(className="fas fa-check-circle me-2"),
+                                f"Successfully uploaded {filename}"
+                            ], className="alert-heading"),
+                            html.P(f"📊 {rows:,} rows × {cols} columns processed"),
+                        ], color="success", className="mb-3")
                     )
 
                     preview_df = df.head(5)
                     file_preview_components.append(
-                        html.Div(
-                            [
-                                dbc.Card(
-                                    [
-                                        dbc.CardHeader(
-                                            [
-                                                html.H6(
-                                                    f"📄 Data Preview: {filename}",
-                                                    className="mb-0",
-                                                )
-                                            ]
-                                        ),
-                                        dbc.CardBody(
-                                            [
-                                                html.H6("First 5 rows:"),
-                                                dbc.Table.from_dataframe(  # type: ignore[attr-defined]
-                                                    preview_df,
-                                                    striped=True,
-                                                    bordered=True,
-                                                    hover=True,
-                                                    size="sm",
-                                                ),
-                                                html.Hr(),
-                                                html.P(
-                                                    [
-                                                        html.Strong("Columns: "),
-                                                        ", ".join(
-                                                            df.columns.tolist()[:10]
-                                                        ),
-                                                    ]
-                                                ),
-                                            ]
-                                        ),
-                                    ],
-                                    className="mb-3",
-                                ),
-                                dbc.Card(
-                                    [
-                                        dbc.CardHeader(
-                                            [
-                                                html.H6(
-                                                    "📋 Data Configuration",
-                                                    className="mb-0",
-                                                )
-                                            ]
-                                        ),
-                                        dbc.CardBody(
-                                            [
-                                                html.P(
-                                                    "Configure your data for analysis:",
-                                                    className="mb-3",
-                                                ),
-                                                dbc.ButtonGroup(
-                                                    [
-                                                        dbc.Button(
-                                                            "📋 Verify Columns",
-                                                            id="verify-columns-btn-simple",
-                                                            color="primary",
-                                                            size="sm",
-                                                        ),
-                                                        dbc.Button(
-                                                            "🤖 Classify Devices",
-                                                            id="classify-devices-btn",
-                                                            color="info",
-                                                            size="sm",
-                                                        ),
-                                                    ],
-                                                    className="w-100",
-                                                ),
-                                            ]
-                                        ),
-                                    ],
-                                    className="mb-3",
-                                ),
-                            ]
-                        )
+                        html.Div([
+                            dbc.Card([
+                                dbc.CardHeader([
+                                    html.H6(f"📄 Data Preview: {filename}", className="mb-0")
+                                ]),
+                                dbc.CardBody([
+                                    html.H6("First 5 rows:"),
+                                    dbc.Table.from_dataframe(  # type: ignore[attr-defined]
+                                        preview_df, striped=True, bordered=True, hover=True, size="sm"
+                                    ),
+                                    html.Hr(),
+                                    html.P([html.Strong("Columns: "), ", ".join(df.columns.tolist()[:10])]),
+                                ])
+                            ], className="mb-3"),
+
+                            dbc.Card([
+                                dbc.CardHeader([html.H6("📋 Data Configuration", className="mb-0")]),
+                                dbc.CardBody([
+                                    html.P("Configure your data for analysis:", className="mb-3"),
+                                    dbc.ButtonGroup([
+                                        dbc.Button("📋 Verify Columns", id="verify-columns-btn-simple", color="primary", size="sm"),
+                                        dbc.Button("🤖 Classify Devices", id="classify-devices-btn", color="info", size="sm"),
+                                    ], className="w-100"),
+                                ])
+                            ], className="mb-3")
+                        ])
                     )
 
                     column_names = df.columns.tolist()
@@ -760,48 +608,35 @@ def consolidated_upload_callback(
                         "columns": cols,
                         "column_names": column_names,
                         "upload_time": result["upload_time"].isoformat(),
-                        "ai_suggestions": get_ai_column_suggestions(column_names),
+                        "ai_suggestions": get_ai_column_suggestions(column_names)
                     }
                     current_file_info = file_info_dict[filename]
 
                     # Load saved mappings on first upload - SIMPLE FIX
                     try:
-                        user_mappings = learning_service.get_user_device_mappings(
-                            filename
-                        )
+                        user_mappings = learning_service.get_user_device_mappings(filename)
                         if user_mappings:
-                            from components.simple_device_mapping import (
-                                _device_ai_mappings,
-                            )
-
+                            from components.simple_device_mapping import _device_ai_mappings
                             _device_ai_mappings.clear()
                             # Mark all as user_confirmed to override AI
                             for device, mapping in user_mappings.items():
                                 mapping["source"] = "user_confirmed"
                                 _device_ai_mappings[device] = mapping
-                            print(
-                                f"✅ Loaded {len(user_mappings)} saved mappings - AI SKIPPED"
-                            )
+                            print(f"✅ Loaded {len(user_mappings)} saved mappings - AI SKIPPED")
                         else:
                             print(f"🆕 First upload - AI will be used")
                             # Clear any stale mappings
-                            from components.simple_device_mapping import (
-                                _device_ai_mappings,
-                            )
-
+                            from components.simple_device_mapping import _device_ai_mappings
                             _device_ai_mappings.clear()
                     except Exception as e:
                         print(f"⚠️ Error: {e}")
 
                 else:
                     upload_results.append(
-                        dbc.Alert(
-                            [
-                                html.H6("Upload Failed", className="alert-heading"),
-                                html.P(result["error"]),
-                            ],
-                            color="danger",
-                        )
+                        dbc.Alert([
+                            html.H6("Upload Failed", className="alert-heading"),
+                            html.P(result["error"]),
+                        ], color="danger")
                     )
 
             except Exception as e:
@@ -811,28 +646,13 @@ def consolidated_upload_callback(
 
         upload_nav = []
         if file_info_dict:
-            upload_nav = html.Div(
-                [
-                    html.Hr(),
-                    html.H5("Ready to analyze?"),
-                    dbc.Button(
-                        "🚀 Go to Analytics",
-                        href="/analytics",
-                        color="success",
-                        size="lg",
-                    ),
-                ]
-            )
+            upload_nav = html.Div([
+                html.Hr(),
+                html.H5("Ready to analyze?"),
+                dbc.Button("🚀 Go to Analytics", href="/analytics", color="success", size="lg")
+            ])
 
-        return (
-            upload_results,
-            file_preview_components,
-            file_info_dict,
-            upload_nav,
-            current_file_info,
-            no_update,
-            no_update,
-        )
+        return upload_results, file_preview_components, file_info_dict, upload_nav, current_file_info, no_update, no_update
 
     elif "verify-columns-btn-simple" in trigger_id and verify_clicks:
         print("🔍 Opening column verification modal...")
@@ -844,22 +664,10 @@ def consolidated_upload_callback(
 
     elif "column-verify-confirm" in trigger_id and confirm_clicks:
         print("✅ Column mappings confirmed")
-        success_alert = dbc.Toast(
-            [html.P("✅ Column mappings saved!")],
-            header="Saved",
-            is_open=True,
-            dismissable=True,
-            duration=3000,
-        )
-        return (
-            success_alert,
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-            False,
-            no_update,
-        )
+        success_alert = dbc.Toast([html.P("✅ Column mappings saved!")],
+                                 header="Saved", is_open=True, dismissable=True, duration=3000)
+        return success_alert, no_update, no_update, no_update, no_update, False, no_update
+
 
     elif "column-verify-cancel" in trigger_id or "device-verify-cancel" in trigger_id:
         print("❌ Closing modals...")
@@ -987,7 +795,6 @@ def populate_device_modal_with_learning(is_open, file_info):
                     print(f"🤖 DEBUG - Testing AI on sample devices:")
                     try:
                         from services.ai_device_generator import AIDeviceGenerator
-
                         ai_gen = AIDeviceGenerator()
 
                         for device in sample_devices[:5]:  # Test first 5
@@ -1231,25 +1038,19 @@ def populate_modal_content(is_open, file_info):
 
 
 @callback(
-    [
-        Output("toast-container", "children", allow_duplicate=True),
-        Output("column-verification-modal", "is_open", allow_duplicate=True),
-        Output("device-verification-modal", "is_open", allow_duplicate=True),
-    ],
+    [Output("toast-container", "children", allow_duplicate=True),
+     Output("column-verification-modal", "is_open", allow_duplicate=True),
+     Output("device-verification-modal", "is_open", allow_duplicate=True)],
     [Input("device-verify-confirm", "n_clicks")],
-    [
-        State({"type": "device-floor", "index": ALL}, "value"),
-        State({"type": "device-security", "index": ALL}, "value"),
-        State({"type": "device-access", "index": ALL}, "value"),
-        State({"type": "device-special", "index": ALL}, "value"),
-        State("current-file-info-store", "data"),
-    ],
+    [State({"type": "device-floor", "index": ALL}, "value"),
+     State({"type": "device-security", "index": ALL}, "value"),
+     State({"type": "device-access", "index": ALL}, "value"),
+     State({"type": "device-special", "index": ALL}, "value"),
+     State("current-file-info-store", "data")],
     prevent_initial_call=True,
 )
-def device_confirm_callback(
-    confirm_clicks, floors, security, access, special, file_info
-):
-    """Persist confirmed device mappings to database"""
+def save_confirmed_device_mappings(confirm_clicks, floors, security, access, special, file_info):
+    """Save confirmed device mappings to database"""
     if not confirm_clicks or not file_info:
         return no_update, no_update, no_update
 
@@ -1265,26 +1066,21 @@ def device_confirm_callback(
                 "security_level": security[i] if i < len(security) else 5,
                 "is_entry": "entry" in (access[i] if i < len(access) else []),
                 "is_exit": "exit" in (access[i] if i < len(access) else []),
-                "is_restricted": "is_restricted"
-                in (special[i] if i < len(special) else []),  # ADD THIS
+                "is_restricted": "is_restricted" in (special[i] if i < len(special) else []),  # ADD THIS
                 "confidence": 1.0,
                 "device_name": device,
                 "source": "user_confirmed",
                 "saved_at": datetime.now().isoformat(),
             }
 
-        from components.simple_device_mapping import _device_ai_mappings
+        # Save to learning service database
+        learning_service.save_user_device_mappings(filename, user_mappings)
 
+        # Update global mappings
+        from components.simple_device_mapping import _device_ai_mappings
         _device_ai_mappings.update(user_mappings)
 
-        try:
-            df = _uploaded_data_store.get(filename)
-            fingerprint = save_confirmed_device_mappings(
-                df, filename, _device_ai_mappings
-            )
-            print(f"\u2705 Saved manual device mappings (fingerprint={fingerprint})")
-        except Exception as e:
-            print(f"❌ Error saving manual device mappings: {e}")
+        print(f"\u2705 Saved {len(user_mappings)} confirmed device mappings to database")
 
         success_alert = dbc.Toast(
             "✅ Device mappings saved to database!",
