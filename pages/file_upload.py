@@ -350,33 +350,6 @@ def get_file_info() -> Dict[str, Dict[str, Any]]:
 
 
 @callback(
-    Output("upload-data", "style"),
-    Input("upload-more-btn", "n_clicks"),
-    prevent_initial_call=True,
-)
-def highlight_upload_area(n_clicks):
-    """Highlight upload area when 'upload more' is clicked"""
-    if n_clicks:
-        return {
-            "width": "100%",
-            "border": "3px dashed #28a745",
-            "borderRadius": "8px",
-            "textAlign": "center",
-            "cursor": "pointer",
-            "backgroundColor": "#d4edda",
-            "animation": "pulse 1s infinite",
-        }
-    return {
-        "width": "100%",
-        "border": "2px dashed #007bff",
-        "borderRadius": "8px",
-        "textAlign": "center",
-        "cursor": "pointer",
-        "backgroundColor": "#f8f9fa",
-    }
-
-
-@callback(
     [
         Output("upload-results", "children"),
         Output("file-preview", "children"),
