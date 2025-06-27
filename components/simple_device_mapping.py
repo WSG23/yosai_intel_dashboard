@@ -1,8 +1,6 @@
 """Simple manual device mapping component"""
 
-from dash import html, dcc
-from dash._callback import callback
-from dash._callback_context import callback_context
+from dash import html, dcc, callback, callback_context
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 from typing import List, Dict, Any

@@ -5,11 +5,9 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
-from dash import html
-from dash._callback import callback
+from dash import html, callback, callback_context
 from dash.dependencies import Input, Output
 from services.consolidated_learning_service import get_learning_service
-from dash._callback_context import callback_context
 
 logger = logging.getLogger(__name__)
 
