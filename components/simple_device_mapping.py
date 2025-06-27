@@ -17,6 +17,7 @@ special_areas_options = [
     {"label": "Elevator", "value": "is_elevator"},
     {"label": "Stairwell", "value": "is_stairwell"},
     {"label": "Fire Exit", "value": "is_fire_escape"},
+    {"label": "Restricted", "value": "is_restricted"},
 ]
 
 # Global storage for AI device mappings
