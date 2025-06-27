@@ -34,13 +34,36 @@ _uploaded_data_store: Dict[str, pd.DataFrame] = {}
 
 
 def analyze_device_name_with_ai(device_name):
-    """Enhanced AI analysis using the new AI generator"""
+    """Enhanced AI analysis that respects learned mappings"""
     try:
+        # FIRST: Check if we have learned mappings for this device
+        from components.simple_device_mapping import _device_ai_mappings
+
+        if device_name in _device_ai_mappings:
+            learned = _device_ai_mappings[device_name]
+            print(f"🧠 Using learned mapping for '{device_name}'")
+
+            # Return learned values instead of fresh AI analysis
+            return {
+                "floor_number": learned.get('floor_number', 1),
+                "security_level": learned.get('security_level', 5),
+                "confidence": learned.get('confidence', 0.95),  # High confidence for learned
+                "is_entry": learned.get('is_entry', False),
+                "is_exit": learned.get('is_exit', False),
+                "is_elevator": learned.get('is_elevator', False),
+                "is_stairwell": learned.get('is_stairwell', False),
+                "is_fire_escape": learned.get('is_fire_escape', False),
+                "device_name": learned.get('device_name', device_name),
+                "ai_reasoning": f"Learned from previous user corrections"
+            }
+
+        # SECOND: If no learned mapping, use fresh AI analysis
         from services.ai_device_generator import AIDeviceGenerator
 
-        # Use our enhanced AI generator
         ai_gen = AIDeviceGenerator()
         result = ai_gen.generate_device_attributes(str(device_name))
+
+        print(f"🤖 Using fresh AI analysis for '{device_name}'")
 
         # Convert to format expected by the UI
         return {
@@ -53,7 +76,7 @@ def analyze_device_name_with_ai(device_name):
             "is_stairwell": result.is_stairwell,
             "is_fire_escape": result.is_fire_escape,
             "device_name": result.device_name,
-            "ai_reasoning": result.ai_reasoning,
+            "ai_reasoning": result.ai_reasoning
         }
 
     except Exception as e:
@@ -69,7 +92,7 @@ def analyze_device_name_with_ai(device_name):
             "is_stairwell": False,
             "is_fire_escape": False,
             "device_name": str(device_name),
-            "ai_reasoning": "Error in AI analysis - using defaults",
+            "ai_reasoning": "Error in analysis - using defaults"
         }
 
 
