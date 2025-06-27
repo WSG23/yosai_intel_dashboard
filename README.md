@@ -171,7 +171,7 @@ secrets.
 
 ### Environment Overrides
 
-`ConfigurationManager` loads YAML files from `config/` and then checks for
+`ConfigManager` loads YAML files from `config/` and then checks for
 environment variables. When a variable name matches a key used in the YAML
 configuration (for example `DB_HOST`, `DB_USER`, `REDIS_HOST` or
 `SECRET_KEY`), its value replaces the one from the file. This lets you adjust
