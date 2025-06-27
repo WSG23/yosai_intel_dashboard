@@ -37,7 +37,7 @@ learning_service = DeviceLearningService()
 # Persistent Uploaded Data Store
 # -----------------------------------------------------------------------------
 class UploadedDataStore:
-    """Persistent uploaded data store with file system backup."""
+    """Persistent uploaded data store with file system backup - FIXED"""
 
     def __init__(self) -> None:
         self._data_store: Dict[str, pd.DataFrame] = {}
@@ -46,31 +46,89 @@ class UploadedDataStore:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self._load_from_disk()
 
-    # -- Internal helpers ---------------------------------------------------
     def _get_file_path(self, filename: str) -> Path:
-        safe_name = filename.replace(" ", "_").replace("/", "_")
+        safe_name = filename.replace(" ", "_").replace("/", "_").replace("\\", "_")
         return self.storage_dir / f"{safe_name}.pkl"
 
     def _info_path(self) -> Path:
         return self.storage_dir / "file_info.json"
 
     def _load_from_disk(self) -> None:
+        """Load existing data from disk with proper error handling"""
         try:
-            if self._info_path().exists():
-                with open(self._info_path(), "r") as f:
-                    self._file_info_store = json.load(f)
-            for fname in self._file_info_store.keys():
-                fpath = self._get_file_path(fname)
-                if fpath.exists():
-                    df = pd.read_pickle(fpath)
-                    self._data_store[fname] = df
-                    logger.info(f"Loaded {fname} from disk")
-        except Exception as e:  # pragma: no cover - best effort
-            logger.error(f"Error loading uploaded data: {e}")
+            info_path = self._info_path()
+
+            # Check if info file exists and has content
+            if info_path.exists() and info_path.stat().st_size > 0:
+                try:
+                    with open(info_path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if content:  # Only parse if file has content
+                            self._file_info_store = json.loads(content)
+                            logger.info(f"Loaded file info for {len(self._file_info_store)} files")
+                        else:
+                            logger.warning("file_info.json is empty, starting fresh")
+                            self._file_info_store = {}
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Corrupted file_info.json, recreating: {e}")
+                    # Delete corrupted file and start fresh
+                    info_path.unlink(missing_ok=True)
+                    self._file_info_store = {}
+            else:
+                logger.info("No existing file info found, starting fresh")
+                self._file_info_store = {}
+
+            # Load actual data files
+            loaded_count = 0
+            for filename in list(self._file_info_store.keys()):
+                try:
+                    fpath = self._get_file_path(filename)
+                    if fpath.exists():
+                        df = pd.read_pickle(fpath)
+                        self._data_store[filename] = df
+                        loaded_count += 1
+                        logger.info(f"Loaded data for {filename}")
+                    else:
+                        # Remove info for missing data file
+                        logger.warning(f"Data file missing for {filename}, removing from info")
+                        del self._file_info_store[filename]
+                except Exception as e:
+                    logger.error(f"Failed to load data for {filename}: {e}")
+                    # Remove problematic entry
+                    if filename in self._file_info_store:
+                        del self._file_info_store[filename]
+
+            if loaded_count > 0:
+                logger.info(f"Successfully loaded {loaded_count} files from disk")
+                # Save cleaned info back to disk
+                self._persist_file_info()
+
+        except Exception as e:
+            logger.error(f"Error during disk loading, starting fresh: {e}")
+            # Clear everything and start fresh
+            self._data_store = {}
+            self._file_info_store = {}
+
+    def _persist_file_info(self) -> None:
+        """Safely persist file info to disk"""
+        try:
+            temp_path = self._info_path().with_suffix('.tmp')
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(self._file_info_store, f, indent=2, ensure_ascii=False)
+
+            # Atomic replace
+            temp_path.replace(self._info_path())
+
+        except Exception as e:
+            logger.error(f"Failed to persist file info: {e}")
 
     def _save_to_disk(self, filename: str, df: pd.DataFrame) -> None:
+        """Save file data and info to disk"""
         try:
+            # Save the actual data
             df.to_pickle(self._get_file_path(filename))
+
+            # Update file info
             self._file_info_store[filename] = {
                 "rows": len(df),
                 "columns": len(df.columns),
@@ -78,39 +136,79 @@ class UploadedDataStore:
                 "upload_time": datetime.now().isoformat(),
                 "size_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2),
             }
-            with open(self._info_path(), "w") as f:
-                json.dump(self._file_info_store, f, indent=2)
-        except Exception as e:  # pragma: no cover - best effort
-            logger.error(f"Error saving uploaded data: {e}")
 
-    # -- Public API ---------------------------------------------------------
+            # Persist info to disk
+            self._persist_file_info()
+
+            logger.info(f"Saved {filename} to disk ({len(df)} rows)")
+
+        except Exception as e:
+            logger.error(f"Error saving {filename} to disk: {e}")
+            # Clean up on failure
+            if filename in self._file_info_store:
+                del self._file_info_store[filename]
+            if filename in self._data_store:
+                del self._data_store[filename]
+
     def add_file(self, filename: str, df: pd.DataFrame) -> None:
+        """Add a file to the store"""
         self._data_store[filename] = df
         self._save_to_disk(filename, df)
 
     def get_all_data(self) -> Dict[str, pd.DataFrame]:
+        """Get all stored data"""
         return self._data_store.copy()
 
     def get_filenames(self) -> List[str]:
+        """Get list of stored filenames"""
         return list(self._data_store.keys())
 
     def get_file_info(self) -> Dict[str, Dict[str, Any]]:
+        """Get file information"""
         return self._file_info_store.copy()
 
     def clear_all(self) -> None:
+        """Clear all stored data and files"""
         self._data_store.clear()
         self._file_info_store.clear()
+
         try:
-            for pkl in self.storage_dir.glob("*.pkl"):
-                pkl.unlink()
-            if self._info_path().exists():
-                self._info_path().unlink()
-        except Exception as e:  # pragma: no cover - best effort
-            logger.error(f"Error clearing uploaded data: {e}")
+            # Remove all pickle files
+            for pkl_file in self.storage_dir.glob("*.pkl"):
+                pkl_file.unlink(missing_ok=True)
+
+            # Remove info file
+            self._info_path().unlink(missing_ok=True)
+
+            logger.info("Cleared all uploaded data from disk")
+
+        except Exception as e:
+            logger.error(f"Error clearing uploaded data from disk: {e}")
+
+    def is_empty(self) -> bool:
+        """Check if store is empty"""
+        return len(self._data_store) == 0
 
 
 # Global persistent storage
 _uploaded_data_store = UploadedDataStore()
+
+
+def reset_upload_storage():
+    """Reset upload storage - call this to fix corruption issues"""
+    try:
+        storage_dir = Path("temp/uploaded_data")
+        if storage_dir.exists():
+            # Remove all files
+            for file in storage_dir.glob("*"):
+                file.unlink(missing_ok=True)
+            logger.info("\u2705 Upload storage reset successfully")
+        else:
+            logger.info("\u2705 Upload storage directory doesn't exist, nothing to reset")
+        return True
+    except Exception as e:
+        logger.error(f"\u274c Failed to reset upload storage: {e}")
+        return False
 
 
 def analyze_device_name_with_ai(device_name):
