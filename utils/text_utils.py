@@ -25,11 +25,6 @@ def safe_text(text: Union[str, Any]) -> str:
     return repr(text)
 
 
-def remove_invalid_unicode(text: str) -> str:
-    """Remove surrogate code points that can't be encoded to UTF-8"""
-    return "".join(ch for ch in text if not (0xD800 <= ord(ch) <= 0xDFFF))
-
-
 def sanitize_text_for_dash(text: Union[str, Any]) -> str:
     """
     Sanitize text specifically for Dash components
@@ -41,12 +36,11 @@ def sanitize_text_for_dash(text: Union[str, Any]) -> str:
         str: Dash-safe text
     """
     safe_str = safe_text(text)
-
+    
     # Remove any problematic characters that might cause JSON issues
     safe_str = safe_str.replace('\x00', '')  # Remove null bytes
     safe_str = safe_str.replace('\ufeff', '')  # Remove BOM
-    safe_str = remove_invalid_unicode(safe_str)
-
+    
     return safe_str
 
 
@@ -90,10 +84,4 @@ def truncate_text(text: str, max_length: int = 100, suffix: str = "...") -> str:
     return text[:max_length - len(suffix)] + suffix
 
 
-__all__ = [
-    "safe_text",
-    "remove_invalid_unicode",
-    "sanitize_text_for_dash",
-    "format_file_size",
-    "truncate_text",
-]
+__all__ = ["safe_text", "sanitize_text_for_dash", "format_file_size", "truncate_text"]
