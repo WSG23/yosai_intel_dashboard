@@ -1,14 +1,15 @@
 """
 File Processing Service for Yōsai Intel Dashboard
 """
-import pandas as pd
 import io
 import logging
-from typing import Dict, Any, List
+import re
 from pathlib import Path
+from typing import Dict, Any
+
+import pandas as pd
 
 from .base import BaseService
-from .protocols import FileProcessorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -68,24 +69,33 @@ class FileProcessorService(BaseService):
             logger.error(f"Error processing file {filename}: {e}")
             raise
     
+    def _sanitize_text(self, text: str) -> str:
+        """Remove characters that could cause encoding issues."""
+        return re.sub(r"[\ud800-\udfff]", "", text)
+
+    def _decode_bytes(self, content: bytes) -> str:
+        """Safely decode bytes using multiple fallbacks."""
+        for encoding in ["utf-8", "utf-8-sig", "latin1", "cp1252"]:
+            try:
+                return content.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return content.decode("utf-8", errors="replace")
+
     def _process_csv(self, content: bytes) -> pd.DataFrame:
-        """Process CSV file"""
+        """Process CSV file with safe decoding"""
         try:
-            # Try different encodings
-            for encoding in ['utf-8', 'latin1', 'cp1252']:
-                try:
-                    text = content.decode(encoding)
-                    return pd.read_csv(io.StringIO(text))
-                except UnicodeDecodeError:
-                    continue
-            raise ValueError("Could not decode CSV file with any standard encoding")
+            text = self._decode_bytes(content)
+            text = self._sanitize_text(text)
+            return pd.read_csv(io.StringIO(text))
         except Exception as e:
             raise ValueError(f"Error reading CSV: {e}")
     
     def _process_json(self, content: bytes) -> pd.DataFrame:
         """Process JSON file"""
         try:
-            text = content.decode('utf-8')
+            text = self._decode_bytes(content)
+            text = self._sanitize_text(text)
             return pd.read_json(io.StringIO(text))
         except Exception as e:
             raise ValueError(f"Error reading JSON: {e}")
