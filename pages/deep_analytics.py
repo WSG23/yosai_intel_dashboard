@@ -1508,7 +1508,7 @@ def create_analysis_results_display_safe(results, analysis_type):
     prevent_initial_call=True
 )
 def analyze_unique_patterns(n_clicks):
-    """Run unique patterns analysis"""
+    """Run unique patterns analysis with proper number formatting"""
     try:
         analytics_service = AnalyticsService()
         results = analytics_service.get_unique_patterns_analysis()
@@ -1519,12 +1519,12 @@ def analyze_unique_patterns(n_clicks):
             device_patterns = results['device_patterns']
 
             return html.Div([
-                html.H4("Analysis Results"),
+                html.H4("📊 Analysis Results"),
                 html.P(f"Total Records: {data_summary['total_records']:,}"),
                 html.P(f"Unique Users: {data_summary['unique_entities']['users']:,}"),
                 html.P(f"Unique Devices: {data_summary['unique_entities']['devices']:,}"),
-                html.P(f"Power Users: {len(user_patterns['user_classifications']['power_users'])}"),
-                html.P(f"High Traffic Devices: {len(device_patterns['device_classifications']['high_traffic_devices'])}"),
+                html.P(f"Power Users: {len(user_patterns['user_classifications']['power_users']):,}"),
+                html.P(f"High Traffic Devices: {len(device_patterns['device_classifications']['high_traffic_devices']):,}"),
                 html.P(f"Success Rate: {results['access_patterns']['overall_success_rate']:.1%}")
             ])
         else:
