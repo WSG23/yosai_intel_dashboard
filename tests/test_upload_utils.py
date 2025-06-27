@@ -1,5 +1,13 @@
 import base64
+from pathlib import Path
+import sys
 import pytest
+
+# Ensure the project root is on the Python path when executing the
+# test file directly.  This mirrors the behaviour in ``conftest.py``
+# and other test modules so that ``services`` can be imported even if
+# the current working directory is ``tests``.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 pd = pytest.importorskip("pandas")
 from services.upload_utils import parse_uploaded_file
