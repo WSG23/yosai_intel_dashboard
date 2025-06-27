@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete File Upload Page - Fixed upload callback issues
+Complete File Upload Page - Fixed import and callback issues
 """
 import logging
 from datetime import datetime
@@ -8,10 +8,9 @@ from pathlib import Path
 import json
 
 import pandas as pd
-from typing import Dict, Any, List
-from dash import html, dcc
-from dash.dash import no_update
-from dash import callback, callback_context
+from typing import Optional, Dict, Any, List
+from dash import html, dcc, no_update, ctx
+from dash import callback  # Correct import for current Dash version
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 
@@ -143,18 +142,18 @@ def get_ai_column_suggestions(column_names: List[str]) -> Dict[str, str]:
     suggestions = {}
     for col in column_names:
         col_lower = col.lower()
-        if 'device' in col_lower or 'reader' in col_lower:
-            suggestions[col] = 'device_name'
-        elif 'user' in col_lower or 'name' in col_lower:
-            suggestions[col] = 'user_name'
-        elif 'time' in col_lower or 'date' in col_lower:
-            suggestions[col] = 'timestamp'
-        elif 'access' in col_lower or 'entry' in col_lower:
-            suggestions[col] = 'access_type'
-        elif 'floor' in col_lower or 'level' in col_lower:
-            suggestions[col] = 'floor_number'
+        if "device" in col_lower or "reader" in col_lower:
+            suggestions[col] = "device_name"
+        elif "user" in col_lower or "name" in col_lower:
+            suggestions[col] = "user_name"
+        elif "time" in col_lower or "date" in col_lower:
+            suggestions[col] = "timestamp"
+        elif "access" in col_lower or "entry" in col_lower:
+            suggestions[col] = "access_type"
+        elif "floor" in col_lower or "level" in col_lower:
+            suggestions[col] = "floor_number"
         else:
-            suggestions[col] = 'custom'
+            suggestions[col] = "custom"
     return suggestions
 
 
@@ -186,8 +185,9 @@ def layout():
                                                 id="upload-data",
                                                 children=html.Div(
                                                     [
-                                                        html.I(
-                                                            className="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"
+                                                        html.H5(
+                                                            "Upload Files",
+                                                            className="text-primary mb-3",
                                                         ),
                                                         html.H5(
                                                             "Drag and Drop or Click to Upload",
@@ -288,12 +288,12 @@ def layout():
 
 
 # -----------------------------------------------------------------------------
-# FIXED: Consolidated Upload Callback
+# FIXED: Consolidated Upload Callback with proper imports
 # -----------------------------------------------------------------------------
 @callback(
     [
         Output("upload-results", "children"),
-        Output("file-preview", "children"), 
+        Output("file-preview", "children"),
         Output("file-info-store", "data"),
         Output("upload-nav", "children"),
         Output("current-file-info-store", "data"),
@@ -336,86 +336,115 @@ def consolidated_upload_callback(
     col_modal_open,
     dev_modal_open,
 ):
-    """FIXED: Complete consolidated callback - handles file upload properly"""
-    
-    ctx = callback_context
-    
+    """FIXED: Complete consolidated callback - handles file upload properly with correct imports"""
+
+    # Use ctx instead of callback_context for newer Dash versions
+    triggered_prop = (
+        ctx.triggered_prop_ids if hasattr(ctx, "triggered_prop_ids") else ctx.triggered
+    )
+
     # Default returns - all 7 outputs
-    default_returns = (no_update, no_update, no_update, no_update, no_update, no_update, no_update)
-    
+    default_returns = (
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+    )
+
+    # Debug logging
+    logger.info(f"Upload callback triggered: {triggered_prop}")
+    logger.info(f"Contents received: {contents_list is not None}")
+    logger.info(f"Filenames received: {filenames_list is not None}")
+
     # Handle file upload FIRST and IMMEDIATELY
-    if ctx.triggered and "upload-data.contents" in ctx.triggered[0]["prop_id"]:
+    if triggered_prop and any(
+        "upload-data.contents" in str(trigger) for trigger in triggered_prop
+    ):
         logger.info("Processing file upload...")
-        
+
         # Validate inputs
         if not contents_list or not filenames_list:
+            logger.warning("No files provided to upload")
             error_alert = dbc.Alert("No files selected", color="warning")
-            return (error_alert, no_update, no_update, no_update, no_update, no_update, no_update)
-            
+            return (
+                error_alert,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+            )
+
         # Clear previous data
         _uploaded_data_store.clear_all()
-        
+
         # Ensure lists
         if not isinstance(contents_list, list):
             contents_list = [contents_list]
         if not isinstance(filenames_list, list):
             filenames_list = [filenames_list]
-        
+
         upload_results = []
         file_preview_components = []
         current_file_info = {}
-        
+
         # Process each uploaded file
         for content, filename in zip(contents_list, filenames_list):
             try:
                 logger.info(f"Processing file: {filename}")
-                
+
                 # Parse the file
                 result = parse_uploaded_file(content, filename)
-                
+
                 if result["success"]:
                     df = result["data"]
-                    
+
                     # Update store
                     info = update_upload_state(filename, df, _uploaded_data_store)
-                    info["ai_suggestions"] = get_ai_column_suggestions(info["column_names"])
+                    info["ai_suggestions"] = get_ai_column_suggestions(
+                        info["column_names"]
+                    )
                     current_file_info = info
-                    
+
                     # Create success message
                     upload_results.append(
                         dbc.Alert(
                             f"Successfully uploaded {filename} ({len(df)} rows, {len(df.columns)} columns)",
                             color="success",
-                            className="mb-2"
+                            className="mb-2",
                         )
                     )
-                    
+
                     # Create preview
                     file_preview_components.append(generate_preview(df, filename))
-                    
+
                     logger.info(f"Successfully processed {filename}")
-                    
+
                 else:
                     # Handle error
                     upload_results.append(
                         dbc.Alert(
                             f"Error uploading {filename}: {result['error']}",
                             color="danger",
-                            className="mb-2"
+                            className="mb-2",
                         )
                     )
                     logger.error(f"Error processing {filename}: {result['error']}")
-                    
+
             except Exception as e:
                 upload_results.append(
                     dbc.Alert(
                         f"Exception processing {filename}: {str(e)}",
                         color="danger",
-                        className="mb-2"
+                        className="mb-2",
                     )
                 )
                 logger.error(f"Exception processing {filename}: {e}")
-        
+
         # Create navigation to analytics if successful uploads
         upload_nav = []
         if any("Successfully uploaded" in str(result) for result in upload_results):
@@ -427,13 +456,15 @@ def consolidated_upload_callback(
                             "Go to Analytics",
                             href="/deep-analytics",
                             color="primary",
-                            className="me-2"
+                            className="me-2",
                         ),
                     ],
-                    color="info"
+                    color="info",
                 )
             )
-        
+
+        logger.info(f"Upload processing complete. Results: {len(upload_results)}")
+
         return (
             html.Div(upload_results),
             html.Div(file_preview_components),
@@ -441,32 +472,32 @@ def consolidated_upload_callback(
             html.Div(upload_nav),
             current_file_info,
             no_update,
-            no_update
+            no_update,
         )
-    
+
     # Handle other button clicks
-    if ctx.triggered:
-        trigger_id = ctx.triggered[0]["prop_id"]
-        
-        if "verify-columns-btn-simple" in trigger_id and verify_clicks:
+    if triggered_prop:
+        trigger_str = str(triggered_prop)
+
+        if "verify-columns-btn-simple" in trigger_str and verify_clicks:
             return (no_update, no_update, no_update, no_update, no_update, True, False)
-            
-        elif "column-verify-confirm" in trigger_id and confirm_clicks:
+
+        elif "column-verify-confirm" in trigger_str and confirm_clicks:
             return (no_update, no_update, no_update, no_update, no_update, False, True)
-            
-        elif "classify-devices-btn" in trigger_id and classify_clicks:
+
+        elif "classify-devices-btn" in trigger_str and classify_clicks:
             return (no_update, no_update, no_update, no_update, no_update, False, True)
-            
-        elif any(x in trigger_id for x in ["cancel", "confirm"]):
+
+        elif any(x in trigger_str for x in ["cancel", "confirm"]):
             return (no_update, no_update, no_update, no_update, no_update, False, False)
-    
+
     # Handle page load restoration
     if pathname in ("/file-upload", "/upload") and _uploaded_data_store.get_filenames():
         logger.info("Restoring upload state...")
-        
+
         upload_results = []
         file_preview_components = []
-        
+
         for filename in _uploaded_data_store.get_filenames():
             df_dict = _uploaded_data_store.get_all_data()
             if filename in df_dict:
@@ -475,25 +506,23 @@ def consolidated_upload_callback(
                     dbc.Alert(
                         f"Restored: {filename} ({len(df)} rows)",
                         color="info",
-                        className="mb-2"
+                        className="mb-2",
                     )
                 )
                 file_preview_components.append(generate_preview(df, filename))
-        
+
         upload_nav = [
             dbc.Alert(
                 [
                     html.P("Previous uploads restored!", className="mb-2"),
                     dbc.Button(
-                        "Go to Analytics",
-                        href="/deep-analytics",
-                        color="primary"
+                        "Go to Analytics", href="/deep-analytics", color="primary"
                     ),
                 ],
-                color="info"
+                color="info",
             )
         ]
-        
+
         return (
             html.Div(upload_results),
             html.Div(file_preview_components),
@@ -501,9 +530,9 @@ def consolidated_upload_callback(
             html.Div(upload_nav),
             no_update,
             no_update,
-            no_update
+            no_update,
         )
-    
+
     return default_returns
 
 
@@ -545,7 +574,8 @@ def save_confirmed_device_mappings(
                 "security_level": security[i] if i < len(security) else 5,
                 "is_entry": "entry" in (access[i] if i < len(access) else []),
                 "is_exit": "exit" in (access[i] if i < len(access) else []),
-                "is_restricted": "is_restricted" in (special[i] if i < len(special) else []),
+                "is_restricted": "is_restricted"
+                in (special[i] if i < len(special) else []),
                 "confidence": 1.0,
                 "device_name": device,
                 "source": "user_confirmed",
@@ -626,7 +656,7 @@ def save_ai_training_data(mappings: Dict[str, Any], filename: str) -> bool:
 __all__ = [
     "layout",
     "get_uploaded_data",
-    "get_uploaded_filenames", 
+    "get_uploaded_filenames",
     "clear_uploaded_data",
     "get_file_info",
     "process_uploaded_file",
