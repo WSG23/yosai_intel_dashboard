@@ -589,20 +589,6 @@ def layout():
     [
         Input("security-btn", "n_clicks"),
         Input("trends-btn", "n_clicks"),
-        Input("behavior-btn", "n_clicks"),
-        Input("anomaly-btn", "n_clicks"),
-        Input("suggests-btn", "n_clicks"),
-        Input("quality-btn", "n_clicks"),
-    ],
-    [State("analytics-data-source", "value")],
-    prevent_initial_call=True,
-)
-
-@callback(
-    Output("analytics-display-area", "children"),
-    [
-        Input("security-btn", "n_clicks"),
-        Input("trends-btn", "n_clicks"),
         Input("behavior-btn", "n_clicks"), 
         Input("anomaly-btn", "n_clicks"),
         Input("suggests-btn", "n_clicks"),
