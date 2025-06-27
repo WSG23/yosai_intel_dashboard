@@ -348,6 +348,50 @@ def get_file_info() -> Dict[str, Dict[str, Any]]:
     """Get information about uploaded files."""
     return _uploaded_data_store.get_file_info()
 
+def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Dict):
+    """Save confirmed mappings for AI training"""
+    try:
+        print(f"🤖 Saving AI training data for {filename}")
+
+        # Prepare training data
+        training_data = {
+            "filename": filename,
+            "timestamp": datetime.now().isoformat(),
+            "mappings": mappings,
+            "reverse_mappings": {v: k for k, v in mappings.items()},
+            "column_count": len(file_info.get("columns", [])),
+            "ai_suggestions": file_info.get("ai_suggestions", {}),
+            "user_verified": True,
+        }
+
+        try:
+            from plugins.ai_classification.plugin import AIClassificationPlugin
+            from plugins.ai_classification.config import get_ai_config
+
+            ai_plugin = AIClassificationPlugin(get_ai_config())
+            if ai_plugin.start():
+                session_id = (
+                    f"verified_{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                )
+                ai_mappings = {v: k for k, v in mappings.items()}
+                ai_plugin.confirm_column_mapping(ai_mappings, session_id)
+                print(f"✅ AI training data saved: {ai_mappings}")
+        except Exception as ai_e:
+            print(f"⚠️ AI training save failed: {ai_e}")
+
+        import os
+
+        os.makedirs("data/training", exist_ok=True)
+        with open(
+            f"data/training/mappings_{datetime.now().strftime('%Y%m%d')}.jsonl", "a"
+        ) as f:
+            f.write(json.dumps(training_data) + "\n")
+
+        print(f"✅ Training data saved locally")
+
+    except Exception as e:
+        print(f"❌ Error saving training data: {e}")
+
 
 @callback(
     [
@@ -753,51 +797,6 @@ def consolidated_upload_callback(
         return no_update, no_update, no_update, no_update, no_update, False, False
 
     return no_update, no_update, no_update, no_update, no_update, no_update, no_update
-
-
-def save_ai_training_data(filename: str, mappings: Dict[str, str], file_info: Dict):
-    """Save confirmed mappings for AI training"""
-    try:
-        print(f"🤖 Saving AI training data for {filename}")
-
-        # Prepare training data
-        training_data = {
-            "filename": filename,
-            "timestamp": datetime.now().isoformat(),
-            "mappings": mappings,
-            "reverse_mappings": {v: k for k, v in mappings.items()},
-            "column_count": len(file_info.get("columns", [])),
-            "ai_suggestions": file_info.get("ai_suggestions", {}),
-            "user_verified": True,
-        }
-
-        try:
-            from plugins.ai_classification.plugin import AIClassificationPlugin
-            from plugins.ai_classification.config import get_ai_config
-
-            ai_plugin = AIClassificationPlugin(get_ai_config())
-            if ai_plugin.start():
-                session_id = (
-                    f"verified_{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                )
-                ai_mappings = {v: k for k, v in mappings.items()}
-                ai_plugin.confirm_column_mapping(ai_mappings, session_id)
-                print(f"✅ AI training data saved: {ai_mappings}")
-        except Exception as ai_e:
-            print(f"⚠️ AI training save failed: {ai_e}")
-
-        import os
-
-        os.makedirs("data/training", exist_ok=True)
-        with open(
-            f"data/training/mappings_{datetime.now().strftime('%Y%m%d')}.jsonl", "a"
-        ) as f:
-            f.write(json.dumps(training_data) + "\n")
-
-        print(f"✅ Training data saved locally")
-
-    except Exception as e:
-        print(f"❌ Error saving training data: {e}")
 
 
 @callback(
