@@ -15,7 +15,7 @@ import pandas as pd
 from datetime import datetime
 
 # Dash core imports
-from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx
+from dash import html, dcc, callback, Input, Output, State, ALL, MATCH, ctx, callback_context
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
@@ -368,6 +368,102 @@ def create_suggests_display(suggests_data: Dict[str, Any]) -> html.Div:
 
 
 # =============================================================================
+# DEEP ANALYTICS BUTTON REPLACEMENT HELPERS
+# =============================================================================
+
+
+def get_analysis_buttons_section():
+    """Replace the analytics-type dropdown column with this"""
+    return dbc.Col([
+        html.Label("Analysis Type", className="fw-bold mb-3"),
+        dbc.Row([
+            dbc.Col([
+                dbc.Button(
+                    "\ud83d\udd12 Security Analysis",
+                    id="security-btn",
+                    color="danger",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "\ud83d\udcc8 Trends Analysis",
+                    id="trends-btn",
+                    color="info",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "\ud83d\udc64 Behavior Analysis",
+                    id="behavior-btn",
+                    color="warning",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "\ud83d\udea8 Anomaly Detection",
+                    id="anomaly-btn",
+                    color="dark",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "\ud83e\udd16 AI Suggestions",
+                    id="suggests-btn",
+                    color="success",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6),
+            dbc.Col([
+                dbc.Button(
+                    "\ud83d\dcb0 Data Quality",
+                    id="quality-btn",
+                    color="secondary",
+                    outline=True,
+                    size="sm",
+                    className="w-100 mb-2"
+                )
+            ], width=6)
+        ])
+    ], width=6)
+
+
+def get_updated_button_group():
+    """Replace the generate analytics button group with this"""
+    return dbc.ButtonGroup([
+        dbc.Button(
+            "\ud83d\udd04 Refresh Data Sources",
+            id="refresh-sources-btn",
+            color="outline-secondary",
+            size="lg"
+        )
+    ])
+
+
+def get_initial_message():
+    """Initial message when no button clicked"""
+    return dbc.Alert([
+        html.H6("\ud83d\udc48 Get Started"),
+        html.P("1. Select a data source from dropdown"),
+        html.P("2. Click any analysis button to run immediately"),
+        html.P("Each button runs its analysis type automatically")
+    ], color="info")
+
+
+# =============================================================================
 # SECTION 5: LAYOUT FUNCTION REPLACEMENT
 # COMPLETELY REPLACE the layout() function in pages/deep_analytics.py
 # =============================================================================
@@ -425,40 +521,14 @@ def layout():
                                     ],
                                     width=6,
                                 ),
-                                dbc.Col(
-                                    [
-                                        html.Label(
-                                            "Analysis Type", className="fw-bold"
-                                        ),
-                                        dcc.Dropdown(
-                                            id="analytics-type",
-                                            options=get_analysis_type_options(),
-                                            value="suggests",
-                                            placeholder="Select analysis type...",
-                                        ),
-                                    ],
-                                    width=6,
-                                ),
+                                # REPLACED: analysis type dropdown with buttons
+                                get_analysis_buttons_section(),
                             ],
                             className="mb-3",
                         ),
                         html.Hr(),
-                        dbc.ButtonGroup(
-                            [
-                                dbc.Button(
-                                    "🚀 Generate Analytics",
-                                    id="generate-analytics-btn",
-                                    color="primary",
-                                    size="lg",
-                                ),
-                                dbc.Button(
-                                    "🔄 Refresh Data Sources",
-                                    id="refresh-sources-btn",
-                                    color="outline-secondary",
-                                    size="lg",
-                                ),
-                            ]
-                        ),
+                        # REPLACED: generate analytics button group
+                        get_updated_button_group()
                     ]
                 ),
             ],
@@ -468,21 +538,7 @@ def layout():
         # Results display area
         results_area = html.Div(
             id="analytics-display-area",
-            children=[
-                dbc.Alert(
-                    [
-                        html.H6("👆 Get Started"),
-                        html.P(
-                            "1. Select a data source (files with 🤖 have AI suggestions)"
-                        ),
-                        html.P(
-                            "2. Choose 'AI Column Suggestions' to see mapping analysis"
-                        ),
-                        html.P("3. Click 'Generate Analytics' to begin"),
-                    ],
-                    color="info",
-                )
-            ],
+            children=[get_initial_message()],
         )
 
         # Hidden stores and triggers
@@ -519,59 +575,69 @@ def layout():
 
 @callback(
     Output("analytics-display-area", "children"),
-    [Input("generate-analytics-btn", "n_clicks")],
-    [State("analytics-data-source", "value"), State("analytics-type", "value")],
+    [
+        Input("security-btn", "n_clicks"),
+        Input("trends-btn", "n_clicks"),
+        Input("behavior-btn", "n_clicks"),
+        Input("anomaly-btn", "n_clicks"),
+        Input("suggests-btn", "n_clicks"),
+        Input("quality-btn", "n_clicks"),
+    ],
+    [State("analytics-data-source", "value")],
     prevent_initial_call=True,
 )
-def corrected_analytics_callback(n_clicks, data_source, analysis_type):
-    """
-    CORRECTED CALLBACK - Replace the existing analytics callback
+def handle_analysis_buttons(
+    security_n, trends_n, behavior_n, anomaly_n, suggests_n, quality_n, data_source
+):
+    """Handle analysis button clicks - runs analysis immediately"""
 
-    INTEGRATION INSTRUCTIONS:
-    1. Find the existing callback that updates "analytics-display-area"
-    2. Replace it with this entire callback function
-    3. Keep the @callback decorator
-    """
-    if not n_clicks or not data_source or data_source == "none":
-        return dbc.Alert("Please select a valid data source", color="warning")
+    if not callback_context.triggered:
+        return get_initial_message()
+
+    # Check data source first
+    if not data_source or data_source == "none":
+        return dbc.Alert("Please select a data source first", color="warning")
+
+    # Get which button was clicked
+    button_id = callback_context.triggered[0]["prop_id"].split(".")[0]
+
+    # Map button to analysis type
+    analysis_map = {
+        "security-btn": "security",
+        "trends-btn": "trends",
+        "behavior-btn": "behavior",
+        "anomaly-btn": "anomaly",
+        "suggests-btn": "suggests",
+        "quality-btn": "quality",
+    }
+
+    analysis_type = analysis_map.get(button_id)
+    if not analysis_type:
+        return dbc.Alert("Unknown analysis type", color="danger")
+
+    # Show loading
+    loading_msg = dbc.Alert(
+        f"\ud83d\udd04 Running {analysis_type.title()} Analysis...", color="primary"
+    )
 
     try:
-        print(f"🚀 Starting analysis: {analysis_type} for {data_source}")
-
-        # Handle suggests analysis (this works)
+        # Run the analysis based on type
         if analysis_type == "suggests":
-            suggests_data = process_suggests_analysis(data_source)
-            return create_suggests_display(suggests_data)
-
-        # Handle data quality analysis (corrected)
+            results = process_suggests_analysis(data_source)
         elif analysis_type == "quality":
-            return create_data_quality_display_corrected(data_source)
-
-        # Handle other analysis types with corrected service calls
-        elif analysis_type in ["security", "trends", "behavior", "anomaly"]:
-            try:
-                # Use the corrected service analysis function
-                results = analyze_data_with_service(data_source, analysis_type)
-
-                if "error" in results:
-                    return dbc.Alert(
-                        f"Analysis failed: {results['error']}", color="danger"
-                    )
-
-                return create_analysis_results_display(results, analysis_type)
-
-            except Exception as e:
-                print(f"❌ Analysis failed: {e}")
-                return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
-
+            results = process_quality_analysis(data_source)
         else:
-            return dbc.Alert(
-                f"Analysis type '{analysis_type}' not supported", color="warning"
-            )
+            results = analyze_data_with_service(data_source, analysis_type)
+
+        # Check for errors
+        if "error" in results:
+            return dbc.Alert(results["error"], color="danger")
+
+        # Display results
+        return create_analysis_results_display(results, analysis_type)
 
     except Exception as e:
-        logger.error(f"Analytics callback error: {e}")
-        return dbc.Alert(f"Error: {str(e)}", color="danger")
+        return dbc.Alert(f"Analysis failed: {str(e)}", color="danger")
 
 
 @callback(
@@ -818,6 +884,58 @@ def create_data_quality_display_corrected(data_source: str) -> html.Div:
         )
     except Exception as e:
         return dbc.Alert(f"Quality analysis error: {str(e)}", color="danger")
+
+
+def process_quality_analysis(data_source: str) -> Dict[str, Any]:
+    """Basic processing for data quality analysis"""
+    try:
+        if data_source.startswith("upload:") or data_source == "service:uploaded":
+            if data_source.startswith("upload:"):
+                filename = data_source.replace("upload:", "")
+            else:
+                filename = None
+
+            from pages.file_upload import get_uploaded_data
+
+            uploaded_files = get_uploaded_data()
+            if not uploaded_files:
+                return {"error": "No uploaded files found"}
+
+            if filename is None or filename not in uploaded_files:
+                filename = list(uploaded_files.keys())[0]
+
+            df = uploaded_files[filename]
+
+            total_rows = len(df)
+            total_cols = len(df.columns)
+            missing_values = df.isnull().sum().sum()
+            duplicate_rows = df.duplicated().sum()
+
+            quality_score = max(
+                0,
+                100
+                - (missing_values / (total_rows * total_cols) * 100)
+                - (duplicate_rows / total_rows * 10),
+            )
+
+            return {
+                "analysis_type": "Data Quality",
+                "data_source": data_source,
+                "total_events": total_rows,
+                "unique_users": 0,
+                "unique_doors": 0,
+                "success_rate": quality_score / 100,
+                "analysis_focus": "Data completeness and duplication checks",
+                "total_rows": total_rows,
+                "total_columns": total_cols,
+                "missing_values": missing_values,
+                "duplicate_rows": duplicate_rows,
+                "quality_score": quality_score,
+            }
+
+        return {"error": "Data quality analysis only available for uploaded files"}
+    except Exception as e:
+        return {"error": f"Quality analysis error: {str(e)}"}
 
 
 def create_analysis_results_display(results: Dict[str, Any], analysis_type: str) -> html.Div:
