@@ -336,7 +336,7 @@ class FileProcessor:
     def apply_manual_mapping(self, df: pd.DataFrame, column_mapping: Dict[str, str]) -> pd.DataFrame:
         """Apply manual column mapping provided by user"""
 
-        print(f"\ud83d\udd27 Applying manual mapping: {column_mapping}")
+        print(f"🔧 Applying manual mapping: {column_mapping}")
 
         missing_source_cols = [source for source in column_mapping.values() if source not in df.columns]
         if missing_source_cols:
