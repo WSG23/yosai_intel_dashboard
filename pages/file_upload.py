@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete File Upload Page - FIXED with direct app registration
+Complete File Upload Page - Fixed import and callback issues
 """
 import logging
 from datetime import datetime
@@ -10,6 +10,7 @@ import json
 import pandas as pd
 from typing import Optional, Dict, Any, List
 from dash import html, dcc, no_update, ctx
+from dash import callback  # Correct import for current Dash version
 from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 
@@ -141,18 +142,18 @@ def get_ai_column_suggestions(column_names: List[str]) -> Dict[str, str]:
     suggestions = {}
     for col in column_names:
         col_lower = col.lower()
-        if 'device' in col_lower or 'reader' in col_lower:
-            suggestions[col] = 'device_name'
-        elif 'user' in col_lower or 'name' in col_lower:
-            suggestions[col] = 'user_name'
-        elif 'time' in col_lower or 'date' in col_lower:
-            suggestions[col] = 'timestamp'
-        elif 'access' in col_lower or 'entry' in col_lower:
-            suggestions[col] = 'access_type'
-        elif 'floor' in col_lower or 'level' in col_lower:
-            suggestions[col] = 'floor_number'
+        if "device" in col_lower or "reader" in col_lower:
+            suggestions[col] = "device_name"
+        elif "user" in col_lower or "name" in col_lower:
+            suggestions[col] = "user_name"
+        elif "time" in col_lower or "date" in col_lower:
+            suggestions[col] = "timestamp"
+        elif "access" in col_lower or "entry" in col_lower:
+            suggestions[col] = "access_type"
+        elif "floor" in col_lower or "level" in col_lower:
+            suggestions[col] = "floor_number"
         else:
-            suggestions[col] = 'custom'
+            suggestions[col] = "custom"
     return suggestions
 
 
@@ -241,14 +242,84 @@ def layout():
             dcc.Store(id="file-info-store", data={}),
             dcc.Store(id="current-file-info-store"),
             dcc.Store(id="current-session-id", data="session_123"),
+            # Column verification modal
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("Column Mapping")),
+                    dbc.ModalBody("Configure column mappings here", id="modal-body"),
+                    dbc.ModalFooter(
+                        [
+                            dbc.Button(
+                                "Cancel", id="column-verify-cancel", color="secondary"
+                            ),
+                            dbc.Button(
+                                "Confirm", id="column-verify-confirm", color="success"
+                            ),
+                        ]
+                    ),
+                ],
+                id="column-verification-modal",
+                is_open=False,
+                size="xl",
+            ),
+            # Device verification modal
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("Device Classification")),
+                    dbc.ModalBody("", id="device-modal-body"),
+                    dbc.ModalFooter(
+                        [
+                            dbc.Button(
+                                "Cancel", id="device-verify-cancel", color="secondary"
+                            ),
+                            dbc.Button(
+                                "Confirm", id="device-verify-confirm", color="success"
+                            ),
+                        ]
+                    ),
+                ],
+                id="device-verification-modal",
+                is_open=False,
+                size="xl",
+            ),
         ],
         fluid=True,
     )
 
 
 # -----------------------------------------------------------------------------
-# Callback Functions (to be registered by app)
+# FIXED: Consolidated Upload Callback with proper imports
 # -----------------------------------------------------------------------------
+@callback(
+    [
+        Output("upload-results", "children"),
+        Output("file-preview", "children"),
+        Output("file-info-store", "data"),
+        Output("upload-nav", "children"),
+        Output("current-file-info-store", "data"),
+        Output("column-verification-modal", "is_open"),
+        Output("device-verification-modal", "is_open"),
+    ],
+    [
+        Input("upload-data", "contents"),
+        Input("verify-columns-btn-simple", "n_clicks"),
+        Input("classify-devices-btn", "n_clicks"),
+        Input("column-verify-confirm", "n_clicks"),
+        Input("column-verify-cancel", "n_clicks"),
+        Input("device-verify-cancel", "n_clicks"),
+        Input("device-verify-confirm", "n_clicks"),
+        Input("url", "pathname"),
+    ],
+    [
+        State("upload-data", "filename"),
+        State({"type": "field-mapping", "column": ALL}, "value"),
+        State({"type": "field-mapping", "column": ALL}, "id"),
+        State("current-file-info-store", "data"),
+        State("column-verification-modal", "is_open"),
+        State("device-verification-modal", "is_open"),
+    ],
+    prevent_initial_call=False,
+)
 def consolidated_upload_callback(
     contents_list,
     verify_clicks,
@@ -266,92 +337,114 @@ def consolidated_upload_callback(
     dev_modal_open,
 ):
     """FIXED: Complete consolidated callback - handles file upload properly with correct imports"""
-    
+
     # Use ctx instead of callback_context for newer Dash versions
-    triggered_prop = ctx.triggered_prop_ids if hasattr(ctx, 'triggered_prop_ids') else ctx.triggered
-    
+    triggered_prop = (
+        ctx.triggered_prop_ids if hasattr(ctx, "triggered_prop_ids") else ctx.triggered
+    )
+
     # Default returns - all 7 outputs
-    default_returns = (no_update, no_update, no_update, no_update, no_update, no_update, no_update)
-    
+    default_returns = (
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+    )
+
     # Debug logging
     logger.info(f"Upload callback triggered: {triggered_prop}")
     logger.info(f"Contents received: {contents_list is not None}")
     logger.info(f"Filenames received: {filenames_list is not None}")
-    
+
     # Handle file upload FIRST and IMMEDIATELY
-    if triggered_prop and any("upload-data.contents" in str(trigger) for trigger in triggered_prop):
+    if triggered_prop and any(
+        "upload-data.contents" in str(trigger) for trigger in triggered_prop
+    ):
         logger.info("Processing file upload...")
-        
+
         # Validate inputs
         if not contents_list or not filenames_list:
             logger.warning("No files provided to upload")
             error_alert = dbc.Alert("No files selected", color="warning")
-            return (error_alert, no_update, no_update, no_update, no_update, no_update, no_update)
-            
+            return (
+                error_alert,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+            )
+
         # Clear previous data
         _uploaded_data_store.clear_all()
-        
+
         # Ensure lists
         if not isinstance(contents_list, list):
             contents_list = [contents_list]
         if not isinstance(filenames_list, list):
             filenames_list = [filenames_list]
-        
+
         upload_results = []
         file_preview_components = []
         current_file_info = {}
-        
+
         # Process each uploaded file
         for content, filename in zip(contents_list, filenames_list):
             try:
                 logger.info(f"Processing file: {filename}")
-                
+
                 # Parse the file
                 result = parse_uploaded_file(content, filename)
-                
+
                 if result["success"]:
                     df = result["data"]
-                    
+
                     # Update store
                     info = update_upload_state(filename, df, _uploaded_data_store)
-                    info["ai_suggestions"] = get_ai_column_suggestions(info["column_names"])
+                    info["ai_suggestions"] = get_ai_column_suggestions(
+                        info["column_names"]
+                    )
                     current_file_info = info
-                    
+
                     # Create success message
                     upload_results.append(
                         dbc.Alert(
                             f"Successfully uploaded {filename} ({len(df)} rows, {len(df.columns)} columns)",
                             color="success",
-                            className="mb-2"
+                            className="mb-2",
                         )
                     )
-                    
+
                     # Create preview
                     file_preview_components.append(generate_preview(df, filename))
-                    
+
                     logger.info(f"Successfully processed {filename}")
-                    
+
                 else:
                     # Handle error
                     upload_results.append(
                         dbc.Alert(
                             f"Error uploading {filename}: {result['error']}",
                             color="danger",
-                            className="mb-2"
+                            className="mb-2",
                         )
                     )
                     logger.error(f"Error processing {filename}: {result['error']}")
-                    
+
             except Exception as e:
                 upload_results.append(
                     dbc.Alert(
                         f"Exception processing {filename}: {str(e)}",
                         color="danger",
-                        className="mb-2"
+                        className="mb-2",
                     )
                 )
                 logger.error(f"Exception processing {filename}: {e}")
-        
+
         # Create navigation to analytics if successful uploads
         upload_nav = []
         if any("Successfully uploaded" in str(result) for result in upload_results):
@@ -361,17 +454,17 @@ def consolidated_upload_callback(
                         html.P("File(s) uploaded successfully!", className="mb-2"),
                         dbc.Button(
                             "Go to Analytics",
-                            href="/analytics",
+                            href="/deep-analytics",
                             color="primary",
-                            className="me-2"
+                            className="me-2",
                         ),
                     ],
-                    color="info"
+                    color="info",
                 )
             )
-        
+
         logger.info(f"Upload processing complete. Results: {len(upload_results)}")
-        
+
         return (
             html.Div(upload_results),
             html.Div(file_preview_components),
@@ -379,30 +472,90 @@ def consolidated_upload_callback(
             html.Div(upload_nav),
             current_file_info,
             no_update,
-            no_update
+            no_update,
         )
-    
+
     # Handle other button clicks
     if triggered_prop:
         trigger_str = str(triggered_prop)
-        
+
         if "verify-columns-btn-simple" in trigger_str and verify_clicks:
             return (no_update, no_update, no_update, no_update, no_update, True, False)
-            
+
         elif "column-verify-confirm" in trigger_str and confirm_clicks:
             return (no_update, no_update, no_update, no_update, no_update, False, True)
-            
+
         elif "classify-devices-btn" in trigger_str and classify_clicks:
             return (no_update, no_update, no_update, no_update, no_update, False, True)
-            
+
         elif any(x in trigger_str for x in ["cancel", "confirm"]):
             return (no_update, no_update, no_update, no_update, no_update, False, False)
-    
-    # Default return
+
+    # Handle page load restoration
+    if pathname in ("/file-upload", "/upload") and _uploaded_data_store.get_filenames():
+        logger.info("Restoring upload state...")
+
+        upload_results = []
+        file_preview_components = []
+
+        for filename in _uploaded_data_store.get_filenames():
+            df_dict = _uploaded_data_store.get_all_data()
+            if filename in df_dict:
+                df = df_dict[filename]
+                upload_results.append(
+                    dbc.Alert(
+                        f"Restored: {filename} ({len(df)} rows)",
+                        color="info",
+                        className="mb-2",
+                    )
+                )
+                file_preview_components.append(generate_preview(df, filename))
+
+        upload_nav = [
+            dbc.Alert(
+                [
+                    html.P("Previous uploads restored!", className="mb-2"),
+                    dbc.Button(
+                        "Go to Analytics", href="/deep-analytics", color="primary"
+                    ),
+                ],
+                color="info",
+            )
+        ]
+
+        return (
+            html.Div(upload_results),
+            html.Div(file_preview_components),
+            {"uploaded_files": _uploaded_data_store.get_filenames()},
+            html.Div(upload_nav),
+            no_update,
+            no_update,
+            no_update,
+        )
+
     return default_returns
 
 
-def save_confirmed_device_mappings_callback(
+# -----------------------------------------------------------------------------
+# Additional Callbacks for Device Mappings
+# -----------------------------------------------------------------------------
+@callback(
+    [
+        Output("toast-container", "children", allow_duplicate=True),
+        Output("column-verification-modal", "is_open", allow_duplicate=True),
+        Output("device-verification-modal", "is_open", allow_duplicate=True),
+    ],
+    [Input("device-verify-confirm", "n_clicks")],
+    [
+        State({"type": "device-floor", "index": ALL}, "value"),
+        State({"type": "device-security", "index": ALL}, "value"),
+        State({"type": "device-access", "index": ALL}, "value"),
+        State({"type": "device-special", "index": ALL}, "value"),
+        State("current-file-info-store", "data"),
+    ],
+    prevent_initial_call=True,
+)
+def save_confirmed_device_mappings(
     confirm_clicks, floors, security, access, special, file_info
 ):
     """Save confirmed device mappings to database"""
@@ -421,7 +574,8 @@ def save_confirmed_device_mappings_callback(
                 "security_level": security[i] if i < len(security) else 5,
                 "is_entry": "entry" in (access[i] if i < len(access) else []),
                 "is_exit": "exit" in (access[i] if i < len(access) else []),
-                "is_restricted": "is_restricted" in (special[i] if i < len(special) else []),
+                "is_restricted": "is_restricted"
+                in (special[i] if i < len(special) else []),
                 "confidence": 1.0,
                 "device_name": device,
                 "source": "user_confirmed",
@@ -453,67 +607,6 @@ def save_confirmed_device_mappings_callback(
             duration=5000,
         )
         return error_alert, no_update, no_update
-
-
-# -----------------------------------------------------------------------------
-# FIXED: Register callbacks with app (called from app_factory)
-# -----------------------------------------------------------------------------
-def register_upload_callbacks(app):
-    """Register upload callbacks with the app directly"""
-    
-    logger.info("Registering upload callbacks directly...")
-    
-    # Main upload callback
-    app.callback(
-        [
-            Output("upload-results", "children"),
-            Output("file-preview", "children"), 
-            Output("file-info-store", "data"),
-            Output("upload-nav", "children"),
-            Output("current-file-info-store", "data"),
-            Output("column-verification-modal", "is_open", allow_duplicate=True),
-            Output("device-verification-modal", "is_open", allow_duplicate=True),
-        ],
-        [
-            Input("upload-data", "contents"),
-            Input("verify-columns-btn-simple", "n_clicks"),
-            Input("classify-devices-btn", "n_clicks"),
-            Input("column-verify-confirm", "n_clicks"),
-            Input("column-verify-cancel", "n_clicks"),
-            Input("device-verify-cancel", "n_clicks"),
-            Input("device-verify-confirm", "n_clicks"),
-            Input("url", "pathname"),
-        ],
-        [
-            State("upload-data", "filename"),
-            State({"type": "field-mapping", "column": ALL}, "value"),
-            State({"type": "field-mapping", "column": ALL}, "id"),
-            State("current-file-info-store", "data"),
-            State("column-verification-modal", "is_open"),
-            State("device-verification-modal", "is_open"),
-        ],
-        prevent_initial_call=False,
-    )(consolidated_upload_callback)
-    
-    # Device mappings callback
-    app.callback(
-        [
-            Output("toast-container", "children", allow_duplicate=True),
-            Output("column-verification-modal", "is_open", allow_duplicate=True),
-            Output("device-verification-modal", "is_open", allow_duplicate=True),
-        ],
-        [Input("device-verify-confirm", "n_clicks")],
-        [
-            State({"type": "device-floor", "index": ALL}, "value"),
-            State({"type": "device-security", "index": ALL}, "value"),
-            State({"type": "device-access", "index": ALL}, "value"),
-            State({"type": "device-special", "index": ALL}, "value"),
-            State("current-file-info-store", "data"),
-        ],
-        prevent_initial_call=True,
-    )(save_confirmed_device_mappings_callback)
-    
-    logger.info("✅ Upload callbacks registered successfully")
 
 
 # -----------------------------------------------------------------------------
@@ -562,9 +655,8 @@ def save_ai_training_data(mappings: Dict[str, Any], filename: str) -> bool:
 # Export functions for integration
 __all__ = [
     "layout",
-    "register_upload_callbacks",
     "get_uploaded_data",
-    "get_uploaded_filenames", 
+    "get_uploaded_filenames",
     "clear_uploaded_data",
     "get_file_info",
     "process_uploaded_file",
@@ -572,4 +664,4 @@ __all__ = [
     "save_ai_training_data",
 ]
 
-logger.info("FILE_UPLOAD.PY LOADED - Ready for callback registration")
+logger.info("FILE_UPLOAD.PY LOADED - Callbacks should be registered")
