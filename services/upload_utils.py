@@ -10,8 +10,8 @@ from dash import html
 from utils.file_validator import (
     validate_upload_content,
     safe_decode_file,
-    process_dataframe,
 )
+from services.file_processor_service import FileProcessorService
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +35,28 @@ def parse_uploaded_file(contents: str, filename: str) -> Dict[str, Any]:
     """
     validation = validate_upload_content(contents, filename)
     if not validation.get("valid"):
-        return {"success": False, "error": validation.get("error", "Invalid file")}
+        return {
+            "success": False,
+            "error": validation.get("error", "Invalid file"),
+        }
 
     decoded = safe_decode_file(contents)
     if decoded is None:
         return {"success": False, "error": "Could not decode file content"}
 
-    df, error = process_dataframe(decoded, filename)
-    if error:
-        return {"success": False, "error": error}
+    processor = FileProcessorService()
+    file_validation = processor.validate_file(filename, decoded)
+    if not file_validation.get("valid"):
+        return {
+            "success": False,
+            "error": "; ".join(file_validation.get("issues", [])),
+        }
+
+    try:
+        df = processor.process_file(decoded, filename)
+    except Exception as e:  # pragma: no cover - unexpected processing error
+        logger.error(f"Error processing uploaded file {filename}: {e}")
+        return {"success": False, "error": str(e)}
 
     if df is None or df.empty:
         return {"success": False, "error": "File contains no data"}
