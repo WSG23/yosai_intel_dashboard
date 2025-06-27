@@ -612,19 +612,24 @@ def consolidated_upload_callback(
                     }
                     current_file_info = file_info_dict[filename]
 
-                    # After parsing file, check for existing user mappings
+                    # Load saved mappings on first upload - SIMPLE FIX
                     try:
                         user_mappings = learning_service.get_user_device_mappings(filename)
                         if user_mappings:
-                            print(f"\U0001f504 Found {len(user_mappings)} user device mappings for {filename}")
                             from components.simple_device_mapping import _device_ai_mappings
                             _device_ai_mappings.clear()
-                            _device_ai_mappings.update(user_mappings)
-                            print("\u2705 Loaded user mappings into global store")
+                            # Mark all as user_confirmed to override AI
+                            for device, mapping in user_mappings.items():
+                                mapping["source"] = "user_confirmed"
+                                _device_ai_mappings[device] = mapping
+                            print(f"✅ Loaded {len(user_mappings)} saved mappings - AI SKIPPED")
                         else:
-                            print(f"\u2139\ufe0f No existing user mappings for {filename}")
+                            print(f"🆕 First upload - AI will be used")
+                            # Clear any stale mappings
+                            from components.simple_device_mapping import _device_ai_mappings
+                            _device_ai_mappings.clear()
                     except Exception as e:
-                        print(f"\u26a0\ufe0f Error loading user mappings: {e}")
+                        print(f"⚠️ Error: {e}")
 
                 else:
                     upload_results.append(
@@ -1040,10 +1045,11 @@ def populate_modal_content(is_open, file_info):
     [State({"type": "device-floor", "index": ALL}, "value"),
      State({"type": "device-security", "index": ALL}, "value"),
      State({"type": "device-access", "index": ALL}, "value"),
+     State({"type": "device-special", "index": ALL}, "value"),
      State("current-file-info-store", "data")],
     prevent_initial_call=True,
 )
-def save_confirmed_device_mappings(confirm_clicks, floors, security, access, file_info):
+def save_confirmed_device_mappings(confirm_clicks, floors, security, access, special, file_info):
     """Save confirmed device mappings to database"""
     if not confirm_clicks or not file_info:
         return no_update, no_update, no_update
@@ -1060,6 +1066,7 @@ def save_confirmed_device_mappings(confirm_clicks, floors, security, access, fil
                 "security_level": security[i] if i < len(security) else 5,
                 "is_entry": "entry" in (access[i] if i < len(access) else []),
                 "is_exit": "exit" in (access[i] if i < len(access) else []),
+                "is_restricted": "is_restricted" in (special[i] if i < len(special) else []),  # ADD THIS
                 "confidence": 1.0,
                 "device_name": device,
                 "source": "user_confirmed",
