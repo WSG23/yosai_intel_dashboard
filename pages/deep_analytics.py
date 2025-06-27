@@ -358,7 +358,7 @@ def get_analysis_buttons_section():
         dbc.Row([
             dbc.Col([
                 dbc.Button(
-                    "🔒 Security Analysis",
+                    "\ud83d\udd12 Security Analysis",
                     id="security-btn",
                     color="danger",
                     outline=True,
@@ -368,7 +368,7 @@ def get_analysis_buttons_section():
             ], width=6),
             dbc.Col([
                 dbc.Button(
-                    "📈 Trends Analysis",
+                    "\ud83d\udcc8 Trends Analysis",
                     id="trends-btn",
                     color="info",
                     outline=True,
@@ -378,7 +378,7 @@ def get_analysis_buttons_section():
             ], width=6),
             dbc.Col([
                 dbc.Button(
-                    "👤 Behavior Analysis",
+                    "\ud83d\udc64 Behavior Analysis",
                     id="behavior-btn",
                     color="warning",
                     outline=True,
@@ -388,7 +388,7 @@ def get_analysis_buttons_section():
             ], width=6),
             dbc.Col([
                 dbc.Button(
-                    "🚨 Anomaly Detection",
+                    "\ud83d\udea8 Anomaly Detection",
                     id="anomaly-btn",
                     color="dark",
                     outline=True,
@@ -398,7 +398,7 @@ def get_analysis_buttons_section():
             ], width=6),
             dbc.Col([
                 dbc.Button(
-                    "🤖 AI Suggestions",
+                    "\ud83e\udd16 AI Suggestions",
                     id="suggests-btn",
                     color="success",
                     outline=True,
@@ -408,7 +408,7 @@ def get_analysis_buttons_section():
             ], width=6),
             dbc.Col([
                 dbc.Button(
-                    "💰 Data Quality",
+                    "\ud83d\dcb0 Data Quality",
                     id="quality-btn",
                     color="secondary",
                     outline=True,
@@ -424,7 +424,7 @@ def get_updated_button_group():
     """Replace the generate analytics button group with this"""
     return dbc.ButtonGroup([
         dbc.Button(
-            "🔄 Refresh Data Sources",
+            "\ud83d\udd04 Refresh Data Sources",
             id="refresh-sources-btn",
             color="outline-secondary",
             size="lg"
@@ -435,7 +435,7 @@ def get_updated_button_group():
 def get_initial_message():
     """Initial message when no button clicked"""
     return dbc.Alert([
-        html.H6("👈 Get Started"),
+        html.H6("\ud83d\udc48 Get Started"),
         html.P("1. Select a data source from dropdown"),
         html.P("2. Click any analysis button to run immediately"),
         html.P("Each button runs its analysis type automatically")
@@ -1519,7 +1519,7 @@ def analyze_unique_patterns(n_clicks):
             device_patterns = results['device_patterns']
 
             return html.Div([
-                html.H4("📊 Analysis Results"),
+                html.H4("\ud83d\udcca Analysis Results"),
                 html.P(f"Total Records: {data_summary['total_records']:,}"),
                 html.P(f"Unique Users: {data_summary['unique_entities']['users']:,}"),
                 html.P(f"Unique Devices: {data_summary['unique_entities']['devices']:,}"),
