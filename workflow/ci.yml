@@ -28,6 +28,9 @@ jobs:
           pip install -r requirements.txt
           pip install black flake8 mypy bandit pytest pytest-cov safety
 
+      - name: 🔄 Check outdated packages
+        run: pip list --outdated
+
       - name: 🔤 Extract translations
         run: pybabel extract -F babel.cfg -o messages.pot .
 
