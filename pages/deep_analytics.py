@@ -106,6 +106,20 @@ def get_data_source_options_safe():
         })
     return options
 
+def get_latest_uploaded_source_value() -> Optional[str]:
+    """Return dropdown value for the most recently uploaded file"""
+    try:
+        from pages.file_upload import get_uploaded_filenames
+        filenames = get_uploaded_filenames()
+        if filenames:
+            # Use the last filename in the list which represents the
+            # most recently uploaded file because the underlying store
+            # preserves insertion order.
+            return f"upload:{filenames[-1]}"
+    except Exception:
+        pass
+    return None
+
 def get_analysis_type_options() -> List[Dict[str, str]]:
     """Get available analysis types including suggests analysis"""
     return [
@@ -463,7 +477,7 @@ def layout():
                             id="analytics-data-source",
                             options=get_data_source_options_safe(),
                             placeholder="Select data source...",
-                            value=None
+                            value=get_latest_uploaded_source_value()
                         )
                     ], width=6),
                     
