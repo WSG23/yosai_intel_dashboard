@@ -65,6 +65,16 @@ class DeviceLearningService:
         except Exception as e:
             logger.error(f"Failed to load learned mappings: {e}")
 
+    def _persist_learned_mappings(self):
+        """Persist all learned mappings to disk"""
+        try:
+            for fingerprint, data in self.learned_mappings.items():
+                mapping_file = self.storage_dir / f"mapping_{fingerprint}.json"
+                with open(mapping_file, "w") as f:
+                    json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to persist learned mappings: {e}")
+
     def save_device_mappings(
         self, df: pd.DataFrame, filename: str, device_mappings: Dict[str, Dict]
     ) -> str:
@@ -159,6 +169,46 @@ class DeviceLearningService:
                 for data in self.learned_mappings.values()
             ],
         }
+
+    def save_user_device_mappings(self, filename: str, user_mappings: Dict[str, Any]) -> bool:
+        """Save user-confirmed device mappings to database"""
+        try:
+            fingerprint = f"user_devices_{filename}_{len(user_mappings)}"
+
+            mapping_data = {
+                "filename": filename,
+                "fingerprint": fingerprint,
+                "saved_at": datetime.now().isoformat(),
+                "device_mappings": user_mappings,
+                "source": "user_confirmed",
+                "device_count": len(user_mappings),
+            }
+
+            self.learned_mappings[fingerprint] = mapping_data
+            self._persist_learned_mappings()
+
+            logger.info(
+                f"✅ Saved user device mappings for {filename}: {len(user_mappings)} devices"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to save user device mappings: {e}")
+            return False
+
+    def get_user_device_mappings(self, filename: str) -> Dict[str, Any]:
+        """Get user-confirmed device mappings for a filename"""
+        try:
+            for fingerprint, data in self.learned_mappings.items():
+                if data.get("filename") == filename and data.get("source") == "user_confirmed":
+                    return data.get("device_mappings", {})
+
+            logger.info(f"No user device mappings found for {filename}")
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error getting user device mappings: {e}")
+            return {}
 
 
 _device_learning_service = DeviceLearningService()

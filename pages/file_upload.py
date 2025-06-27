@@ -34,30 +34,45 @@ _uploaded_data_store: Dict[str, pd.DataFrame] = {}
 
 
 def analyze_device_name_with_ai(device_name):
-    """Check user inputs first, then AI"""
-    from components.simple_device_mapping import _device_ai_mappings
-
-    # If user has input for this device, use it
-    if device_name in _device_ai_mappings and _device_ai_mappings[device_name].get('source') == 'user':
-        return _device_ai_mappings[device_name]
-
-    # Otherwise use AI
+    """User mappings ALWAYS override AI - FIXED"""
     try:
-        from services.ai_device_generator import AIDeviceGenerator
-        ai_gen = AIDeviceGenerator()
-        result = ai_gen.generate_device_attributes(device_name)
+        from components.simple_device_mapping import _device_ai_mappings
 
-        return {
+        # Check for user-confirmed mapping first
+        if device_name in _device_ai_mappings:
+            mapping = _device_ai_mappings[device_name]
+            if mapping.get("source") == "user_confirmed":
+                print(f"\U0001f512 Using USER CONFIRMED mapping for '{device_name}'")
+                return mapping
+
+        # Only use AI if no user mapping exists
+        print(f"\U0001f916 No user mapping found, generating AI analysis for '{device_name}'")
+
+        from services.ai_device_generator import AIDeviceGenerator
+        ai_generator = AIDeviceGenerator()
+        result = ai_generator.generate_device_attributes(device_name)
+
+        ai_mapping = {
             "floor_number": result.floor_number,
             "security_level": result.security_level,
             "confidence": result.confidence,
             "is_entry": result.is_entry,
             "is_exit": result.is_exit,
             "device_name": result.device_name,
-            "ai_reasoning": result.ai_reasoning
+            "ai_reasoning": result.ai_reasoning,
+            "source": "ai_generated",
         }
-    except Exception:
-        return {"floor_number": 1, "security_level": 5, "confidence": 0.1}
+
+        return ai_mapping
+
+    except Exception as e:
+        print(f"\u274c Error in device analysis: {e}")
+        return {
+            "floor_number": 1,
+            "security_level": 5,
+            "confidence": 0.1,
+            "source": "fallback",
+        }
 
 
 def layout():
@@ -135,6 +150,8 @@ def layout():
             dbc.Row([dbc.Col([html.Div(id="file-preview")])]),
             # Navigation to analytics
             dbc.Row([dbc.Col([html.Div(id="upload-nav")])]),
+            # Container for toast notifications
+            html.Div(id="toast-container"),
             # CRITICAL: Hidden placeholder buttons to prevent callback errors
             html.Div(
                 [
@@ -595,6 +612,20 @@ def consolidated_upload_callback(
                     }
                     current_file_info = file_info_dict[filename]
 
+                    # After parsing file, check for existing user mappings
+                    try:
+                        user_mappings = learning_service.get_user_device_mappings(filename)
+                        if user_mappings:
+                            print(f"\U0001f504 Found {len(user_mappings)} user device mappings for {filename}")
+                            from components.simple_device_mapping import _device_ai_mappings
+                            _device_ai_mappings.clear()
+                            _device_ai_mappings.update(user_mappings)
+                            print("\u2705 Loaded user mappings into global store")
+                        else:
+                            print(f"\u2139\ufe0f No existing user mappings for {filename}")
+                    except Exception as e:
+                        print(f"\u26a0\ufe0f Error loading user mappings: {e}")
+
                 else:
                     upload_results.append(
                         dbc.Alert([
@@ -632,18 +663,6 @@ def consolidated_upload_callback(
                                  header="Saved", is_open=True, dismissable=True, duration=3000)
         return success_alert, no_update, no_update, no_update, no_update, False, no_update
 
-    elif "device-verify-confirm" in trigger_id and confirm_dev_clicks:
-        print("✅ Device mappings confirmed")
-
-        # ADD THESE 3 LINES FOR LEARNING:
-        from services.consolidated_learning_service import get_learning_service
-        learning_service = get_learning_service()
-        fingerprint = learning_service.save_complete_mapping(_uploaded_data_store[list(_uploaded_data_store.keys())[0]], 
-                                                            list(_uploaded_data_store.keys())[0], {})
-
-        success_alert = dbc.Toast([html.P("✅ Device mappings saved!")],
-                                 header="Saved", is_open=True, dismissable=True, duration=3000)
-        return success_alert, no_update, no_update, no_update, no_update, no_update, False
 
     elif "column-verify-cancel" in trigger_id or "device-verify-cancel" in trigger_id:
         print("❌ Closing modals...")
@@ -1011,6 +1030,71 @@ def populate_modal_content(is_open, file_info):
             ),
         ]
     )
+
+
+@callback(
+    [Output("toast-container", "children", allow_duplicate=True),
+     Output("column-verification-modal", "is_open", allow_duplicate=True),
+     Output("device-verification-modal", "is_open", allow_duplicate=True)],
+    [Input("device-verify-confirm", "n_clicks")],
+    [State({"type": "device-floor", "index": ALL}, "value"),
+     State({"type": "device-security", "index": ALL}, "value"),
+     State({"type": "device-access", "index": ALL}, "value"),
+     State("current-file-info-store", "data")],
+    prevent_initial_call=True,
+)
+def save_confirmed_device_mappings(confirm_clicks, floors, security, access, file_info):
+    """Save confirmed device mappings to database"""
+    if not confirm_clicks or not file_info:
+        return no_update, no_update, no_update
+
+    try:
+        devices = file_info.get("devices", [])
+        filename = file_info.get("filename", "")
+
+        # Create user mappings from inputs
+        user_mappings = {}
+        for i, device in enumerate(devices):
+            user_mappings[device] = {
+                "floor_number": floors[i] if i < len(floors) else 1,
+                "security_level": security[i] if i < len(security) else 5,
+                "is_entry": "entry" in (access[i] if i < len(access) else []),
+                "is_exit": "exit" in (access[i] if i < len(access) else []),
+                "confidence": 1.0,
+                "device_name": device,
+                "source": "user_confirmed",
+                "saved_at": datetime.now().isoformat(),
+            }
+
+        # Save to learning service database
+        learning_service.save_user_device_mappings(filename, user_mappings)
+
+        # Update global mappings
+        from components.simple_device_mapping import _device_ai_mappings
+        _device_ai_mappings.update(user_mappings)
+
+        print(f"\u2705 Saved {len(user_mappings)} confirmed device mappings to database")
+
+        success_alert = dbc.Toast(
+            "✅ Device mappings saved to database!",
+            header="Confirmed & Saved",
+            is_open=True,
+            dismissable=True,
+            duration=3000,
+        )
+
+        return success_alert, False, False
+
+    except Exception as e:
+        print(f"\u274c Error saving device mappings: {e}")
+        error_alert = dbc.Toast(
+            f"❌ Error saving mappings: {e}",
+            header="Error",
+            is_open=True,
+            dismissable=True,
+            duration=5000,
+        )
+        return error_alert, no_update, no_update
 
 
 # Export functions for integration with other modules
