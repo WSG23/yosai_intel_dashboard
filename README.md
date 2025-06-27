@@ -102,9 +102,6 @@ starting the services.
 
 Run the complete test suite:
 ```bash
-# Validate modular architecture
-python test_modular_system.py
-
 # Run dashboard integration tests
 python tests/test_dashboard.py
 
@@ -272,7 +269,7 @@ If you encounter an error like `"Babel" object has no attribute "localeselector"
 
 ## 🤝 Contributing
 
-1. Ensure all tests pass: `python test_modular_system.py` and `pytest`
+1. Ensure all tests pass: `pytest`
 2. Format code with `black` and run `flake8`
 3. Follow type safety guidelines and maintain the modular architecture
 4. Add tests for new functionality and update documentation when applicable
