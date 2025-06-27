@@ -21,6 +21,9 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 
+# Add this import
+from services.analytics_service import AnalyticsService
+
 # Internal service imports with CORRECTED paths
 try:
     from services.analytics_service import AnalyticsService
@@ -583,6 +586,14 @@ def layout():
             ])
         ], className="mb-4")
 
+        simple_unique_patterns_card = dbc.Card([
+            dbc.CardBody([
+                html.H4("🔍 Unique Patterns Analysis"),
+                dbc.Button("Analyze Patterns", id="unique-patterns-btn", color="primary", className="mb-3"),
+                html.Div(id="unique-patterns-output")
+            ])
+        ])
+
         # Results display area
         results_area = html.Div(
             id="analytics-display-area",
@@ -603,7 +614,7 @@ def layout():
             html.Div(id="hidden-trigger", style={"display": "none"})
         ]
 
-        return dbc.Container([header, config_card, unique_patterns_card, results_area] + stores, fluid=True)
+        return dbc.Container([header, config_card, unique_patterns_card, simple_unique_patterns_card, results_area] + stores, fluid=True)
 
     except Exception as e:
         logger.error(f"Layout creation error: {e}")
@@ -1488,3 +1499,35 @@ def create_analysis_results_display_safe(results, analysis_type):
         ])
     except Exception as e:
         return dbc.Alert(f"Display error: {str(e)}", color="danger")
+
+
+# Callback to run simplified unique patterns analysis
+@callback(
+    Output('unique-patterns-output', 'children'),
+    Input('unique-patterns-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def analyze_unique_patterns(n_clicks):
+    """Run unique patterns analysis"""
+    try:
+        analytics_service = AnalyticsService()
+        results = analytics_service.get_unique_patterns_analysis()
+
+        if results['status'] == 'success':
+            data_summary = results['data_summary']
+            user_patterns = results['user_patterns']
+            device_patterns = results['device_patterns']
+
+            return html.Div([
+                html.H4("\ud83d\udcca Analysis Results"),
+                html.P(f"Total Records: {data_summary['total_records']:,}"),
+                html.P(f"Unique Users: {data_summary['unique_entities']['users']:,}"),
+                html.P(f"Unique Devices: {data_summary['unique_entities']['devices']:,}"),
+                html.P(f"Power Users: {len(user_patterns['user_classifications']['power_users'])}"),
+                html.P(f"High Traffic Devices: {len(device_patterns['device_classifications']['high_traffic_devices'])}"),
+                html.P(f"Success Rate: {results['access_patterns']['overall_success_rate']:.1%}")
+            ])
+        else:
+            return html.P(f"Error: {results.get('message', 'Analysis failed')}")
+    except Exception as e:
+        return html.P(f"Error: {str(e)}")
