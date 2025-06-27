@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 from typing import Optional, Dict, Any, List
-from dash import html, dcc
+from dash import html, dcc, dash_table
 from dash.dash import no_update
 from dash._callback import callback
 from dash._callback_context import callback_context
@@ -399,13 +399,11 @@ def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card | dbc.Alert
                         ),
                         html.Hr(),
                         html.H6("Sample Data:", className="text-primary mt-3"),
-                        dbc.Table.from_dataframe(  # type: ignore[attr-defined]
-                            df.head(5),
-                            striped=True,
-                            bordered=True,
-                            hover=True,
-                            responsive=True,
-                            size="sm",
+                        dash_table.DataTable(
+                            data=df.head(5).to_dict("records"),
+                            columns=[{"name": col, "id": col} for col in df.head(5).columns],
+                            page_size=5,
+                            style_table={"overflowX": "auto"},
                         ),
                     ]
                 ),
@@ -559,8 +557,11 @@ def consolidated_upload_callback(
                             ]),
                             dbc.CardBody([
                                 html.H6("First 5 rows:"),
-                                dbc.Table.from_dataframe(  # type: ignore[attr-defined]
-                                    preview_df, striped=True, bordered=True, hover=True, size="sm"
+                                dash_table.DataTable(
+                                    data=preview_df.to_dict("records"),
+                                    columns=[{"name": col, "id": col} for col in preview_df.columns],
+                                    page_size=5,
+                                    style_table={"overflowX": "auto"},
                                 ),
                                 html.Hr(),
                                 html.P([
@@ -649,8 +650,11 @@ def consolidated_upload_callback(
                                 ]),
                                 dbc.CardBody([
                                     html.H6("First 5 rows:"),
-                                    dbc.Table.from_dataframe(  # type: ignore[attr-defined]
-                                        preview_df, striped=True, bordered=True, hover=True, size="sm"
+                                    dash_table.DataTable(
+                                        data=preview_df.to_dict("records"),
+                                        columns=[{"name": col, "id": col} for col in preview_df.columns],
+                                        page_size=5,
+                                        style_table={"overflowX": "auto"},
                                     ),
                                     html.Hr(),
                                     html.P([html.Strong("Columns: "), ", ".join(df.columns.tolist()[:10])]),
