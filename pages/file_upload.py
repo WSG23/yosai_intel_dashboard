@@ -8,6 +8,7 @@ import base64
 import io
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from typing import Optional, Dict, Any, List
@@ -29,8 +30,85 @@ logger = logging.getLogger(__name__)
 # Initialize device learning service
 learning_service = DeviceLearningService()
 
-# Global storage for uploaded data (in production, use database or session storage)
-_uploaded_data_store: Dict[str, pd.DataFrame] = {}
+
+# -----------------------------------------------------------------------------
+# Persistent Uploaded Data Store
+# -----------------------------------------------------------------------------
+class UploadedDataStore:
+    """Persistent uploaded data store with file system backup."""
+
+    def __init__(self) -> None:
+        self._data_store: Dict[str, pd.DataFrame] = {}
+        self._file_info_store: Dict[str, Dict[str, Any]] = {}
+        self.storage_dir = Path("temp/uploaded_data")
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
+        self._load_from_disk()
+
+    # -- Internal helpers ---------------------------------------------------
+    def _get_file_path(self, filename: str) -> Path:
+        safe_name = filename.replace(" ", "_").replace("/", "_")
+        return self.storage_dir / f"{safe_name}.pkl"
+
+    def _info_path(self) -> Path:
+        return self.storage_dir / "file_info.json"
+
+    def _load_from_disk(self) -> None:
+        try:
+            if self._info_path().exists():
+                with open(self._info_path(), "r") as f:
+                    self._file_info_store = json.load(f)
+            for fname in self._file_info_store.keys():
+                fpath = self._get_file_path(fname)
+                if fpath.exists():
+                    df = pd.read_pickle(fpath)
+                    self._data_store[fname] = df
+                    logger.info(f"Loaded {fname} from disk")
+        except Exception as e:  # pragma: no cover - best effort
+            logger.error(f"Error loading uploaded data: {e}")
+
+    def _save_to_disk(self, filename: str, df: pd.DataFrame) -> None:
+        try:
+            df.to_pickle(self._get_file_path(filename))
+            self._file_info_store[filename] = {
+                "rows": len(df),
+                "columns": len(df.columns),
+                "column_names": list(df.columns),
+                "upload_time": datetime.now().isoformat(),
+                "size_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2),
+            }
+            with open(self._info_path(), "w") as f:
+                json.dump(self._file_info_store, f, indent=2)
+        except Exception as e:  # pragma: no cover - best effort
+            logger.error(f"Error saving uploaded data: {e}")
+
+    # -- Public API ---------------------------------------------------------
+    def add_file(self, filename: str, df: pd.DataFrame) -> None:
+        self._data_store[filename] = df
+        self._save_to_disk(filename, df)
+
+    def get_all_data(self) -> Dict[str, pd.DataFrame]:
+        return self._data_store.copy()
+
+    def get_filenames(self) -> List[str]:
+        return list(self._data_store.keys())
+
+    def get_file_info(self) -> Dict[str, Dict[str, Any]]:
+        return self._file_info_store.copy()
+
+    def clear_all(self) -> None:
+        self._data_store.clear()
+        self._file_info_store.clear()
+        try:
+            for pkl in self.storage_dir.glob("*.pkl"):
+                pkl.unlink()
+            if self._info_path().exists():
+                self._info_path().unlink()
+        except Exception as e:  # pragma: no cover - best effort
+            logger.error(f"Error clearing uploaded data: {e}")
+
+
+# Global persistent storage
+_uploaded_data_store = UploadedDataStore()
 
 
 def analyze_device_name_with_ai(device_name):
@@ -341,19 +419,18 @@ def create_file_preview(df: pd.DataFrame, filename: str) -> dbc.Card | dbc.Alert
 
 
 def get_uploaded_data() -> Dict[str, pd.DataFrame]:
-    """Get all uploaded data (for use by analytics)"""
-    return _uploaded_data_store.copy()
+    """Get all uploaded data (for use by analytics)."""
+    return _uploaded_data_store.get_all_data()
 
 
 def get_uploaded_filenames() -> List[str]:
-    """Get list of uploaded filenames"""
-    return list(_uploaded_data_store.keys())
+    """Get list of uploaded filenames."""
+    return _uploaded_data_store.get_filenames()
 
 
 def clear_uploaded_data():
-    """Clear all uploaded data"""
-    global _uploaded_data_store
-    _uploaded_data_store.clear()
+    """Clear all uploaded data."""
+    _uploaded_data_store.clear_all()
     logger.info("Uploaded data cleared")
 
 
@@ -381,16 +458,8 @@ def get_ai_column_suggestions(columns: List[str]) -> Dict[str, Dict[str, Any]]:
 
 
 def get_file_info() -> Dict[str, Dict[str, Any]]:
-    """Get information about uploaded files"""
-    info = {}
-    for filename, df in _uploaded_data_store.items():
-        info[filename] = {
-            "rows": len(df),
-            "columns": len(df.columns),
-            "column_names": list(df.columns),
-            "size_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2),
-        }
-    return info
+    """Get information about uploaded files."""
+    return _uploaded_data_store.get_file_info()
 
 
 @callback(
@@ -461,13 +530,13 @@ def consolidated_upload_callback(
     # Handle page load restoration FIRST
     if not ctx.triggered or ctx.triggered[0]['prop_id'] == 'url.pathname':
         if pathname == "/file-upload" and _uploaded_data_store:
-            print(f"🔄 Restoring upload state for {len(_uploaded_data_store)} files")
+            print(f"🔄 Restoring upload state for {len(_uploaded_data_store.get_filenames())} files")
 
             upload_results = []
             file_preview_components = []
             current_file_info = {}
 
-            for filename, df in _uploaded_data_store.items():
+            for filename, df in _uploaded_data_store.get_all_data().items():
                 rows = len(df)
                 cols = len(df.columns)
 
@@ -538,7 +607,7 @@ def consolidated_upload_callback(
 
     if "upload-data.contents" in trigger_id and contents_list:
         print("📁 Processing NEW file upload - clearing previous data...")
-        _uploaded_data_store.clear()
+        _uploaded_data_store.clear_all()
 
         if not isinstance(contents_list, list):
             contents_list = [contents_list]
@@ -559,7 +628,7 @@ def consolidated_upload_callback(
                     rows = len(df)
                     cols = len(df.columns)
 
-                    _uploaded_data_store[filename] = df
+                    _uploaded_data_store.add_file(filename, df)
 
                     upload_results.append(
                         dbc.Alert([
