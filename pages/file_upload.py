@@ -8,7 +8,7 @@ from pathlib import Path
 import json
 
 import pandas as pd
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 from dash import html, dcc
 from dash.dash import no_update
 from dash import callback, callback_context
@@ -166,7 +166,7 @@ def layout():
                 [
                     dbc.Col(
                         [
-                            html.H2("\ud83d\udcc1 File Upload"),
+                            html.H2("File Upload"),
                             html.P("Upload CSV, Excel, or JSON files for analysis"),
                             html.Hr(),
                         ]
@@ -345,7 +345,7 @@ def consolidated_upload_callback(
     
     # Handle file upload FIRST and IMMEDIATELY
     if ctx.triggered and "upload-data.contents" in ctx.triggered[0]["prop_id"]:
-        logger.info("\ud83d\udcc1 Processing file upload...")
+        logger.info("Processing file upload...")
         
         # Validate inputs
         if not contents_list or not filenames_list:
@@ -384,7 +384,7 @@ def consolidated_upload_callback(
                     # Create success message
                     upload_results.append(
                         dbc.Alert(
-                            f"\u2705 Successfully uploaded {filename} ({len(df)} rows, {len(df.columns)} columns)",
+                            f"Successfully uploaded {filename} ({len(df)} rows, {len(df.columns)} columns)",
                             color="success",
                             className="mb-2"
                         )
@@ -393,28 +393,28 @@ def consolidated_upload_callback(
                     # Create preview
                     file_preview_components.append(generate_preview(df, filename))
                     
-                    logger.info(f"\u2705 Successfully processed {filename}")
+                    logger.info(f"Successfully processed {filename}")
                     
                 else:
                     # Handle error
                     upload_results.append(
                         dbc.Alert(
-                            f"\u274c Error uploading {filename}: {result['error']}",
+                            f"Error uploading {filename}: {result['error']}",
                             color="danger",
                             className="mb-2"
                         )
                     )
-                    logger.error(f"\u274c Error processing {filename}: {result['error']}")
+                    logger.error(f"Error processing {filename}: {result['error']}")
                     
             except Exception as e:
                 upload_results.append(
                     dbc.Alert(
-                        f"\u274c Exception processing {filename}: {str(e)}",
+                        f"Exception processing {filename}: {str(e)}",
                         color="danger",
                         className="mb-2"
                     )
                 )
-                logger.error(f"\u274c Exception processing {filename}: {e}")
+                logger.error(f"Exception processing {filename}: {e}")
         
         # Create navigation to analytics if successful uploads
         upload_nav = []
@@ -424,7 +424,7 @@ def consolidated_upload_callback(
                     [
                         html.P("File(s) uploaded successfully!", className="mb-2"),
                         dbc.Button(
-                            "\ud83d\udcca Go to Analytics",
+                            "Go to Analytics",
                             href="/deep-analytics",
                             color="primary",
                             className="me-2"
@@ -462,7 +462,7 @@ def consolidated_upload_callback(
     
     # Handle page load restoration
     if pathname in ("/file-upload", "/upload") and _uploaded_data_store.get_filenames():
-        logger.info("\ud83d\udd04 Restoring upload state...")
+        logger.info("Restoring upload state...")
         
         upload_results = []
         file_preview_components = []
@@ -473,7 +473,7 @@ def consolidated_upload_callback(
                 df = df_dict[filename]
                 upload_results.append(
                     dbc.Alert(
-                        f"\ud83d\dce4 Restored: {filename} ({len(df)} rows)",
+                        f"Restored: {filename} ({len(df)} rows)",
                         color="info",
                         className="mb-2"
                     )
@@ -485,7 +485,7 @@ def consolidated_upload_callback(
                 [
                     html.P("Previous uploads restored!", className="mb-2"),
                     dbc.Button(
-                        "\ud83d\udcca Go to Analytics",
+                        "Go to Analytics",
                         href="/deep-analytics",
                         color="primary"
                     ),
@@ -555,10 +555,10 @@ def save_confirmed_device_mappings(
         # Save to learning service database
         learning_service.save_user_device_mappings(filename, user_mappings)
 
-        logger.info(f"\u2705 Saved {len(user_mappings)} confirmed device mappings to database")
+        logger.info(f"Saved {len(user_mappings)} confirmed device mappings to database")
 
         success_alert = dbc.Toast(
-            "\u2705 Device mappings saved to database!",
+            "Device mappings saved to database!",
             header="Confirmed & Saved",
             is_open=True,
             dismissable=True,
@@ -568,9 +568,9 @@ def save_confirmed_device_mappings(
         return success_alert, False, False
 
     except Exception as e:
-        logger.error(f"\u274c Error saving device mappings: {e}")
+        logger.error(f"Error saving device mappings: {e}")
         error_alert = dbc.Toast(
-            f"\u274c Error saving mappings: {e}",
+            f"Error saving mappings: {e}",
             header="Error",
             is_open=True,
             dismissable=True,
@@ -634,4 +634,4 @@ __all__ = [
     "save_ai_training_data",
 ]
 
-logger.info("\ud83d\udd0d FILE_UPLOAD.PY LOADED - Callbacks should be registered")
+logger.info("FILE_UPLOAD.PY LOADED - Callbacks should be registered")
