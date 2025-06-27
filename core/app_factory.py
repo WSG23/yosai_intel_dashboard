@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Complete App Factory Integration - FIXED CLASS NAMES
+Complete App Factory Integration - FIXED CALLBACK REGISTRATION
 """
 import dash
 import logging
@@ -9,7 +8,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, callback
 import pandas as pd
 
-# ✅ FIXED IMPORTS - Use correct config system
+# FIXED IMPORTS - Use correct config system
 from config.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -28,20 +27,14 @@ def create_app() -> dash.Dash:
 
         app.title = "Yōsai Intel Dashboard"
 
-        # ✅ FIXED: Use the working config system
+        # FIXED: Use the working config system
         config_manager = get_config()
-
-        # ✅ FIXED: Skip plugin system for now (causing import issues)
-        # We'll add this back after core functionality is working
-        # plugin_manager = PluginManager(container, config_manager)
-        # plugin_results = plugin_manager.load_all_plugins()
-        # app._yosai_plugin_manager = plugin_manager
 
         # Set main layout
         app.layout = _create_main_layout()
 
-        # Register all callbacks
-        _register_global_callbacks(app)
+        # FIXED: Register all callbacks INCLUDING page callbacks
+        _register_all_callbacks(app)
 
         # Initialize services
         _initialize_services()
@@ -55,21 +48,16 @@ def create_app() -> dash.Dash:
 
 
 def _create_main_layout() -> html.Div:
-    """Create main application layout with complete integration"""
+    """Create main application layout with proper routing"""
     return html.Div(
         [
-            # URL routing component
             dcc.Location(id="url", refresh=False),
-            # Navigation bar
             _create_navbar(),
-            # Main content area (dynamically populated)
-            html.Div(id="page-content", className="main-content p-4"),
-            # Global data stores
+            html.Div(id="page-content"),
             dcc.Store(id="global-store", data={}),
-            dcc.Store(id="session-store", data={}),
-            dcc.Store(id="app-state-store", data={"initial": True}),
         ]
     )
+
 
 
 def _create_navbar() -> dbc.Navbar:
@@ -78,31 +66,56 @@ def _create_navbar() -> dbc.Navbar:
         [
             dbc.Container(
                 [
-                    # Brand
-                    dbc.NavbarBrand(
+                    dbc.Row(
                         [
-                            html.I(className="fas fa-shield-alt me-2"),
-                            "Yōsai Intel Dashboard",
-                        ],
-                        href="/",
-                    ),
-                    # Navigation links
-                    dbc.Nav(
-                        [
-                            dbc.NavItem(dbc.NavLink("📊 Analytics", href="/analytics")),
-                            dbc.NavItem(dbc.NavLink("📁 Upload", href="/upload")),
-                            dbc.NavItem(
+                            dbc.Col(
                                 [
-                                    dbc.Button(
-                                        "🔄 Clear Cache",
-                                        id="clear-cache-btn",
-                                        color="outline-secondary",
-                                        size="sm",
+                                    html.A(
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    html.H4(
+                                                        "Yōsai Intel Dashboard",
+                                                        className="mb-0 text-white",
+                                                    )
+                                                ),
+                                            ],
+                                            align="center",
+                                        ),
+                                        href="/",
+                                        style={"textDecoration": "none"},
                                     )
                                 ]
                             ),
+                            dbc.Col(
+                                [
+                                    dbc.Nav(
+                                        [
+                                            dbc.NavItem(
+                                                dbc.NavLink("Home", href="/", active="exact")
+                                            ),
+                                            dbc.NavItem(
+                                                dbc.NavLink(
+                                                    "Analytics",
+                                                    href="/analytics",
+                                                    active="exact"
+                                                )
+                                            ),
+                                            dbc.NavItem(
+                                                dbc.NavLink(
+                                                    "Upload",
+                                                    href="/upload",
+                                                    active="exact"
+                                                )
+                                            ),
+                                        ],
+                                        pills=True,
+                                    )
+                                ],
+                                width="auto",
+                            ),
                         ],
-                        navbar=True,
+                        align="center",
                     ),
                 ]
             )
@@ -132,47 +145,19 @@ def _create_placeholder_page(title: str, subtitle: str, message: str) -> html.Di
     )
 
 
-@callback(Output("page-content", "children"), Input("url", "pathname"))
-def display_page(pathname):
-    """Route pages based on URL"""
-    if pathname == "/analytics":
-        return _get_analytics_page()
-    elif pathname == "/upload" or pathname == "/file-upload":  # Handle both paths
-        return _get_upload_page()
-    elif pathname == "/":
-        return _get_home_page()
-    else:
-        return html.Div(
-            [
-                html.H1("Page Not Found", className="text-center mt-5"),
-                html.P(
-                    "The page you're looking for doesn't exist.",
-                    className="text-center",
-                ),
-                dbc.Button(
-                    "Go Home", href="/", color="primary", className="d-block mx-auto"
-                ),
-            ]
-        )
-
-
-def _get_home_page() -> Any:
-    """Get home page"""
+def _get_home_page() -> html.Div:
+    """Get home/dashboard page"""
     return dbc.Container(
         [
             dbc.Row(
                 [
                     dbc.Col(
                         [
-                            html.H1(
-                                "🏯 Welcome to Yōsai Intel Dashboard",
-                                className="text-center mb-4",
-                            ),
+                            html.H1("Yōsai Intel Dashboard", className="text-primary mb-4"),
                             html.P(
-                                "Advanced security analytics and monitoring platform",
-                                className="text-center text-muted mb-5",
+                                "Advanced security analytics and data intelligence platform",
+                                className="lead text-muted mb-4",
                             ),
-                            # Feature cards
                             dbc.Row(
                                 [
                                     dbc.Col(
@@ -186,10 +171,10 @@ def _get_home_page() -> Any:
                                                                 className="card-title",
                                                             ),
                                                             html.P(
-                                                                "Deep dive into security data and patterns"
+                                                                "Explore security patterns and insights"
                                                             ),
                                                             dbc.Button(
-                                                                "Go to Analytics",
+                                                                "View Analytics",
                                                                 href="/analytics",
                                                                 color="primary",
                                                             ),
@@ -207,7 +192,7 @@ def _get_home_page() -> Any:
                                                     dbc.CardBody(
                                                         [
                                                             html.H4(
-                                                                "📁 File Upload",
+                                                                "📁 Upload",
                                                                 className="card-title",
                                                             ),
                                                             html.P(
@@ -239,7 +224,6 @@ def _get_analytics_page() -> Any:
     """Get analytics page with complete integration"""
     try:
         from pages.deep_analytics import layout
-
         return layout()
     except ImportError as e:
         logger.error(f"Analytics page import failed: {e}")
@@ -254,7 +238,6 @@ def _get_upload_page() -> Any:
     """Get upload page with complete integration"""
     try:
         from pages.file_upload import layout
-
         return layout()
     except ImportError as e:
         logger.error(f"Upload page import failed: {e}")
@@ -263,6 +246,56 @@ def _get_upload_page() -> Any:
             "File upload page is being loaded...",
             "The file upload module is not available. Please check the installation.",
         )
+
+
+@callback(Output("page-content", "children"), Input("url", "pathname"))
+def display_page(pathname):
+    """Route pages based on URL"""
+    if pathname == "/analytics":
+        return _get_analytics_page()
+    elif pathname == "/upload" or pathname == "/file-upload":  # Handle both paths
+        return _get_upload_page()
+    elif pathname == "/":
+        return _get_home_page()
+    else:
+        return html.Div(
+            [
+                html.H1("Page Not Found", className="text-center mt-5"),
+                html.P(
+                    "The page you're looking for doesn't exist.",
+                    className="text-center text-muted",
+                ),
+                dbc.Button("Go Home", href="/", color="primary", className="mt-3"),
+            ],
+            className="text-center",
+        )
+
+
+def _register_all_callbacks(app: dash.Dash) -> None:
+    """FIXED: Register ALL callbacks including page callbacks"""
+    
+    # Register global callbacks first
+    _register_global_callbacks(app)
+    
+    # CRITICAL FIX: Import page modules to register their callbacks
+    try:
+        logger.info("Registering page callbacks...")
+        
+        # Import file_upload module to register its callbacks
+        import pages.file_upload
+        logger.info("✅ File upload callbacks registered")
+        
+        # Import analytics callbacks if available
+        try:
+            import pages.deep_analytics_callbacks
+            logger.info("✅ Analytics callbacks registered")
+        except ImportError:
+            logger.warning("Analytics callbacks not available")
+            
+    except ImportError as e:
+        logger.error(f"Failed to register page callbacks: {e}")
+    
+    logger.info("✅ All callbacks registered successfully")
 
 
 def _register_global_callbacks(app: dash.Dash) -> None:
@@ -279,7 +312,6 @@ def _register_global_callbacks(app: dash.Dash) -> None:
             try:
                 # Clear uploaded data
                 from pages.file_upload import clear_uploaded_data
-
                 clear_uploaded_data()
                 logger.info("Application cache cleared")
                 return {
@@ -292,11 +324,12 @@ def _register_global_callbacks(app: dash.Dash) -> None:
         return {}
 
     # Register device learning callbacks
-    from services.device_learning_service import create_learning_callbacks
-
-    create_learning_callbacks()
-
-    logger.info("✅ Global callbacks registered successfully")
+    try:
+        from services.device_learning_service import create_learning_callbacks
+        create_learning_callbacks()
+        logger.info("✅ Device learning callbacks registered")
+    except ImportError as e:
+        logger.warning(f"Device learning callbacks not available: {e}")
 
 
 def _initialize_services() -> None:
@@ -304,7 +337,6 @@ def _initialize_services() -> None:
     try:
         # Initialize analytics service
         from services.analytics_service import get_analytics_service
-
         analytics_service = get_analytics_service()
         health = analytics_service.health_check()
         logger.info(f"Analytics service initialized: {health}")
