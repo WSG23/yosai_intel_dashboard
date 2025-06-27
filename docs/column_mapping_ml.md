@@ -1,12 +1,21 @@
 # Machine-Learned Column Mapping
 
 The column mapper can leverage a supervised model to recognize common header variations.
-The provided training script expects a CSV file with `header` and `label` columns.
-Run the following to train a new model:
+Prepare a CSV file with `header` and `label` columns and train a simple model using scikit-learn:
 
-```bash
-python scripts/train_column_classifier.py training_data.csv
+```python
+import joblib
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+training = pd.read_csv('training_data.csv')
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(training['header'])
+clf = MultinomialNB()
+clf.fit(X, training['label'])
+joblib.dump(clf, 'data/column_model.joblib')
+joblib.dump(vectorizer, 'data/column_vectorizer.joblib')
 ```
 
-This creates `data/column_model.joblib` and `data/column_vectorizer.joblib` used by
-`ColumnMappingService` when `learning_enabled` is enabled in the configuration.
+These files will be loaded by `ColumnMappingService` when `learning_enabled` is enabled in the configuration.

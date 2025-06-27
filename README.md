@@ -4,7 +4,7 @@ An AI-powered modular security intelligence dashboard for physical access contro
 
 ## 🏗️ Modular Architecture
 
-This project follows a fully modular architecture for maximum maintainability and testability. See [docs/architecture.md](docs/architecture.md) for an overview diagram. Additional flow diagrams are provided in [docs/data_flow.md](docs/data_flow.md) and [docs/plugin_architecture.md](docs/plugin_architecture.md):
+This project follows a fully modular architecture for maximum maintainability and testability. See [docs/architecture.md](docs/architecture.md) for an overview diagram. Additional flow diagrams are provided in [docs/data_flow.md](docs/data_flow.md), [docs/plugin_architecture.md](docs/plugin_architecture.md), and the new [docs/system_diagram.md](docs/system_diagram.md):
 
 ```
 yosai_intel_dashboard/
@@ -219,6 +219,12 @@ YOSAI_ENV=production python app.py
 YOSAI_CONFIG_FILE=/path/to/custom.yaml python app.py
 ```
 
+### Plugins
+
+Plugins live in the `plugins/` package and are loaded by the `PluginManager` when enabled in `config/config.yaml`.
+To enable a plugin, add it under the `plugins:` section and set `enabled: true`.
+After creating the `PluginManager` in your app factory, call `load_all_plugins()` and `register_plugin_callbacks(app)` to activate them.
+
 ## 📊 Modular Components
 
 ### Database Layer (`config/`)
@@ -266,10 +272,10 @@ If you encounter an error like `"Babel" object has no attribute "localeselector"
 
 ## 🤝 Contributing
 
-1. Ensure all tests pass: `python test_modular_system.py`
-2. Follow type safety guidelines
-3. Maintain modular architecture principles
-4. Update documentation for new features
+1. Ensure all tests pass: `python test_modular_system.py` and `pytest`
+2. Format code with `black` and run `flake8`
+3. Follow type safety guidelines and maintain the modular architecture
+4. Add tests for new functionality and update documentation when applicable
 
 ## 📄 License
 
