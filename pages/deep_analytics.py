@@ -23,6 +23,9 @@ import plotly.graph_objects as go
 
 # Add this import
 from services.analytics_service import AnalyticsService
+from services.file_ingestion import FileIngestionAnalytics
+from services.database_analytics import DatabaseAnalytics
+from services.uploaded_data_analytics import UploadedDataAnalytics
 from components.analytics_ui import get_analysis_buttons_section
 
 # Internal service imports with CORRECTED paths

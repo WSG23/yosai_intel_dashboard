@@ -16,6 +16,11 @@ from .analytics_computation import (
     generate_sample_analytics,
 )
 from .result_formatting import format_dashboard_summary
+from .analytics_helpers import StatsCalculator, DataLoader, AnomalyDetector
+from .analytics_base import AnalyticsModule
+from .file_ingestion import FileIngestionAnalytics
+from .database_analytics import DatabaseAnalytics
+from .uploaded_data_analytics import UploadedDataAnalytics
 
 
 logger = logging.getLogger(__name__)
@@ -30,6 +35,9 @@ class AnalyticsService:
         self.loader = DataLoader()
         self.anomaly_detector = AnomalyDetector()
         self._initialize_database()
+        self.file_ingestion = FileIngestionAnalytics()
+        self.database_analytics = DatabaseAnalytics(self.database_manager)
+        self.uploaded_analytics = UploadedDataAnalytics()
 
     def _initialize_database(self):
         """Initialize database connection"""
@@ -45,109 +53,11 @@ class AnalyticsService:
             self.database_manager = None
 
     def get_analytics_from_uploaded_data(self) -> Dict[str, Any]:
-        """Get analytics from uploaded files using the FIXED file processor"""
+        """Get analytics from uploaded files using the ingestion module."""
         try:
-            # Get uploaded file paths (not pre-processed data)
-            from pages.file_upload import get_uploaded_filenames
-
-            uploaded_files = get_uploaded_filenames()
-
-            if not uploaded_files:
-                return {"status": "no_data", "message": "No uploaded files available"}
-
-            # Use the FIXED FileProcessor to process files
-            from services.file_processor import FileProcessor
-
-            processor = FileProcessor(
-                upload_folder="temp", allowed_extensions={"csv", "json", "xlsx"}
-            )
-
-            all_data: List[pd.DataFrame] = []
-            processing_info: List[str] = []
-            total_records = 0
-
-            # Process each uploaded file with the FIXED processor
-            for file_path in uploaded_files:
-                try:
-                    print(f"[INFO] Processing uploaded file: {file_path}")
-
-                    # Read the file
-                    if file_path.endswith(".csv"):
-                        df = pd.read_csv(file_path)
-                    elif file_path.endswith(".json"):
-                        import json
-
-                        with open(file_path, "r") as f:
-                            json_data = json.load(f)
-                        df = pd.DataFrame(json_data)
-                    elif file_path.endswith((".xlsx", ".xls")):
-                        df = pd.read_excel(file_path)
-                    else:
-                        continue
-
-                    # Use the FIXED validation (which includes column mapping)
-                    validation_result = processor._validate_data(df)
-
-                    if validation_result["valid"]:
-                        processed_df = validation_result.get("data", df)
-                        processed_df["source_file"] = file_path
-                        all_data.append(processed_df)
-                        total_records += len(processed_df)
-                        processing_info.append(
-                            f"✅ {file_path}: {len(processed_df)} records"
-                        )
-                        print(
-                            f"[SUCCESS] Processed {len(processed_df)} records from {file_path}"
-                        )
-                    else:
-                        error_msg = validation_result.get("error", "Unknown error")
-                        processing_info.append(f"❌ {file_path}: {error_msg}")
-                        print(f"[ERROR] Failed to process {file_path}: {error_msg}")
-
-                except Exception as e:
-                    processing_info.append(f"❌ {file_path}: Exception - {str(e)}")
-                    print(f"[ERROR] Exception processing {file_path}: {e}")
-
-            if not all_data:
-                return {
-                    "status": "error",
-                    "message": "No files could be processed successfully",
-                    "processing_info": processing_info,
-                }
-
-            # Combine all successfully processed data
-            combined_df = pd.concat(all_data, ignore_index=True)
-            print(f"[SUCCESS] Combined data: {len(combined_df)} total records")
-
-            # Generate analytics from the properly processed data
-            analytics = generate_basic_analytics(combined_df)
-
-            # Add processing information
-            analytics.update(
-                {
-                    "data_source": "uploaded_files_fixed",
-                    "total_files_processed": len(all_data),
-                    "total_files_attempted": len(uploaded_files),
-                    "processing_info": processing_info,
-                    "total_events": total_records,
-                    "active_users": (
-                        combined_df["person_id"].nunique()
-                        if "person_id" in combined_df.columns
-                        else 0
-                    ),
-                    "active_doors": (
-                        combined_df["door_id"].nunique()
-                        if "door_id" in combined_df.columns
-                        else 0
-                    ),
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-
-            return analytics
-
+            return self.file_ingestion.get_analytics()
         except Exception as e:
-            logger.error(f"Error getting analytics from uploaded data: {e}")
+            logger.error("Error getting analytics from uploaded data: %s", e)
             return {"status": "error", "message": str(e)}
 
     def get_analytics_by_source(self, source: str) -> Dict[str, Any]:
@@ -160,11 +70,11 @@ class AnalyticsService:
             uploaded_data = get_uploaded_data()
 
             if uploaded_data and source in ["uploaded", "sample"]:
-                print(f"🔄 FORCING uploaded data usage (source was: {source})")
+                logger.info("Forcing uploaded data usage (source was: %s)", source)
                 return self._process_uploaded_data_directly(uploaded_data)
 
         except Exception as e:
-            print(f"⚠️ Uploaded data check failed: {e}")
+            logger.warning("Uploaded data check failed: %s", e)
 
         # Original logic for when no uploaded data
         if source == "sample":
@@ -181,112 +91,13 @@ class AnalyticsService:
     ) -> Dict[str, Any]:
         """Process uploaded data directly - bypasses all other logic"""
         try:
-            print(f"📊 PROCESSING {len(uploaded_data)} uploaded files directly...")
-
-            all_dataframes = []
-
-            for filename, df in uploaded_data.items():
-                print(f"   📄 {filename}: {len(df):,} rows")
-                print(f"      Original columns: {list(df.columns)}")
-
-                # YOUR SPECIFIC COLUMN MAPPING
-                df_processed = df.copy()
-                if "Person ID" in df_processed.columns:
-                    df_processed = df_processed.rename(
-                        columns={
-                            "Timestamp": "timestamp",
-                            "Person ID": "person_id",
-                            "Device name": "door_id",
-                            "Access result": "access_result",
-                        }
-                    )
-                    print(f"      ✅ Columns mapped: {list(df_processed.columns)}")
-
-                all_dataframes.append(df_processed)
-
-            # Combine all data
-            combined_df = pd.concat(all_dataframes, ignore_index=True)
-
-            # Calculate metrics
-            total_events = len(combined_df)
-            active_users = (
-                combined_df["person_id"].nunique()
-                if "person_id" in combined_df.columns
-                else 0
-            )
-            active_doors = (
-                combined_df["door_id"].nunique()
-                if "door_id" in combined_df.columns
-                else 0
-            )
-
-            # Calculate proper date range
-            date_range = {"start": "Unknown", "end": "Unknown"}
-            if "timestamp" in combined_df.columns:
-                # Convert timestamp to datetime if it's not already
-                combined_df["timestamp"] = pd.to_datetime(
-                    combined_df["timestamp"], errors="coerce"
-                )
-                valid_timestamps = combined_df["timestamp"].dropna()
-
-                if not valid_timestamps.empty:
-                    start_date = valid_timestamps.min()
-                    end_date = valid_timestamps.max()
-                    date_range = {
-                        "start": start_date.strftime("%Y-%m-%d"),
-                        "end": end_date.strftime("%Y-%m-%d"),
-                    }
-                    print(
-                        f"      📅 Date range: {date_range['start']} to {date_range['end']}"
-                    )
-
-            result = {
-                "status": "success",
-                "total_events": total_events,
-                "active_users": active_users,
-                "active_doors": active_doors,
-                "unique_users": active_users,
-                "unique_doors": active_doors,
-                "data_source": "uploaded",
-                "date_range": date_range,
-                "top_users": (
-                    [
-                        {"user_id": user, "count": int(count)}
-                        for user, count in combined_df["person_id"]
-                        .value_counts()
-                        .head(10)
-                        .items()
-                    ]
-                    if "person_id" in combined_df.columns
-                    else []
-                ),
-                "top_doors": (
-                    [
-                        {"door_id": door, "count": int(count)}
-                        for door, count in combined_df["door_id"]
-                        .value_counts()
-                        .head(10)
-                        .items()
-                    ]
-                    if "door_id" in combined_df.columns
-                    else []
-                ),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            print(f"🎉 DIRECT PROCESSING RESULT:")
-            print(f"   Total Events: {total_events:,}")
-            print(f"   Active Users: {active_users:,}")
-            print(f"   Active Doors: {active_doors:,}")
-
-            return result
-
+            return self.uploaded_analytics.process_uploaded_data(uploaded_data)
         except Exception as e:
-            print(f"❌ Direct processing failed: {e}")
+            logger.error("Direct processing failed: %s", e)
             return {"status": "error", "message": str(e)}
 
     def _get_real_uploaded_data(self) -> Dict[str, Any]:
-        """FIXED: Actually access your uploaded 395K records"""
+        """Process the uploaded records from disk."""
         try:
             from pages.file_upload import get_uploaded_data
 
@@ -294,118 +105,11 @@ class AnalyticsService:
             if not uploaded_data:
                 return {"status": "no_data", "message": "No uploaded files available"}
 
-            print(f"🔍 Processing {len(uploaded_data)} uploaded files...")
-
-            all_dfs = []
-            total_original_rows = 0
-
-            for filename, df in uploaded_data.items():
-                print(f"📄 Processing {filename}: {len(df):,} rows")
-
-                # Map YOUR specific column names (Demo3_data.csv format)
-                column_mapping = {
-                    "Timestamp": "timestamp",
-                    "Person ID": "person_id",
-                    "Token ID": "token_id",
-                    "Device name": "door_id",
-                    "Access result": "access_result",
-                }
-
-                # Apply column mapping
-                df_mapped = df.rename(columns=column_mapping)
-
-                # Clean timestamp
-                if "timestamp" in df_mapped.columns:
-                    df_mapped["timestamp"] = pd.to_datetime(
-                        df_mapped["timestamp"], errors="coerce"
-                    )
-
-                # Clean string columns
-                for col in ["person_id", "door_id", "access_result"]:
-                    if col in df_mapped.columns:
-                        df_mapped[col] = df_mapped[col].astype(str).str.strip()
-
-                all_dfs.append(df_mapped)
-                total_original_rows += len(df)
-                print(f"✅ Mapped columns: {list(df_mapped.columns)}")
-
-            # Combine all data
-            combined_df = pd.concat(all_dfs, ignore_index=True)
-
-            print(f"🎉 COMBINED: {len(combined_df):,} total rows")
-
-            # Generate analytics from YOUR actual data
-            total_events = len(combined_df)
-            active_users = (
-                combined_df["person_id"].nunique()
-                if "person_id" in combined_df.columns
-                else 0
-            )
-            active_doors = (
-                combined_df["door_id"].nunique()
-                if "door_id" in combined_df.columns
-                else 0
-            )
-
-            # Date range
-            date_range = {"start": "Unknown", "end": "Unknown"}
-            if "timestamp" in combined_df.columns:
-                valid_timestamps = combined_df["timestamp"].dropna()
-                if not valid_timestamps.empty:
-                    date_range = {
-                        "start": str(valid_timestamps.min().date()),
-                        "end": str(valid_timestamps.max().date()),
-                    }
-
-            # Access patterns
-            access_patterns = {}
-            if "access_result" in combined_df.columns:
-                access_patterns = combined_df["access_result"].value_counts().to_dict()
-
-            # Top users for display
-            top_users = []
-            if "person_id" in combined_df.columns:
-                user_counts = combined_df["person_id"].value_counts().head(10)
-                top_users = [
-                    {"user_id": user_id, "count": int(count)}
-                    for user_id, count in user_counts.items()
-                ]
-
-            # Top doors for display
-            top_doors = []
-            if "door_id" in combined_df.columns:
-                door_counts = combined_df["door_id"].value_counts().head(10)
-                top_doors = [
-                    {"door_id": door_id, "count": int(count)}
-                    for door_id, count in door_counts.items()
-                ]
-
-            analytics_result = {
-                "total_events": total_events,
-                "active_users": active_users,
-                "active_doors": active_doors,
-                "unique_users": active_users,  # Fallback
-                "unique_doors": active_doors,  # Fallback
-                "data_source": "uploaded",  # CRITICAL: Mark as uploaded
-                "date_range": date_range,
-                "access_patterns": access_patterns,
-                "top_users": top_users,
-                "top_doors": top_doors,
-                "status": "success",
-                "timestamp": datetime.now().isoformat(),
-                "files_processed": len(uploaded_data),
-                "original_total_rows": total_original_rows,
-            }
-
-            print(f"📊 ANALYTICS RESULT:")
-            print(f"   Total Events: {total_events:,}")
-            print(f"   Active Users: {active_users:,}")
-            print(f"   Active Doors: {active_doors:,}")
-
-            return analytics_result
-
+            result = self.uploaded_analytics.process_uploaded_data(uploaded_data)
+            result["files_processed"] = len(uploaded_data)
+            return result
         except Exception as e:
-            logger.error(f"Error processing uploaded data: {e}")
+            logger.error("Error processing uploaded data: %s", e)
             return {
                 "status": "error",
                 "message": f"Error processing uploaded data: {str(e)}",
@@ -475,18 +179,7 @@ class AnalyticsService:
 
     def _get_database_analytics(self) -> Dict[str, Any]:
         """Get analytics from database"""
-        if not self.database_manager:
-            return {"status": "error", "message": "Database not available"}
-
-        try:
-            # Implement database analytics here
-            return {
-                "status": "success",
-                "message": "Database analytics not yet implemented",
-                "timestamp": datetime.now().isoformat(),
-            }
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+        return self.database_analytics.get_analytics()
 
     def get_dashboard_summary(self) -> Dict[str, Any]:
         """Get a basic dashboard summary"""
@@ -606,7 +299,7 @@ class AnalyticsService:
                 return {"status": "no_data", "message": "No uploaded data available"}
 
         except Exception as e:
-            print(f"❌ Error in get_unique_patterns_analysis: {e}")
+            logger.error("Error in get_unique_patterns_analysis: %s", e)
             return {"status": "error", "message": str(e)}
 
     def health_check(self) -> Dict[str, Any]:

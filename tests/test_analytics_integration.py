@@ -6,6 +6,9 @@ import pytest
 pytest.importorskip("pandas")
 import pandas as pd
 from services.analytics_service import get_analytics_service
+from services.file_ingestion import FileIngestionAnalytics
+from services.database_analytics import DatabaseAnalytics
+from services.uploaded_data_analytics import UploadedDataAnalytics
 from models.base import ModelFactory
 
 
